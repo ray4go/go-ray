@@ -1,13 +1,8 @@
 package main
 
 import (
-	"bytes"
-	"encoding/gob"
-	"encoding/json"
 	"fmt"
 	"log"
-	"reflect"
-	"strings"
 
 	"github.com/ray4go/go-ray/ffi"
 )
@@ -49,30 +44,7 @@ func handleStartDriver(_ int64, data []byte) []byte {
 
 func handleRunTask(taskIndex int64, data []byte) []byte {
 	taskFunc := taskFuncs[taskIndex]
-	var args []any
-	decode(data, &args)
-	res := funcCall(taskFunc, args)
-	return encode(res)
-}
-
-func funcCall(fun any, args []any) []any {
-	fmt.Println("[Go] funcCall:", fun, args)
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println("funcCall panic:", err)
-		}
-	}()
-	funcVal := reflect.ValueOf(fun)
-	argVals := make([]reflect.Value, len(args))
-	for i, arg := range args {
-		argVals[i] = reflect.ValueOf(arg)
-	}
-	result := funcVal.Call(argVals)
-	results := make([]any, len(result))
-	for i, r := range result {
-		results[i] = r.Interface()
-	}
-	return results
+	return funcCall(taskFunc, data)
 }
 
 var py2GoCmdHandlers = map[int64]func(int64, []byte) []byte{
@@ -94,51 +66,15 @@ func handlePythonCmd(cmd int64, data []byte) []byte {
 
 func RemoteCall(funcId int64, args ...any) ObjectRef {
 	fmt.Printf("[Go] RemoteCall %v %#v\n", funcId, args)
-	data := encode(args)
+	data := encodeArgs(args)
 	cmd := Go2PyCmd_ExeRemoteTask | funcId<<10
 	res := ffi.CallServer(cmd, data)
 	return ObjectRef(res)
 }
 
-func GetObjects(objs []ObjectRef) []string {
-	fmt.Printf("[Go] GetObjects %v\n", objs)
-
-	strs := make([]string, len(objs))
-	for i, v := range objs {
-		strs[i] = string(v)
-	}
-	data := strings.Join(strs, ",")
-	out := ffi.CallServer(Go2PyCmd_GetObjects, []byte(data))
-
-	var res []string
-	json.Unmarshal(out, &strs)
-	return res
-}
-
 func Get(obj ObjectRef) any {
 	fmt.Printf("[Go] Get ObjectRef(%#v)\n", obj)
-	res := ffi.CallServer(Go2PyCmd_GetObjects, []byte(obj))
-	var out []any
-	decode(res, &out)
-	return out[0]
-}
-
-func encode(data any) []byte {
-	var buffer bytes.Buffer
-	enc := gob.NewEncoder(&buffer)
-	err := enc.Encode(data)
-	if err != nil {
-		log.Fatal("gob encode error:", err)
-	}
-	return buffer.Bytes()
-}
-
-func decode(data []byte, out any) {
-	var buffer bytes.Buffer
-	buffer.Write(data)
-	dec := gob.NewDecoder(&buffer)
-	err := dec.Decode(out)
-	if err != nil {
-		log.Fatal("gob decode error:", err)
-	}
+	data := ffi.CallServer(Go2PyCmd_GetObjects, []byte(obj))
+	res := decodeResult(data)
+	return res[0]
 }
