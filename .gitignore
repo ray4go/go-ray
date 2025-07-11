@@ -1,0 +1,8 @@
+.vscode
+lib/
+*.bin
+build/
+test_/
+*.so
+*.h
+*.pyc
