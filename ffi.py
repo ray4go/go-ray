@@ -11,6 +11,7 @@ __all__ = [
     'execute',
 ]
 
+print(os.listdir('.'))
 lib_path = "./lib/callback_demo.so"
 go_lib = ctypes.CDLL(lib_path)
 
@@ -92,9 +93,9 @@ def register_handler(handle_func):
     if _has_register:
         return
     _handle_func = handle_func
-    print("[Python] register callback")
+    print("[py:ffi] register callback")
     register_callback_func(_c_callback)
-    print("[Python] register callback done")
+    print("[py:ffi] register callback done")
     _has_register = True
 
 

@@ -56,11 +56,12 @@ func RegisterHandler(handler_ func(int64, []byte) []byte) {
 
 //export ResigterCallback
 func ResigterCallback(callback C.ComplexCallbackFunc) {
-	fmt.Printf("[Go] Get callback\n")
+	fmt.Printf("[Go:ffi] Get callback\n")
 	serverCallback = callback
 }
 
 func CallServer(cmd int64, data []byte) []byte {
+	fmt.Printf("[Go:ffi] CallServer cmd: %v, len(data)=%d\n", cmd, len(data))
 	// 1. 确保回调函数已注册
 	if serverCallback == nil {
 		panic("Callback function not registered")
@@ -97,7 +98,7 @@ func CallServer(cmd int64, data []byte) []byte {
 //
 //export Execute
 func Execute(cmd C.longlong, in_data unsafe.Pointer, data_len C.longlong, out_len *C.longlong) unsafe.Pointer {
-	fmt.Printf("[Go] Execute %v %v\n", cmd, handler)
+	fmt.Printf("[Go:ffi] Execute cmd: %v\n", cmd)
 	if handler == nil {
 		<-handlerReadyChan // wait for handler to be set
 	}

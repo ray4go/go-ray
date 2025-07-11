@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"log"
+	"reflect"
 	"strings"
-	"time"
 
 	"github.com/ray4go/go-ray/ffi"
 )
@@ -31,6 +34,7 @@ const (
 )
 
 func Init(driverFunc_ func(), taskFuncs_ ...any) {
+	log.SetFlags(log.Lshortfile)
 	fmt.Printf("[Go] Init %v %v\n", driverFunc_, taskFuncs_)
 	driverFunc = driverFunc_
 	taskFuncs = taskFuncs_
@@ -45,15 +49,30 @@ func handleStartDriver(_ int64, data []byte) []byte {
 
 func handleRunTask(taskIndex int64, data []byte) []byte {
 	taskFunc := taskFuncs[taskIndex]
-	var res []byte
-	f, ok := taskFunc.(func([]byte) []byte)
-	if ok {
-		res = f(data)
-	} else {
-		fmt.Printf("[Go] Error: handlePythonCmd invalid taskFunc %v\n", taskFunc)
-		panic("invalid taskFunc")
+	var args []any
+	decode(data, &args)
+	res := funcCall(taskFunc, args)
+	return encode(res)
+}
+
+func funcCall(fun any, args []any) []any {
+	fmt.Println("[Go] funcCall:", fun, args)
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println("funcCall panic:", err)
+		}
+	}()
+	funcVal := reflect.ValueOf(fun)
+	argVals := make([]reflect.Value, len(args))
+	for i, arg := range args {
+		argVals[i] = reflect.ValueOf(arg)
 	}
-	return res
+	result := funcVal.Call(argVals)
+	results := make([]any, len(result))
+	for i, r := range result {
+		results[i] = r.Interface()
+	}
+	return results
 }
 
 var py2GoCmdHandlers = map[int64]func(int64, []byte) []byte{
@@ -68,14 +87,14 @@ func handlePythonCmd(cmd int64, data []byte) []byte {
 
 	handler, ok := py2GoCmdHandlers[cmdId]
 	if !ok {
-		fmt.Printf("[Go] Error: handlePythonCmd invalid cmdId %v\n", cmdId)
-		panic("invalid cmdId")
+		log.Fatalf("[Go] Error: handlePythonCmd invalid cmdId %v\n", cmdId)
 	}
 	return handler(index, data)
 }
 
-func Remote(funcId int64, data []byte) ObjectRef {
-	fmt.Printf("[Go] Remote %v\n", funcId)
+func RemoteCall(funcId int64, args ...any) ObjectRef {
+	fmt.Printf("[Go] RemoteCall %v %#v\n", funcId, args)
+	data := encode(args)
 	cmd := Go2PyCmd_ExeRemoteTask | funcId<<10
 	res := ffi.CallServer(cmd, data)
 	return ObjectRef(res)
@@ -96,44 +115,30 @@ func GetObjects(objs []ObjectRef) []string {
 	return res
 }
 
-func Get(obj ObjectRef) []byte {
-	fmt.Printf("[Go] Get %v\n", obj)
+func Get(obj ObjectRef) any {
+	fmt.Printf("[Go] Get ObjectRef(%#v)\n", obj)
 	res := ffi.CallServer(Go2PyCmd_GetObjects, []byte(obj))
-	return res
+	var out []any
+	decode(res, &out)
+	return out[0]
 }
 
-// -------------------------------------------------------
-func init() {
-	Init(driver, task1, task2)
-}
-
-func driver() {
-	f1 := Remote(0, []byte("Hello Python!"))
-
-	res := GetObjects([]ObjectRef{f1})
-	fmt.Printf("[Go] f1: %s\n", res)
-}
-
-func task1(data []byte) []byte {
-	fmt.Println("[Go] task1")
-	time.Sleep(1 * time.Second)
-	res := make([]byte, len(data))
-	for i, v := range data {
-		res[i] = (v + 1) % byte(255)
+func encode(data any) []byte {
+	var buffer bytes.Buffer
+	enc := gob.NewEncoder(&buffer)
+	err := enc.Encode(data)
+	if err != nil {
+		log.Fatal("gob encode error:", err)
 	}
-
-	f2 := Remote(1, []byte("Hello Python!"))
-	f2res := GetObjects([]ObjectRef{f2})
-	fmt.Printf("[Go] f2: %s\n", f2res)
-	return res
+	return buffer.Bytes()
 }
 
-func task2(data []byte) []byte {
-	fmt.Println("[Go] task2")
-	time.Sleep(1 * time.Second)
-	return []byte(fmt.Sprintf("%v", data))
-}
-
-func main() {
-	fmt.Printf("[Go] main\n")
+func decode(data []byte, out any) {
+	var buffer bytes.Buffer
+	buffer.Write(data)
+	dec := gob.NewDecoder(&buffer)
+	err := dec.Decode(out)
+	if err != nil {
+		log.Fatal("gob decode error:", err)
+	}
 }
