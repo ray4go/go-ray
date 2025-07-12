@@ -8,55 +8,84 @@ import (
 	"reflect"
 )
 
-func encodeArgs(args []any) []byte {
-	return encode(args)
+func encodeArgs(method reflect.Method, args []any) []byte {
+	if len(args) != (method.Type.NumIn() - 1) {
+		log.Fatalf("encodeArgs [%#v]: args length not match, given %v, expect %v", method, len(args), method.Type.NumIn()-1)
+	}
+	data, err := encodeSlice(args)
+	if err != nil {
+		log.Fatalf("encodeArgs [%#v]: encodeSlice error: %v", method, err)
+	}
+	return data
 }
 
-func funcCall(fun any, rawArgs []byte) []byte {
-	var args []any
-	decode(rawArgs, &args)
+func decodeArgs(method reflect.Method, rawArgs []byte) []any {
+	argTypes := make([]reflect.Type, 0, method.Type.NumIn()-1)
+	for i := 1; i < method.Type.NumIn(); i++ {
+		argTypes = append(argTypes, method.Type.In(i))
+	}
+	return decodeWithTypes(rawArgs, argTypes)
+}
 
-	fmt.Println("[Go] funcCall:", fun, args)
+func funcCall(rcvrVal reflect.Value, method reflect.Method, rawArgs []byte) []byte {
+	args := decodeArgs(method, rawArgs)
+	fmt.Println("[Go] funcCall:", method.Name, args)
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println("funcCall panic:", err)
 		}
 	}()
-	funcVal := reflect.ValueOf(fun)
-	argVals := make([]reflect.Value, len(args))
+
+	funcVal := method.Func
+	argVals := make([]reflect.Value, len(args)+1)
+	argVals[0] = rcvrVal
 	for i, arg := range args {
-		argVals[i] = reflect.ValueOf(arg)
+		argVals[i+1] = reflect.ValueOf(arg)
 	}
-	result := funcVal.Call(argVals)
-	results := make([]any, len(result))
-	for i, r := range result {
-		results[i] = r.Interface()
+	returnValues := funcVal.Call(argVals)
+	results := make([]any, len(returnValues))
+	for i, res := range returnValues {
+		results[i] = res.Interface()
 	}
-	return encode(results)
+	data, err := encodeSlice(results)
+	if err != nil {
+		log.Fatalf("encode return value (%#v) error: %v", results, err)
+	}
+	return data
 }
 
-func decodeResult(result []byte) []any {
-	var out []any
-	decode(result, &out)
-	return out
+func decodeResult(method reflect.Method, rawResult []byte) []any {
+	retTypes := make([]reflect.Type, 0, method.Type.NumOut())
+	for i := 0; i < method.Type.NumOut(); i++ {
+		retTypes = append(retTypes, method.Type.Out(i))
+	}
+	return decodeWithTypes(rawResult, retTypes)
 }
 
-func encode(data any) []byte {
+func encodeSlice(items []any) ([]byte, error) {
 	var buffer bytes.Buffer
 	enc := gob.NewEncoder(&buffer)
-	err := enc.Encode(data)
-	if err != nil {
-		log.Fatal("gob encode error:", err)
+	for _, item := range items {
+		err := enc.Encode(item)
+		if err != nil {
+			return nil, fmt.Errorf("gob encode item %#v error: %v", item, err)
+		}
 	}
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
-func decode(data []byte, out any) {
+func decodeWithTypes(data []byte, types []reflect.Type) []any {
 	var buffer bytes.Buffer
 	buffer.Write(data)
 	dec := gob.NewDecoder(&buffer)
-	err := dec.Decode(out)
-	if err != nil {
-		log.Fatal("gob decode error:", err)
+	outs := make([]any, 0, len(types))
+	for _, typ := range types {
+		item := reflect.New(typ)
+		err := dec.Decode(item.Interface())
+		if err != nil {
+			log.Fatalf("gob decode type %#v error: %v", typ, err)
+		}
+		outs = append(outs, item.Elem().Interface())
 	}
+	return outs
 }
