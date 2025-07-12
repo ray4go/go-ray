@@ -137,10 +137,28 @@ func RemoteCall(name string, args ...any) ObjectRef {
 	}
 }
 
-func Get(obj ObjectRef) any {
+// GetAll returns all return values of the given ObjectRefs.
+func GetAll(obj ObjectRef) []any {
 	fmt.Printf("[Go] Get ObjectRef(%#v)\n", obj.id)
 	data := ffi.CallServer(Go2PyCmd_GetObjects, []byte(obj.id))
 	taskFunc := taskFuncs[obj.taskIndex]
 	res := decodeResult(taskFunc, data)
+	return res
+}
+
+// Get returns the first return value of the given ObjectRefs.
+func Get(obj ObjectRef) any {
+	res := GetAll(obj)
+	if len(res) == 0 {
+		return nil
+	}
 	return res[0]
+}
+
+func Get2(obj ObjectRef) (any, any) {
+	res := GetAll(obj)
+	if len(res) < 2 {
+		fmt.Println("[Go] Get2: len(res) < 2")
+	}
+	return res[0], res[1]
 }
