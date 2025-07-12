@@ -20,6 +20,7 @@ import socket
 import enum
 import functools
 import json
+import pickle
 
 cmdBitsLen = 10
 cmdBitsMask = (1 << cmdBitsLen) - 1
@@ -46,6 +47,11 @@ def ray_run_task(func_id: int, data: bytes) -> bytes:
         
     return local_run_task(func_id, data)
 
+@ray.remote
+def show(data):
+    # debug
+    print('='*10, data)
+
 def local_run_task(func_id: int, data: bytes) -> bytes:
     cmd = Py2GoCmd.CMD_RUN_TASK | func_id << cmdBitsLen
     try:
@@ -60,26 +66,39 @@ def handle_init(data: bytes, extra: int) -> bytes:
     print(f"[py] init")
     return b''
 
-def handle_run_remote_task(data: bytes, func_id: int) -> bytes:
-    fut = ray_run_task.remote(func_id, data)
-    return fut.hex().encode('utf-8') 
 
-futures = {}
-def handle_run_local_task(data: bytes, func_id: int) -> bytes:
-    data = local_run_task(func_id, data)
-    fut = len(futures)
-    futures[fut] = data
-    return str(fut).encode('utf-8') 
+_futures = {}
+
+def handle_run_remote_task(data: bytes, bitmap: int) -> bytes:
+    func_id = bitmap & ((1 << 22) - 1)
+    option_len = bitmap >> 22
+    options = json.loads(data[-option_len:])
+    print(f"[py] run remote task {func_id}, {options=}")
+    fut = ray_run_task.options(**options).remote(func_id, data[:-option_len])
+    _futures[fut.hex()] = fut  # make future outlive the task
+    args = dict(id=fut.binary(), owner_addr=fut.owner_address(), call_site_data=fut.call_site())
+    return pickle.dumps(args)
 
 
 def handle_get_objects(data: bytes, extra: int) -> bytes:
-    object_ids = data.decode('utf-8').split(',')
-    fs = [
-        ray._raylet.ObjectRef(bytes.fromhex(fut))
-        for fut in object_ids
-    ]
-    res = ray.get(fs)
-    return b''.join(res)
+    # ray._raylet.ObjectRef(id:bytes, owner_addr=u'', call_site_data=u'', skip_adding_local_ref=False)
+    obj_args = pickle.loads(data)
+    obj_ref = ray._raylet.ObjectRef(**obj_args)
+    if obj_ref.hex() in _futures:
+        obj_ref = _futures[obj_ref.hex()]  # seems not necessary
+    # show.remote(obj_ref)
+    print(f"[Py] get obj {obj_ref.hex()}")
+    return ray.get(obj_ref)
+
+
+futures = {}
+def handle_run_local_task(data: bytes, bitmap: int) -> bytes:
+    func_id = bitmap & ((1 << 22) - 1)
+    option_len = bitmap >> 22
+    ret = local_run_task(func_id, data[:-option_len])
+    fut = len(futures)
+    futures[fut] = ret
+    return str(fut).encode('utf-8') 
 
 
 def handle_get_local_objects(data: bytes, index: int) -> bytes:
@@ -114,6 +133,9 @@ if __name__ == "__main__":
 
     if 'local' == sys.argv[-1]:
         ffi.register_handler(functools.partial(handle, local_handlers))
+    elif 'local-ray' == sys.argv[-1]:
+        ray.init()
+        ffi.register_handler(functools.partial(handle, ray_handlers))
     else:
         ray.init(address='auto')
         ffi.register_handler(functools.partial(handle, ray_handlers))

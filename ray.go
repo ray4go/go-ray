@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/token"
 	"log"
@@ -24,8 +25,8 @@ const (
 )
 
 type ObjectRef struct {
-	id        string
 	taskIndex int
+	pydata    []byte
 }
 
 var (
@@ -124,23 +125,67 @@ func handlePythonCmd(cmd int64, data []byte) []byte {
 	return handler(index, data)
 }
 
-func RemoteCall(name string, args ...any) ObjectRef {
-	fmt.Printf("[Go] RemoteCall %s %#v\n", name, args)
+type TaskOption struct {
+	name  string
+	value any
+}
+
+func WithTaskOption(name string, value any) *TaskOption {
+	return &TaskOption{
+		name:  name,
+		value: value,
+	}
+}
+
+func splitArgsAndOptions(items []any) ([]any, []*TaskOption) {
+	args := make([]any, 0, len(items))
+	opts := make([]*TaskOption, 0, len(items))
+	for _, item := range items {
+		if opt, ok := item.(*TaskOption); ok {
+			opts = append(opts, opt)
+		} else {
+			args = append(args, item)
+		}
+	}
+	return args, opts
+}
+
+func encodeOptions(opts []*TaskOption) []byte {
+	kvs := make(map[string]any)
+	for _, opt := range opts {
+		kvs[opt.name] = opt.value
+	}
+	data, err := json.Marshal(kvs)
+	if err != nil {
+		log.Panicf("Error encoding options to JSON: %v", err)
+	}
+	return data
+}
+
+func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
+	fmt.Printf("[Go] RemoteCall %s %#v\n", name, argsAndOpts)
 	funcId := tasksName2Idx[name]
 	taskFunc := taskFuncs[funcId]
-	data := encodeArgs(taskFunc, args)
-	cmd := Go2PyCmd_ExeRemoteTask | int64(funcId)<<cmdBitsLen
-	res := ffi.CallServer(cmd, data)
+	args, opts := splitArgsAndOptions(argsAndOpts)
+	argData := encodeArgs(taskFunc, args)
+	optData := encodeOptions(opts)
+	data := append(argData, optData...) // TODO: optimize the memory allocation
+
+	// request bitmap layout (64 bits, LSB first)
+	// | cmdId   | taskIndex | optionLength |
+	// | 10 bits | 22 bits   | 32 bits      |
+	request := Go2PyCmd_ExeRemoteTask | int64(funcId)<<cmdBitsLen | int64(len(optData))<<32
+	res := ffi.CallServer(request, data)
 	return ObjectRef{
-		id:        string(res),
+		pydata:    res,
 		taskIndex: funcId,
 	}
 }
 
 // GetAll returns all return values of the given ObjectRefs.
 func GetAll(obj ObjectRef) []any {
-	fmt.Printf("[Go] Get ObjectRef(%#v)\n", obj.id)
-	data := ffi.CallServer(Go2PyCmd_GetObjects, []byte(obj.id))
+	fmt.Printf("[Go] Get ObjectRef(%v)\n", obj.taskIndex)
+	data := ffi.CallServer(Go2PyCmd_GetObjects, obj.pydata)
 	taskFunc := taskFuncs[obj.taskIndex]
 	res := decodeResult(taskFunc, data)
 	return res
