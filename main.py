@@ -37,7 +37,7 @@ class Py2GoCmd(enum.IntEnum):
 
 
 @ray.remote
-def ray_run_task(func_id: int, data: bytes) -> bytes:
+def ray_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
     global _has_init
     _has_init = globals().get("_has_init", False)
     if not _has_init:
@@ -47,30 +47,30 @@ def ray_run_task(func_id: int, data: bytes) -> bytes:
         
     return local_run_task(func_id, data)
 
-
 @ray.remote
 def show(data):
     # debug
     print('='*10, data)
 
-def local_run_task(func_id: int, data: bytes) -> bytes:
+def local_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
     cmd = Py2GoCmd.CMD_RUN_TASK | func_id << cmdBitsLen
     try:
         res, code = ffi.execute(cmd, data)
+        print(f"[py] local_run_task {func_id=}, {res=} {code=}")
     except Exception as e:
         logging.exception(f"[py] execute error {e}")
-        return b''
-    return res
+        return f"[goray error] python ffi.execute() error: {e}".encode('utf-8'), 1
+    return res, code
 
 
-def handle_init(data: bytes, extra: int) -> bytes:
+def handle_init(data: bytes, extra: int) -> tuple[bytes, int]:
     print(f"[py] init")
-    return b''
+    return b'', 0
 
 
 _futures = {}
 
-def handle_run_remote_task(data: bytes, bitmap: int) -> bytes:
+def handle_run_remote_task(data: bytes, bitmap: int) -> tuple[bytes, int]:
     func_id = bitmap & ((1 << 22) - 1)
     option_len = bitmap >> 22
     options = json.loads(data[-option_len:])
@@ -78,10 +78,10 @@ def handle_run_remote_task(data: bytes, bitmap: int) -> bytes:
     fut = ray_run_task.options(**options).remote(func_id, data[:-option_len])
     _futures[fut.hex()] = fut  # make future outlive this function
     args = dict(id=fut.binary(), owner_addr=fut.owner_address(), call_site_data=fut.call_site())
-    return pickle.dumps(args)
+    return pickle.dumps(args), 0
 
 
-def handle_get_objects(data: bytes, extra: int) -> bytes:
+def handle_get_objects(data: bytes, _: int) -> tuple[bytes, int]:
     # ray._raylet.ObjectRef(id:bytes, owner_addr=u'', call_site_data=u'', skip_adding_local_ref=False)
     obj_args = pickle.loads(data)
     obj_ref = ray._raylet.ObjectRef(**obj_args)
@@ -89,22 +89,23 @@ def handle_get_objects(data: bytes, extra: int) -> bytes:
         obj_ref = _futures[obj_ref.hex()]  # seems not necessary
     # show.remote(obj_ref)
     print(f"[Py] get obj {obj_ref.hex()}")
-    return ray.get(obj_ref)
+    res, code = ray.get(obj_ref)
+    return res, code
 
 
-futures = {}
-def handle_run_local_task(data: bytes, bitmap: int) -> bytes:
+futures:dict[int, tuple[bytes, int]] = {}
+def handle_run_local_task(data: bytes, bitmap: int) -> tuple[bytes, int]:
     func_id = bitmap & ((1 << 22) - 1)
     option_len = bitmap >> 22
     ret = local_run_task(func_id, data[:-option_len])
     fut = len(futures)
     futures[fut] = ret
-    return str(fut).encode('utf-8') 
+    return str(fut).encode('utf-8'), 0
 
 
-def handle_get_local_objects(data: bytes, index: int) -> bytes:
-    res = [futures[int(i)] for i in data.decode('utf-8').split(',')]
-    return b''.join(res)
+def handle_get_local_objects(data: bytes, index: int) -> tuple[bytes, int]:
+    future_id = int(data.decode('utf-8'))
+    return futures[future_id]
 
 
 ray_handlers = {
@@ -123,10 +124,10 @@ def handle(hanlers, cmd: int, data: bytes) -> tuple[bytes, int]:
     print(f"[py] handle {Go2PyCmd(cmd).name}, {index=}, {len(data)=}, {threading.current_thread().name}")
     func = hanlers[cmd]
     try:
-        return func(data, index), 0
+        return func(data, index)
     except Exception as e:
         logging.exception(f"[py] handle {Go2PyCmd(cmd).name} error {e}")
-        return b''
+        return b'', 0
 
 
 if __name__ == "__main__":
@@ -142,7 +143,11 @@ if __name__ == "__main__":
         ffi.register_handler(functools.partial(handle, ray_handlers))
 
     try:
-        ffi.execute(Py2GoCmd.CMD_START_DRIVER, b'')
+        data, code = ffi.execute(Py2GoCmd.CMD_START_DRIVER, b'')
+        if code != 0:
+            err_msg = data.decode('utf-8')
+            print(f"[py] driver error[{code}]: {err_msg}")
+            exit(1)
     except KeyboardInterrupt:
         print("Exiting...")
 

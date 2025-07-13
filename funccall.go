@@ -10,11 +10,11 @@ import (
 
 func encodeArgs(method reflect.Method, args []any) []byte {
 	if len(args) != (method.Type.NumIn() - 1) {
-		log.Fatalf("encodeArgs [%#v]: args length not match, given %v, expect %v", method, len(args), method.Type.NumIn()-1)
+		log.Panicf("encodeArgs [%#v]: args length not match, given %v, expect %v", method, len(args), method.Type.NumIn()-1)
 	}
 	data, err := encodeSlice(args)
 	if err != nil {
-		log.Fatalf("encodeArgs [%#v]: encodeSlice error: %v", method, err)
+		log.Panicf("encodeArgs [%#v]: encodeSlice error: %v", method, err)
 	}
 	return data
 }
@@ -30,11 +30,6 @@ func decodeArgs(method reflect.Method, rawArgs []byte) []any {
 func funcCall(rcvrVal reflect.Value, method reflect.Method, rawArgs []byte) []byte {
 	args := decodeArgs(method, rawArgs)
 	fmt.Println("[Go] funcCall:", method.Name, args)
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println("funcCall panic:", err)
-		}
-	}()
 
 	funcVal := method.Func
 	argVals := make([]reflect.Value, len(args)+1)
@@ -49,7 +44,7 @@ func funcCall(rcvrVal reflect.Value, method reflect.Method, rawArgs []byte) []by
 	}
 	data, err := encodeSlice(results)
 	if err != nil {
-		log.Fatalf("encode return value (%#v) error: %v", results, err)
+		log.Panicf("encode return value (%#v) error: %v", results, err)
 	}
 	return data
 }
@@ -83,7 +78,7 @@ func decodeWithTypes(data []byte, types []reflect.Type) []any {
 		item := reflect.New(typ)
 		err := dec.Decode(item.Interface())
 		if err != nil {
-			log.Fatalf("gob decode type %#v error: %v", typ, err)
+			log.Panicf("gob decode type %#v error: %v", typ.Name(), err)
 		}
 		outs = append(outs, item.Elem().Interface())
 	}

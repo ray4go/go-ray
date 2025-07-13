@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 )
 
 func assert(a, b any) {
@@ -17,27 +18,53 @@ type Point struct {
 	X, Y int
 }
 
+type Error string
+
 func init() {
-	Init(driver, export{})
+	Init(driver2, export{})
 	// gob.Register(Point{})
 }
 
-func driver() {
-	point := RemoteCall("AddPoints", []Point{{1, 2}, {3, 4}})
-	fmt.Println("AddPoints:", Get(point))
-	dis := RemoteCall("Distance", Point{1, 2}, Point{3, 4})
-	fmt.Println("Distance:", Get(dis))
+func driver2() {
+	res1 := RemoteCall("Hello", "2cpu", WithTaskOption("num_cpus", 2))
+	res2 := RemoteCall("Hello", "1cpu", WithTaskOption("num_cpus", 1))
+	res3 := RemoteCall("Hello", "1cpu", WithTaskOption("num_cpus", 1))
+	r, err := Get(res1)
+	fmt.Printf("res1: %#v  %#v\n", r, err)
+	Get(res2)
+	Get(res3)
 
-	f1 := RemoteCall("Add", 2, 3)
-	res := Get(f1)
-	assert(res, int64(5))
+	panic("test panic")
+	res := RemoteCall("MultiReturn")
+	// fmt.Printf("res: %#v\n", Get(res))
+	a, b, err := Get2(res)
+	fmt.Printf("a: %#v, b: %#v  err:%v\n", a, b, err)
 
-	f2 := RemoteCall("Task", 2)
-	res2 := Get(f2)
-	fmt.Println(res2)
+	res = RemoteCall("Error")
+	// fmt.Printf("res: %#v\n", Get(res).(Error))
 }
 
 type export struct{}
+
+func (_ export) Hello(info string) string {
+	panic("test panic")
+	host, _ := os.Hostname()
+	fmt.Printf("[%s] %s\n", host, info)
+	return info
+}
+
+func (_ export) Nil(a, b int64) {
+	fmt.Println("Nil")
+	return
+}
+
+func (_ export) Error() Error {
+	return Error("test error")
+}
+
+func (_ export) MultiReturn() (int, string) {
+	return 2, "test"
+}
 
 func (_ export) Add(a, b int64) int64 {
 	return a + b
@@ -47,7 +74,8 @@ func (_ export) Task(n int) string {
 	res := ""
 	for i := 0; i < n; i++ {
 		res_ref := RemoteCall("Convert", i, i+1)
-		res += Get(res_ref).(string)
+		r, _ := Get(res_ref)
+		res += r.(string)
 	}
 	return res
 }
@@ -62,6 +90,8 @@ func (_ export) Distance(a, b Point) float64 {
 }
 
 func (_ export) AddPoints(points []Point) Point {
+	host, _ := os.Hostname()
+	fmt.Println("remote AddPoints", host)
 	res := Point{}
 	for _, p := range points {
 		res.X += p.X

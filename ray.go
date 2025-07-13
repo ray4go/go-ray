@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"log"
 	"reflect"
+	"runtime/debug"
 
 	"github.com/ray4go/go-ray/ffi"
 )
@@ -98,31 +99,47 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 	return token.IsExported(t.Name()) || t.PkgPath() == ""
 }
 
-func handleStartDriver(_ int64, data []byte) []byte {
+func handleStartDriver(_ int64, _ []byte) (res []byte, retCode int64) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("Driver panic: %v\n%s\n", err, debug.Stack())
+			retCode = 1
+			res = []byte(fmt.Sprintf("panic when run driver: %v", err))
+		}
+	}()
 	driverFunc()
-	return []byte{}
+	return []byte{}, 0
 }
 
-func handleRunTask(taskIndex int64, data []byte) []byte {
+func handleRunTask(taskIndex int64, data []byte) (res []byte, retCode int64) {
 	taskFunc := taskFuncs[taskIndex]
-	return funcCall(taskRcvrVal, taskFunc, data)
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("funcCall panic: %v\n%s\n", err, debug.Stack())
+			retCode = 1
+			res = []byte(fmt.Sprintf("panic when call %s(): %v", taskFunc.Name, err))
+		}
+	}()
+	res = funcCall(taskRcvrVal, taskFunc, data)
+	fmt.Printf("funcCall %v -> %v\n", taskFunc, res)
+	return res, 0
 }
 
-var py2GoCmdHandlers = map[int64]func(int64, []byte) []byte{
+var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 	Py2GoCmd_StartDriver: handleStartDriver,
 	Py2GoCmd_RunTask:     handleRunTask,
 }
 
-func handlePythonCmd(cmd int64, data []byte) ([]byte, int64) {
-	cmdId := cmd & cmdBitsMask
-	index := cmd >> cmdBitsLen
+func handlePythonCmd(request int64, data []byte) ([]byte, int64) {
+	cmdId := request & cmdBitsMask
+	index := request >> cmdBitsLen
 	fmt.Printf("[Go] handlePythonCmd cmdId:%d, index:%d\n", cmdId, index)
 
 	handler, ok := py2GoCmdHandlers[cmdId]
 	if !ok {
-		log.Fatalf("[Go] Error: handlePythonCmd invalid cmdId %v\n", cmdId)
+		log.Panicf("[Go] Error: handlePythonCmd invalid cmdId %v\n", cmdId)
 	}
-	return handler(index, data), 0
+	return handler(index, data)
 }
 
 type TaskOption struct {
@@ -183,27 +200,39 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 }
 
 // GetAll returns all return values of the given ObjectRefs.
-func GetAll(obj ObjectRef) []any {
+func GetAll(obj ObjectRef) ([]any, error) {
 	fmt.Printf("[Go] Get ObjectRef(%v)\n", obj.taskIndex)
-	data, _ := ffi.CallServer(Go2PyCmd_GetObjects, obj.pydata)
+	data, retCode := ffi.CallServer(Go2PyCmd_GetObjects, obj.pydata)
+	if retCode != 0 {
+		return nil, fmt.Errorf("GetAll failed: retCode=%v, message=%s", retCode, data)
+	}
 	taskFunc := taskFuncs[obj.taskIndex]
+	// fmt.Printf("[Go] Get ObjectRef(%v) res: %v\n", obj.taskIndex, data)
 	res := decodeResult(taskFunc, data)
-	return res
+	return res, nil
 }
 
 // Get returns the first return value of the given ObjectRefs.
-func Get(obj ObjectRef) any {
-	res := GetAll(obj)
+func Get(obj ObjectRef) (any, error) {
+	res, err := GetAll(obj)
 	if len(res) == 0 {
-		return nil
+		return nil, err
 	}
-	return res[0]
+	return res[0], err
 }
 
-func Get2(obj ObjectRef) (any, any) {
-	res := GetAll(obj)
+func Get2(obj ObjectRef) (any, any, error) {
+	res, err := GetAll(obj)
 	if len(res) < 2 {
-		fmt.Println("[Go] Get2: len(res) < 2")
+		log.Panicf("[Go] Get2: len(res) < 2")
 	}
-	return res[0], res[1]
+	return res[0], res[1], err
+}
+
+func Result(obj ObjectRef) []any {
+	res, err := GetAll(obj)
+	if err != nil {
+		log.Panicf("[Go] Result: %v", err)
+	}
+	return res
 }

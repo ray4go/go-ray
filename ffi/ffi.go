@@ -105,22 +105,26 @@ func Execute(request C.longlong, in_data unsafe.Pointer, data_len C.longlong, ou
 	goInData := C.GoBytes(in_data, C.int(data_len))
 	resultBytes, errorCode := handler(int64(request), goInData)
 	resultLen := len(resultBytes)
-	// --- 3. 准备返回值 ---
-	// 重要：不能直接返回 Go slice 的内存指针！
-	// 因为 Go 的垃圾回收器(GC)可能会移动或回收这块内存，导致C/Python端出现悬挂指针。
-	// 我们必须在 C 的堆上分配内存，并将数据复制过去。
-	// C.malloc 分配的内存不受Go GC管理。
-	c_out_buf := C.malloc(C.size_t(resultLen))
-	if c_out_buf == nil {
-		// 内存分配失败
-		*out_len = 0
-		return nil
-	}
+	// 打印结果
+	fmt.Printf("[Go:ffi] Execute result: %v, len=%v, errorCode=%v\n", resultBytes, resultLen, errorCode)
 
+	var c_out_buf unsafe.Pointer = nil
 	if resultLen > 0 {
-		// 将 Go slice 的数据复制到 C 分配的内存中
-		// C.memcpy(destination, source, size)
-		C.memcpy(c_out_buf, unsafe.Pointer(&resultBytes[0]), C.size_t(resultLen))
+		// 重要：不能直接返回 Go slice 的内存指针！
+		// 因为 Go 的垃圾回收器(GC)可能会移动或回收这块内存，导致C/Python端出现悬挂指针。
+		// 我们必须在 C 的堆上分配内存，并将数据复制过去。
+		// C.malloc 分配的内存不受Go GC管理。
+		c_out_buf = C.malloc(C.size_t(resultLen))
+		if c_out_buf == nil {
+			// 内存分配失败
+			resultLen = 0
+			// todo: log error when origin errorCode != 0
+			errorCode = 1
+		} else {
+			// 将 Go slice 的数据复制到 C 分配的内存中
+			// C.memcpy(destination, source, size)
+			C.memcpy(c_out_buf, unsafe.Pointer(&resultBytes[0]), C.size_t(resultLen))
+		}
 	}
 	// 通过出参指针设置返回数据的长度
 	*out_len = C.longlong(resultLen)
