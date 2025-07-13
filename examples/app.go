@@ -5,6 +5,8 @@ import (
 	"log"
 	"math"
 	"os"
+
+	. "github.com/ray4go/go-ray/ray"
 )
 
 func assert(a, b any) {
@@ -27,8 +29,8 @@ func init() {
 
 func driver2() {
 
-	res, err := CallPythonCode("put(111)")
-	fmt.Println("res:", res, err)
+	pres, err := CallPythonCode("put(111)")
+	fmt.Println("res:", pres, err)
 
 	res1 := RemoteCall("Hello", "2cpu", WithTaskOption("num_cpus", 2))
 	res2 := RemoteCall("Hello", "1cpu", WithTaskOption("num_cpus", 1))
@@ -45,6 +47,7 @@ func driver2() {
 	// fmt.Printf("res: %#v\n", Get(res).(Error))
 }
 
+// raytasks
 type export struct{}
 
 func (_ export) Hello(info string) string {

@@ -4,6 +4,10 @@ import os
 import platform
 from ctypes.util import find_library
 import functools
+import logging
+
+from . import libpath
+
 
 # execute 需要在 register_handler 之后调用
 __all__ = [
@@ -11,9 +15,9 @@ __all__ = [
     'execute',
 ]
 
-print(os.listdir('.'))
-lib_path = "./lib/callback_demo.so"
-go_lib = ctypes.CDLL(lib_path)
+logger = logging.getLogger(__name__)
+assert libpath.golibpath is not None, "libpath is None"
+go_lib = ctypes.CDLL(libpath.golibpath)
 
 # C: void* Execute(long long cmd, void* in_data, long long data_len, long long* out_len, long long* ret_code)
 go_lib.Execute.argtypes = [
@@ -73,7 +77,7 @@ def _callback_wrapper(cmd, in_data_ptr, in_len, out_len_ptr, ret_code_ptr):
     out_buffer_ptr = libc.malloc(response_len)
     if not out_buffer_ptr:
         # 内存分配失败
-        print("Error: libc.malloc failed")
+        logger.debug("Error: libc.malloc failed")
         # 通过设置 out_len 为 0 表示失败
         ret_code_ptr.contents.value = 0
         return None
@@ -96,9 +100,9 @@ def register_handler(handle_func):
     if _has_register:
         return
     _handle_func = handle_func
-    print("[py:ffi] register callback")
+    logger.debug("[py:ffi] register callback")
     register_callback_func(_c_callback)
-    print("[py:ffi] register callback done")
+    logger.debug("[py:ffi] register callback done")
     _has_register = True
 
 

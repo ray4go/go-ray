@@ -1,4 +1,4 @@
-package main
+package goray
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"runtime/debug"
 
-	"github.com/ray4go/go-ray/ffi"
+	"github.com/ray4go/go-ray/ray/ffi"
 )
 
 const cmdBitsLen = 10

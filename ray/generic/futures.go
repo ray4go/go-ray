@@ -5,7 +5,7 @@ import (
 	"log"
 	"reflect"
 
-	ray "github.com/ray4go/go-ray"
+	ray "github.com/ray4go/go-ray/ray"
 )
 
 type Future1[T any] struct {

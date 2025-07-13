@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	ray "github.com/ray4go/go-ray"
+	ray "github.com/ray4go/go-ray/ray"
 )
 
 type ObjSetter interface {

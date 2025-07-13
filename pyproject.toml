@@ -1,0 +1,23 @@
+[project]
+name = "goray"
+description = "py deiver for ray-core-go"
+version = "0.1.0"
+authors = [
+    { name = "WeiminWang", email = "wang0.618@qq.com" }
+]
+dependencies = []
+
+[project.optional-dependencies]
+ray = [
+    "ray[default]"
+]
+
+[tool.setuptools]
+packages = ["pydriver"] 
+
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+goray = "pydriver.main:main"
