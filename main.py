@@ -5,7 +5,7 @@ import gc
 # 当(分配次数 - 释放次数) > threshold0 时，触发gc0
 # 我们把它设为1，让GC变得非常敏感
 gc.set_threshold(1, 1, 1) 
-
+import io
 import threading
 import traceback
 import time
@@ -30,6 +30,7 @@ class Go2PyCmd(enum.IntEnum):
     CMD_INIT = 0
     CMD_EXECUTE_REMOTE_TASK = 1
     CMD_GET_OBJECTS = 2
+    CMD_EXECUTE_PYTHON_CODE = 3
 
 class Py2GoCmd(enum.IntEnum):
     CMD_START_DRIVER = 0
@@ -63,9 +64,27 @@ def local_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
     return res, code
 
 
-def handle_init(data: bytes, extra: int) -> tuple[bytes, int]:
+def handle_init(data: bytes, _: int) -> tuple[bytes, int]:
     print(f"[py] init")
     return b'', 0
+
+def handle_run_python_code(code: bytes, _: int) -> tuple[bytes, int]:
+    stream = io.StringIO()
+    injects = {
+        'put': lambda x: stream.write(str(x)),
+    }
+    try:
+        """
+        Remember that at module level, globals and locals are the same dictionary. 
+        If exec gets two separate objects as globals and locals, 
+        the code will be executed as if it were embedded in a class definition.
+        https://docs.python.org/3/library/functions.html#exec
+        """
+        exec(code.decode('utf-8'), injects)
+    except Exception as e:
+        return f"[goray error] python exec() error: {e}".encode('utf-8'), 1
+    
+    return stream.getvalue().encode("utf-8"), 0
 
 
 _futures = {}
@@ -112,11 +131,13 @@ ray_handlers = {
     Go2PyCmd.CMD_INIT: handle_init,
     Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: handle_run_remote_task,
     Go2PyCmd.CMD_GET_OBJECTS: handle_get_objects,
+    Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
 }
 local_handlers = {
     Go2PyCmd.CMD_INIT: handle_init,
     Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: handle_run_local_task,
     Go2PyCmd.CMD_GET_OBJECTS: handle_get_local_objects,
+    Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
 }
 
 def handle(hanlers, cmd: int, data: bytes) -> tuple[bytes, int]:

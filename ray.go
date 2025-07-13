@@ -18,6 +18,7 @@ const (
 	Go2PyCmd_Init          = 0
 	Go2PyCmd_ExeRemoteTask = iota
 	Go2PyCmd_GetObjects    = iota
+	Go2PyCmd_ExePyCode     = iota
 )
 
 const (
@@ -199,8 +200,18 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	}
 }
 
+func CallPythonCode(code string) (string, error) {
+	fmt.Printf("[Go] RunPythonCode %s\n", code)
+	data, retCode := ffi.CallServer(Go2PyCmd_ExePyCode, []byte(code))
+	fmt.Printf("[Go] RunPythonCode res: %v\n", string(data))
+	if retCode != 0 {
+		return "", fmt.Errorf("RunPythonCode failed: retCode=%v, message=%s", retCode, data)
+	}
+	return string(data), nil
+}
+
 // GetAll returns all return values of the given ObjectRefs.
-func GetAll(obj ObjectRef) ([]any, error) {
+func (obj ObjectRef) GetAll() ([]any, error) {
 	fmt.Printf("[Go] Get ObjectRef(%v)\n", obj.taskIndex)
 	data, retCode := ffi.CallServer(Go2PyCmd_GetObjects, obj.pydata)
 	if retCode != 0 {
@@ -213,24 +224,24 @@ func GetAll(obj ObjectRef) ([]any, error) {
 }
 
 // Get returns the first return value of the given ObjectRefs.
-func Get(obj ObjectRef) (any, error) {
-	res, err := GetAll(obj)
+func (obj ObjectRef) Get() (any, error) {
+	res, err := obj.GetAll()
 	if len(res) == 0 {
 		return nil, err
 	}
 	return res[0], err
 }
 
-func Get2(obj ObjectRef) (any, any, error) {
-	res, err := GetAll(obj)
+func (obj ObjectRef) Get2() (any, any, error) {
+	res, err := obj.GetAll()
 	if len(res) < 2 {
 		log.Panicf("[Go] Get2: len(res) < 2")
 	}
 	return res[0], res[1], err
 }
 
-func Result(obj ObjectRef) []any {
-	res, err := GetAll(obj)
+func (obj ObjectRef) Result() []any {
+	res, err := obj.GetAll()
 	if err != nil {
 		log.Panicf("[Go] Result: %v", err)
 	}

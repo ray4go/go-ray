@@ -26,18 +26,19 @@ func init() {
 }
 
 func driver2() {
+
+	res, err := CallPythonCode("put(111)")
+	fmt.Println("res:", res, err)
+
 	res1 := RemoteCall("Hello", "2cpu", WithTaskOption("num_cpus", 2))
 	res2 := RemoteCall("Hello", "1cpu", WithTaskOption("num_cpus", 1))
-	res3 := RemoteCall("Hello", "1cpu", WithTaskOption("num_cpus", 1))
-	r, err := Get(res1)
+	r, err := res1.Get()
 	fmt.Printf("res1: %#v  %#v\n", r, err)
-	Get(res2)
-	Get(res3)
+	fmt.Printf("res2: %#v\n", res2.Result())
 
-	panic("test panic")
 	res := RemoteCall("MultiReturn")
 	// fmt.Printf("res: %#v\n", Get(res))
-	a, b, err := Get2(res)
+	a, b, err := res.Get2()
 	fmt.Printf("a: %#v, b: %#v  err:%v\n", a, b, err)
 
 	res = RemoteCall("Error")
@@ -47,7 +48,7 @@ func driver2() {
 type export struct{}
 
 func (_ export) Hello(info string) string {
-	panic("test panic")
+	// panic("test panic")
 	host, _ := os.Hostname()
 	fmt.Printf("[%s] %s\n", host, info)
 	return info
@@ -74,8 +75,7 @@ func (_ export) Task(n int) string {
 	res := ""
 	for i := 0; i < n; i++ {
 		res_ref := RemoteCall("Convert", i, i+1)
-		r, _ := Get(res_ref)
-		res += r.(string)
+		res += res_ref.Result()[0].(string)
 	}
 	return res
 }
