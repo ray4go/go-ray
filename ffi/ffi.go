@@ -1,22 +1,23 @@
 package ffi
 
 /*
-#include <stdlib.h> // 为了 C.malloc 和 C.free
-#include <string.h> // 为了 C.memcpy
+#include <stdlib.h> // C.malloc && C.free
+#include <string.h> // C.memcpy
 
-// 定义新的回调函数C指针类型
-typedef void* (*ComplexCallbackFunc)(long long cmd, void* in_data, long long in_len, long long* out_len);
+// callback type in C
+typedef void* (*ComplexCallbackFunc)(long long request, void* in_data, long long in_len, long long* out_len, long long* ret_code);
 
-// C 辅助函数 (trampoline) 现在也需要处理参数和返回值
+// called by Go
 static void* invoke_callback(
     ComplexCallbackFunc cb,
-	long long cmd,
+	long long request,
     void* in_data,
     long long in_len,
-    long long* out_len)
+    long long* out_len,
+    long long* ret_code)
 {
     // 执行回调并返回结果
-    return cb(cmd, in_data, in_len, out_len);
+    return cb(request, in_data, in_len, out_len, ret_code);
 }
 */
 import "C"
@@ -30,7 +31,7 @@ import (
 var (
 	serverCallback C.ComplexCallbackFunc
 
-	handler func(int64, []byte) []byte
+	handler func(int64, []byte) ([]byte, int64)
 	// 可能没必要，如果上层在init中RegisterHandler的话
 	setHandlerOnce   sync.Once                           // 确保值只被设置一次
 	handlerReadyChan chan struct{} = make(chan struct{}) // 当值被设置后，向此通道发送信号
@@ -47,7 +48,7 @@ Go 端上层代码需要保证 CallServer 在 ResigterCallback 触发后再调�
 本模块保证 RegisterHandler 在 Execute 之前调用。
 */
 
-func RegisterHandler(handler_ func(int64, []byte) []byte) {
+func RegisterHandler(handler_ func(int64, []byte) ([]byte, int64)) {
 	setHandlerOnce.Do(func() {
 		handler = handler_
 		close(handlerReadyChan)
@@ -60,8 +61,8 @@ func ResigterCallback(callback C.ComplexCallbackFunc) {
 	serverCallback = callback
 }
 
-func CallServer(cmd int64, data []byte) []byte {
-	fmt.Printf("[Go:ffi] CallServer cmd: %v, len(data)=%d\n", cmd, len(data))
+func CallServer(request int64, data []byte) ([]byte, int64) {
+	fmt.Printf("[Go:ffi] CallServer cmd: %v, len(data)=%d\n", request, len(data))
 	// 1. 确保回调函数已注册
 	if serverCallback == nil {
 		panic("Callback function not registered")
@@ -75,7 +76,8 @@ func CallServer(cmd int64, data []byte) []byte {
 
 	cInLen := C.longlong(len(data))
 	var cOutLen C.longlong
-	cOutData := C.invoke_callback(serverCallback, C.longlong(cmd), cInData, cInLen, &cOutLen)
+	var cRetCode C.longlong
+	cOutData := C.invoke_callback(serverCallback, C.longlong(request), cInData, cInLen, &cOutLen, &cRetCode)
 
 	// !! 关键：Python/C 分配的内存，Go 负责释放
 	// cOutData 指向由 Python 的 ctypes/libc.malloc 分配的内存
@@ -85,27 +87,23 @@ func CallServer(cmd int64, data []byte) []byte {
 	// 4. 将返回的 C 数据转换回 Go 的 slice
 	// C.GoBytes 会创建一个新的 Go slice，并把 C 内存中的数据复制过来。
 	// 这样返回的 goReturnData 就是受 Go GC 管理的安全数据了。
-	return C.GoBytes(cOutData, C.int(cOutLen))
+	return C.GoBytes(cOutData, C.int(cOutLen)), int64(cRetCode)
 }
 
-// Execute 是我们将要导出的函数。
-// 1. 使用 //export Execute 注释来告诉 cgo 导出这个函数。
-// 2. Go 函数的参数类型需要对应 C 类型。
-// 3. 返回值是一个指向C堆内存的指针。内存由调用者负责释放。
-//
 // C函数签名:
-// void* Execute(long long cmd, void* in_data, long long in_data_len, long long* out_len)
+// void* Execute(long long cmd, void* in_data, long long in_data_len, long long* out_len, long long* ret_code)
+// 返回值是一个指向C堆内存的指针。内存由调用者(python)负责释放。
 //
 //export Execute
-func Execute(cmd C.longlong, in_data unsafe.Pointer, data_len C.longlong, out_len *C.longlong) unsafe.Pointer {
-	fmt.Printf("[Go:ffi] Execute cmd: %v\n", cmd)
+func Execute(request C.longlong, in_data unsafe.Pointer, data_len C.longlong, out_len *C.longlong, ret_code *C.longlong) unsafe.Pointer {
+	fmt.Printf("[Go:ffi] Execute cmd: %v\n", request)
 	if handler == nil {
 		<-handlerReadyChan // wait for handler to be set
 	}
 
 	// C.GoBytes 是安全的，因为它处理了指定长度的 void* 数据
 	goInData := C.GoBytes(in_data, C.int(data_len))
-	resultBytes := handler(int64(cmd), goInData)
+	resultBytes, errorCode := handler(int64(request), goInData)
 	resultLen := len(resultBytes)
 	// --- 3. 准备返回值 ---
 	// 重要：不能直接返回 Go slice 的内存指针！
@@ -126,6 +124,7 @@ func Execute(cmd C.longlong, in_data unsafe.Pointer, data_len C.longlong, out_le
 	}
 	// 通过出参指针设置返回数据的长度
 	*out_len = C.longlong(resultLen)
+	*ret_code = C.longlong(errorCode)
 	// 返回指向 C 堆内存的指针
 	return c_out_buf
 }

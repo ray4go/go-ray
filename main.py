@@ -47,6 +47,7 @@ def ray_run_task(func_id: int, data: bytes) -> bytes:
         
     return local_run_task(func_id, data)
 
+
 @ray.remote
 def show(data):
     # debug
@@ -55,7 +56,7 @@ def show(data):
 def local_run_task(func_id: int, data: bytes) -> bytes:
     cmd = Py2GoCmd.CMD_RUN_TASK | func_id << cmdBitsLen
     try:
-        res = ffi.execute(cmd, data)
+        res, code = ffi.execute(cmd, data)
     except Exception as e:
         logging.exception(f"[py] execute error {e}")
         return b''
@@ -75,7 +76,7 @@ def handle_run_remote_task(data: bytes, bitmap: int) -> bytes:
     options = json.loads(data[-option_len:])
     print(f"[py] run remote task {func_id}, {options=}")
     fut = ray_run_task.options(**options).remote(func_id, data[:-option_len])
-    _futures[fut.hex()] = fut  # make future outlive the task
+    _futures[fut.hex()] = fut  # make future outlive this function
     args = dict(id=fut.binary(), owner_addr=fut.owner_address(), call_site_data=fut.call_site())
     return pickle.dumps(args)
 
@@ -117,12 +118,12 @@ local_handlers = {
     Go2PyCmd.CMD_GET_OBJECTS: handle_get_local_objects,
 }
 
-def handle(hanlers, cmd: int, data: bytes) -> bytes:
+def handle(hanlers, cmd: int, data: bytes) -> tuple[bytes, int]:
     cmd, index = cmd & cmdBitsMask, cmd >> cmdBitsLen
     print(f"[py] handle {Go2PyCmd(cmd).name}, {index=}, {len(data)=}, {threading.current_thread().name}")
     func = hanlers[cmd]
     try:
-        return func(data, index)
+        return func(data, index), 0
     except Exception as e:
         logging.exception(f"[py] handle {Go2PyCmd(cmd).name} error {e}")
         return b''

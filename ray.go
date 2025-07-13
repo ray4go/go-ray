@@ -113,7 +113,7 @@ var py2GoCmdHandlers = map[int64]func(int64, []byte) []byte{
 	Py2GoCmd_RunTask:     handleRunTask,
 }
 
-func handlePythonCmd(cmd int64, data []byte) []byte {
+func handlePythonCmd(cmd int64, data []byte) ([]byte, int64) {
 	cmdId := cmd & cmdBitsMask
 	index := cmd >> cmdBitsLen
 	fmt.Printf("[Go] handlePythonCmd cmdId:%d, index:%d\n", cmdId, index)
@@ -122,7 +122,7 @@ func handlePythonCmd(cmd int64, data []byte) []byte {
 	if !ok {
 		log.Fatalf("[Go] Error: handlePythonCmd invalid cmdId %v\n", cmdId)
 	}
-	return handler(index, data)
+	return handler(index, data), 0
 }
 
 type TaskOption struct {
@@ -175,7 +175,7 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	// | cmdId   | taskIndex | optionLength |
 	// | 10 bits | 22 bits   | 32 bits      |
 	request := Go2PyCmd_ExeRemoteTask | int64(funcId)<<cmdBitsLen | int64(len(optData))<<32
-	res := ffi.CallServer(request, data)
+	res, _ := ffi.CallServer(request, data)
 	return ObjectRef{
 		pydata:    res,
 		taskIndex: funcId,
@@ -185,7 +185,7 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 // GetAll returns all return values of the given ObjectRefs.
 func GetAll(obj ObjectRef) []any {
 	fmt.Printf("[Go] Get ObjectRef(%v)\n", obj.taskIndex)
-	data := ffi.CallServer(Go2PyCmd_GetObjects, obj.pydata)
+	data, _ := ffi.CallServer(Go2PyCmd_GetObjects, obj.pydata)
 	taskFunc := taskFuncs[obj.taskIndex]
 	res := decodeResult(taskFunc, data)
 	return res

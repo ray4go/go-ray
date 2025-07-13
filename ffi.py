@@ -15,12 +15,13 @@ print(os.listdir('.'))
 lib_path = "./lib/callback_demo.so"
 go_lib = ctypes.CDLL(lib_path)
 
-# C: void* Execute(long long cmd, void* in_data, long long data_len, long long* out_len)
+# C: void* Execute(long long cmd, void* in_data, long long data_len, long long* out_len, long long* ret_code)
 go_lib.Execute.argtypes = [
     ctypes.c_longlong,      # long long cmd
     ctypes.c_void_p,        # void* in_data
     ctypes.c_longlong,      # long long data_len
-    ctypes.POINTER(ctypes.c_longlong) # long long* out_len
+    ctypes.POINTER(ctypes.c_longlong), # long long* out_len
+    ctypes.POINTER(ctypes.c_longlong), # long long* ret_code
 ]
 go_lib.Execute.restype = ctypes.c_void_p # void*
 
@@ -34,13 +35,14 @@ libc = ctypes.CDLL(find_library('c'))
 libc.malloc.argtypes = [ctypes.c_size_t]
 libc.malloc.restype = ctypes.c_void_p
 
-# 回调函数 C 签名: void* callback(long long cmd, void* in_data, long long in_len, long long* out_len)
+# 回调函数 C 签名: void* callback(long long cmd, void* in_data, long long in_len, long long* out_len, long long* ret_code)
 CALLBACK_TYPE = ctypes.CFUNCTYPE(
     ctypes.c_void_p,  # 返回类型: void*
     ctypes.c_longlong, # 参数0: long long cmd
     ctypes.c_void_p,  # 参数1: void* in_data
     ctypes.c_longlong, # 参数2: long long in_len
-    ctypes.POINTER(ctypes.c_longlong) # 参数3: long long* out_len
+    ctypes.POINTER(ctypes.c_longlong), # 参数3: long long* out_len
+    ctypes.POINTER(ctypes.c_longlong), # 参数4: long long* ret_code
 )
 
 # ---  设置 Go 导出函数的原型 ---
@@ -51,7 +53,7 @@ register_callback_func.restype = None
 _handle_func = None
 
 # --- Python 回调函数 ---
-def _callback_wrapper(cmd, in_data_ptr, in_len, out_len_ptr):
+def _callback_wrapper(cmd, in_data_ptr, in_len, out_len_ptr, ret_code_ptr):
     """
     这个函数将被 Go 调用。
     它接收数据，处理后，分配新内存返回结果。
@@ -61,8 +63,9 @@ def _callback_wrapper(cmd, in_data_ptr, in_len, out_len_ptr):
     received_data = ctypes.string_at(in_data_ptr, in_len)
 
     # 2. 处理数据
-    response_bytes = _handle_func(cmd, received_data)
+    response_bytes, ret_code = _handle_func(cmd, received_data)
     response_len = len(response_bytes)
+    ret_code_ptr.contents.value = ret_code
 
     # 3. 分配内存以存放返回数据
     # !! 关键: 必须使用 C 的 malloc 分配内存。
@@ -72,7 +75,7 @@ def _callback_wrapper(cmd, in_data_ptr, in_len, out_len_ptr):
         # 内存分配失败
         print("Error: libc.malloc failed")
         # 通过设置 out_len 为 0 表示失败
-        out_len_ptr.contents.value = 0
+        ret_code_ptr.contents.value = 0
         return None
 
     # 4. 将 Python bytes 数据复制到新分配的 C 内存中
@@ -100,10 +103,11 @@ def register_handler(handle_func):
 
 
 
-def execute(cmd: int, data: bytes) -> bytes:
+def execute(cmd: int, data: bytes) -> tuple[bytes, int]:
     assert _has_register, "must register handler first"
 
     out_len = ctypes.c_longlong(0)
+    ret_code = ctypes.c_longlong(0)
     # 调用函数
     # ctypes 会自动将 python bytes 转换为 c_char_p 或 c_void_p
     # 使用 ctypes.byref() 来传递 out_len 的指针
@@ -111,15 +115,17 @@ def execute(cmd: int, data: bytes) -> bytes:
         cmd,
         data,
         len(data),
-        ctypes.byref(out_len)
+        ctypes.byref(out_len),
+        ctypes.byref(ret_code),
     )
     try:
         if not out_ptr:
             # go Execute return null pointer
-            return None
+            # todo: b'' or None?
+            result_bytes = b''
         else:
             result_bytes = ctypes.string_at(out_ptr, out_len.value)
-            return result_bytes
+        return result_bytes, ret_code.value
     finally:
         # 关键步骤：调用 FreeMemory 释放 Go 中分配的 C 内存
         if out_ptr:
