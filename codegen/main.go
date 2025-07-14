@@ -232,6 +232,12 @@ func findMethods(pkg *packages.Package, structName string) []Method {
 	return methods
 }
 
+const typeDefTPL = `
+type _rayTasks struct{}
+
+var %sTasks = _rayTasks{}
+`
+
 func generateWrapperCode(packageName, structName string, methods []Method, pkg *packages.Package, structFile *ast.File) string {
 	var buf bytes.Buffer
 
@@ -255,7 +261,7 @@ func generateWrapperCode(packageName, structName string, methods []Method, pkg *
 	}
 
 	// Global client variable
-	// fmt.Fprintf(&buf, "var client %s\n\n", structName)
+	fmt.Fprintf(&buf, typeDefTPL, structName)
 
 	// Generate wrapper functions
 	for _, method := range methods {
@@ -282,7 +288,7 @@ func collectImports(methods []Method, pkg *packages.Package, structFile *ast.Fil
 }
 
 const funcDefTpl = `
-func {{.FuncName}}({{.ParamList}}) *RemoteFunc[*Future{{.ResLen}}{{.ResTypes}}] {
+func (_ _rayTasks){{.FuncName}}({{.ParamList}}) *RemoteFunc[*Future{{.ResLen}}{{.ResTypes}}] {
 	_ = ({{.ReceiverType}}).{{.FuncName}}  // help you to find the original method
 	return NewRemoteFunc[*Future{{.ResLen}}{{.ResTypes}}](
 		"{{.FuncName}}",

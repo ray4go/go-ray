@@ -1,22 +1,18 @@
-package goray
+package ray
 
 import (
 	"bytes"
 	"encoding/gob"
-	"fmt"
-	"log"
 	"reflect"
+
+	"github.com/ray4go/go-ray/ray/utils/log"
 )
 
 func encodeArgs(method reflect.Method, args []any) []byte {
 	if len(args) != (method.Type.NumIn() - 1) {
 		log.Panicf("encodeArgs [%#v]: args length not match, given %v, expect %v", method, len(args), method.Type.NumIn()-1)
 	}
-	data, err := encodeSlice(args)
-	if err != nil {
-		log.Panicf("encodeArgs [%#v]: encodeSlice error: %v", method, err)
-	}
-	return data
+	return encodeSlice(args)
 }
 
 func decodeArgs(method reflect.Method, rawArgs []byte) []any {
@@ -29,7 +25,7 @@ func decodeArgs(method reflect.Method, rawArgs []byte) []any {
 
 func funcCall(rcvrVal reflect.Value, method reflect.Method, rawArgs []byte) []byte {
 	args := decodeArgs(method, rawArgs)
-	fmt.Println("[Go] funcCall:", method.Name, args)
+	log.Debug("[Go] funcCall: %v", method.Name)
 
 	funcVal := method.Func
 	argVals := make([]reflect.Value, len(args)+1)
@@ -42,11 +38,7 @@ func funcCall(rcvrVal reflect.Value, method reflect.Method, rawArgs []byte) []by
 	for i, res := range returnValues {
 		results[i] = res.Interface()
 	}
-	data, err := encodeSlice(results)
-	if err != nil {
-		log.Panicf("encode return value (%#v) error: %v", results, err)
-	}
-	return data
+	return encodeSlice(results)
 }
 
 func decodeResult(method reflect.Method, rawResult []byte) []any {
@@ -57,16 +49,16 @@ func decodeResult(method reflect.Method, rawResult []byte) []any {
 	return decodeWithTypes(rawResult, retTypes)
 }
 
-func encodeSlice(items []any) ([]byte, error) {
+func encodeSlice(items []any) []byte {
 	var buffer bytes.Buffer
 	enc := gob.NewEncoder(&buffer)
 	for _, item := range items {
 		err := enc.Encode(item)
 		if err != nil {
-			return nil, fmt.Errorf("gob encode item %#v error: %v", item, err)
+			log.Panicf("gob encode type %v error: %v", reflect.TypeOf(item), err)
 		}
 	}
-	return buffer.Bytes(), nil
+	return buffer.Bytes()
 }
 
 func decodeWithTypes(data []byte, types []reflect.Type) []any {
@@ -78,7 +70,7 @@ func decodeWithTypes(data []byte, types []reflect.Type) []any {
 		item := reflect.New(typ)
 		err := dec.Decode(item.Interface())
 		if err != nil {
-			log.Panicf("gob decode type %#v error: %v", typ.Name(), err)
+			log.Panicf("gob decode type %v error: %v", typ, err)
 		}
 		outs = append(outs, item.Elem().Interface())
 	}

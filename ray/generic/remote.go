@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	ray "github.com/ray4go/go-ray/ray"
+	"github.com/ray4go/go-ray/ray"
 )
 
 type ObjSetter interface {
@@ -14,6 +14,13 @@ type ObjSetter interface {
 type RemoteFunc[T ObjSetter] struct {
 	funcName string
 	args     []any
+}
+
+func NewRemoteFunc[T ObjSetter](funcName string, args []any) *RemoteFunc[T] {
+	return &RemoteFunc[T]{
+		funcName: funcName,
+		args:     args,
+	}
 }
 
 // NewPointedValue 为 T 指向的底层类型创建一个新值，并返回该值的指针
@@ -33,7 +40,7 @@ func NewPointedValue[T any]() T {
 	return ptr.(T)
 }
 
-func (r *RemoteFunc[T]) Remote(options ...ray.TaskOption) T {
+func (r *RemoteFunc[T]) Remote(options ...*ray.TaskOption) T {
 	var argsAndOpts []any = r.args
 	for _, opt := range options {
 		argsAndOpts = append(argsAndOpts, opt)

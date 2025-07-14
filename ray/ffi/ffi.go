@@ -23,9 +23,10 @@ static void* invoke_callback(
 import "C"
 
 import (
-	"fmt"
 	"sync"
 	"unsafe"
+
+	"github.com/ray4go/go-ray/ray/utils/log"
 )
 
 var (
@@ -57,12 +58,12 @@ func RegisterHandler(handler_ func(int64, []byte) ([]byte, int64)) {
 
 //export ResigterCallback
 func ResigterCallback(callback C.ComplexCallbackFunc) {
-	fmt.Printf("[Go:ffi] Get callback\n")
+	log.Debug("[Go:ffi] Get callback\n")
 	serverCallback = callback
 }
 
 func CallServer(request int64, data []byte) ([]byte, int64) {
-	fmt.Printf("[Go:ffi] CallServer cmd: %v, len(data)=%d\n", request, len(data))
+	log.Debug("[Go:ffi] CallServer cmd: %v, len(data)=%d\n", request, len(data))
 	// 1. 确保回调函数已注册
 	if serverCallback == nil {
 		panic("Callback function not registered")
@@ -96,7 +97,7 @@ func CallServer(request int64, data []byte) ([]byte, int64) {
 //
 //export Execute
 func Execute(request C.longlong, in_data unsafe.Pointer, data_len C.longlong, out_len *C.longlong, ret_code *C.longlong) unsafe.Pointer {
-	fmt.Printf("[Go:ffi] Execute cmd: %v\n", request)
+	log.Debug("[Go:ffi] Execute cmd: %v\n", request)
 	if handler == nil {
 		<-handlerReadyChan // wait for handler to be set
 	}
@@ -105,12 +106,11 @@ func Execute(request C.longlong, in_data unsafe.Pointer, data_len C.longlong, ou
 	goInData := C.GoBytes(in_data, C.int(data_len))
 	resultBytes, errorCode := handler(int64(request), goInData)
 	resultLen := len(resultBytes)
-	// 打印结果
-	fmt.Printf("[Go:ffi] Execute result: %v, len=%v, errorCode=%v\n", resultBytes, resultLen, errorCode)
+	log.Debug("[Go:ffi] Execute result: %v, len=%v, errorCode=%v\n", resultBytes, resultLen, errorCode)
 
 	var c_out_buf unsafe.Pointer = nil
 	if resultLen > 0 {
-		// 重要：不能直接返回 Go slice 的内存指针！
+		// 不能直接返回 Go slice 的内存指针！
 		// 因为 Go 的垃圾回收器(GC)可能会移动或回收这块内存，导致C/Python端出现悬挂指针。
 		// 我们必须在 C 的堆上分配内存，并将数据复制过去。
 		// C.malloc 分配的内存不受Go GC管理。
@@ -144,5 +144,3 @@ func FreeMemory(ptr unsafe.Pointer) {
 	// fmt.Println("[Go] Freeing memory...")
 	C.free(ptr)
 }
-
-// func main() {}

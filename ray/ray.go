@@ -1,14 +1,14 @@
-package goray
+package ray
 
 import (
 	"encoding/json"
 	"fmt"
 	"go/token"
-	"log"
 	"reflect"
 	"runtime/debug"
 
 	"github.com/ray4go/go-ray/ray/ffi"
+	"github.com/ray4go/go-ray/ray/utils/log"
 )
 
 const cmdBitsLen = 10
@@ -32,8 +32,7 @@ type ObjectRef struct {
 }
 
 var (
-	driverFunc func()
-	// taskFuncs  []any
+	driverFunc    func()
 	taskRcvrVal   reflect.Value
 	taskRcvrTyp   reflect.Type
 	taskFuncs     []reflect.Method
@@ -41,8 +40,6 @@ var (
 )
 
 func Init(driverFunc_ func(), taskRcvr any) {
-	log.SetFlags(log.Lshortfile)
-
 	driverFunc = driverFunc_
 	taskRcvrVal = reflect.ValueOf(taskRcvr)
 	taskRcvrTyp = reflect.TypeOf(taskRcvr)
@@ -53,7 +50,7 @@ func Init(driverFunc_ func(), taskRcvr any) {
 		tasksName2Idx[task.Name] = i
 	}
 
-	fmt.Printf("[Go] Init %v %v\n", driverFunc_, tasksName2Idx)
+	log.Debug("[Go] Init %v %v\n", driverFunc_, tasksName2Idx)
 	ffi.RegisterHandler(handlePythonCmd)
 }
 
@@ -68,7 +65,7 @@ func getExportedMethods(typ reflect.Type) []reflect.Method {
 		for j := 1; j < mtype.NumIn(); j++ {
 			argType := mtype.In(j)
 			if !isExportedOrBuiltinType(argType) {
-				fmt.Printf("[Go] method %v arg %v is not exported\n", method, argType)
+				log.Debug("[Go] method %v arg %v is not exported\n", method, argType)
 				ok = false
 				break
 			}
@@ -84,7 +81,7 @@ func getExportedMethods(typ reflect.Type) []reflect.Method {
 		if ok {
 			methods = append(methods, method)
 		} else {
-			fmt.Printf("[Go] skip method %v\n", method)
+			log.Debug("[Go] skip method %v\n", method)
 		}
 	}
 	return methods
@@ -122,7 +119,7 @@ func handleRunTask(taskIndex int64, data []byte) (res []byte, retCode int64) {
 		}
 	}()
 	res = funcCall(taskRcvrVal, taskFunc, data)
-	fmt.Printf("funcCall %v -> %v\n", taskFunc, res)
+	log.Debug("funcCall %v -> %v\n", taskFunc, res)
 	return res, 0
 }
 
@@ -134,11 +131,11 @@ var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 func handlePythonCmd(request int64, data []byte) ([]byte, int64) {
 	cmdId := request & cmdBitsMask
 	index := request >> cmdBitsLen
-	fmt.Printf("[Go] handlePythonCmd cmdId:%d, index:%d\n", cmdId, index)
+	log.Debug("[Go] handlePythonCmd cmdId:%d, index:%d\n", cmdId, index)
 
 	handler, ok := py2GoCmdHandlers[cmdId]
 	if !ok {
-		log.Panicf("[Go] Error: handlePythonCmd invalid cmdId %v\n", cmdId)
+		return []byte(fmt.Sprintf("[Go] Error: handlePythonCmd invalid cmdId %v\n", cmdId)), 1
 	}
 	return handler(index, data)
 }
@@ -175,13 +172,13 @@ func encodeOptions(opts []*TaskOption) []byte {
 	}
 	data, err := json.Marshal(kvs)
 	if err != nil {
-		log.Panicf("Error encoding options to JSON: %v", err)
+		panic(fmt.Sprintf("Error encoding options to JSON: %v", err))
 	}
 	return data
 }
 
 func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
-	fmt.Printf("[Go] RemoteCall %s %#v\n", name, argsAndOpts)
+	log.Debug("[Go] RemoteCall %s %#v\n", name, argsAndOpts)
 	funcId := tasksName2Idx[name]
 	taskFunc := taskFuncs[funcId]
 	args, opts := splitArgsAndOptions(argsAndOpts)
@@ -201,9 +198,9 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 }
 
 func CallPythonCode(code string) (string, error) {
-	fmt.Printf("[Go] RunPythonCode %s\n", code)
+	log.Debug("[Go] RunPythonCode %s\n", code)
 	data, retCode := ffi.CallServer(Go2PyCmd_ExePyCode, []byte(code))
-	fmt.Printf("[Go] RunPythonCode res: %v\n", string(data))
+	log.Debug("[Go] RunPythonCode res: %v\n", string(data))
 	if retCode != 0 {
 		return "", fmt.Errorf("RunPythonCode failed: retCode=%v, message=%s", retCode, data)
 	}
@@ -212,13 +209,13 @@ func CallPythonCode(code string) (string, error) {
 
 // GetAll returns all return values of the given ObjectRefs.
 func (obj ObjectRef) GetAll() ([]any, error) {
-	fmt.Printf("[Go] Get ObjectRef(%v)\n", obj.taskIndex)
+	// log.Debug("[Go] Get ObjectRef(%v)\n", obj.taskIndex)
 	data, retCode := ffi.CallServer(Go2PyCmd_GetObjects, obj.pydata)
 	if retCode != 0 {
 		return nil, fmt.Errorf("GetAll failed: retCode=%v, message=%s", retCode, data)
 	}
 	taskFunc := taskFuncs[obj.taskIndex]
-	// fmt.Printf("[Go] Get ObjectRef(%v) res: %v\n", obj.taskIndex, data)
+	// log.Debug("[Go] Get ObjectRef(%v) res: %v\n", obj.taskIndex, data)
 	res := decodeResult(taskFunc, data)
 	return res, nil
 }
@@ -235,7 +232,7 @@ func (obj ObjectRef) Get() (any, error) {
 func (obj ObjectRef) Get2() (any, any, error) {
 	res, err := obj.GetAll()
 	if len(res) < 2 {
-		log.Panicf("[Go] Get2: len(res) < 2")
+		panic("[Go] Get2: len(res) < 2")
 	}
 	return res[0], res[1], err
 }
@@ -243,7 +240,7 @@ func (obj ObjectRef) Get2() (any, any, error) {
 func (obj ObjectRef) Result() []any {
 	res, err := obj.GetAll()
 	if err != nil {
-		log.Panicf("[Go] Result: %v", err)
+		panic(fmt.Sprintf("[Go] Result: %v", err))
 	}
 	return res
 }
