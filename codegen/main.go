@@ -31,13 +31,13 @@ const packageCommentsTPL = `
 //
 // To regenerate this file, run:
 //
-//	go run %s/codegen <package-path>
+//	goraygen <package-path>
 //
 `
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Printf("Usage: go run %s/codegen <package-path>\n", workspaceRepo)
+		fmt.Printf("Usage: goraygen <package-path>\n")
 		os.Exit(1)
 	}
 	packagePath := os.Args[1]
@@ -249,7 +249,7 @@ func generateWrapperCode(packageName, structName string, methods []Method, pkg *
 	var buf bytes.Buffer
 
 	// Package comments
-	fmt.Fprintf(&buf, packageCommentsTPL, workspaceRepo)
+	fmt.Fprintf(&buf, packageCommentsTPL)
 
 	// Package declaration
 	fmt.Fprintf(&buf, "package %s\n\n", packageName)
@@ -297,20 +297,17 @@ func collectImports(methods []Method, pkg *packages.Package, structFile *ast.Fil
 const funcDefTpl = `
 func (_ _rayTasks){{.FuncName}}({{.ParamList}}) *RemoteFunc[*Future{{.ResLen}}{{.ResTypes}}] {
 	_ = ({{.ReceiverType}}).{{.FuncName}}  // help you to find the original method
-	return NewRemoteFunc[*Future{{.ResLen}}{{.ResTypes}}](
-		"{{.FuncName}}",
-		{{.ArgsStatement}},
-	)
+	return NewRemoteFunc[*Future{{.ResLen}}{{.ResTypes}}]("{{.FuncName}}", []any{ {{.ParamNames}} })
 }
 `
 
 type FuncDef struct {
-	FuncName      string
-	ParamList     string
-	ResLen        int
-	ResTypes      string
-	ArgsStatement string
-	ReceiverType  string
+	FuncName     string
+	ParamList    string
+	ResLen       int
+	ResTypes     string
+	ParamNames   string
+	ReceiverType string
 }
 
 func generateWrapperFunction(buf *bytes.Buffer, method Method) {
@@ -342,22 +339,13 @@ func generateWrapperFunction(buf *bytes.Buffer, method Method) {
 		resTypesStr = fmt.Sprintf("[%s]", strings.Join(resTypes, ", "))
 	}
 
-	argsStatement := fmt.Sprintf("[]any{%s}", strings.Join(paramNames, ", "))
-	if method.IsVariadic {
-		argsStatement = fmt.Sprintf(
-			"ExtendArgs([]any{%s}, %s)",
-			strings.Join(paramNames[:len(paramNames)-1], ", "),
-			paramNames[len(paramNames)-1],
-		)
-	}
-
 	funcDef := FuncDef{
-		FuncName:      method.Name,
-		ParamList:     paramList,
-		ResLen:        len(method.Results),
-		ResTypes:      resTypesStr,
-		ArgsStatement: argsStatement,
-		ReceiverType:  method.ReceiverType,
+		FuncName:     method.Name,
+		ParamList:    paramList,
+		ResLen:       len(method.Results),
+		ResTypes:     resTypesStr,
+		ParamNames:   strings.Join(paramNames, ", "),
+		ReceiverType: method.ReceiverType,
 	}
 
 	tmpl, err := template.New("funcDef").Parse(funcDefTpl)

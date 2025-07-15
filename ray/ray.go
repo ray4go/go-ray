@@ -231,6 +231,9 @@ func (obj ObjectRef) Get() (any, error) {
 
 func (obj ObjectRef) Get2() (any, any, error) {
 	res, err := obj.GetAll()
+	if err != nil {
+		return nil, nil, err
+	}
 	if len(res) < 2 {
 		panic("[Go] Get2: len(res) < 2")
 	}

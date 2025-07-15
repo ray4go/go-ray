@@ -33,7 +33,14 @@ func funcCall(rcvrVal reflect.Value, method reflect.Method, rawArgs []byte) []by
 	for i, arg := range args {
 		argVals[i+1] = reflect.ValueOf(arg)
 	}
-	returnValues := funcVal.Call(argVals)
+
+	var returnValues []reflect.Value
+	if method.Type.IsVariadic() {
+		returnValues = funcVal.CallSlice(argVals)
+	} else {
+		returnValues = funcVal.Call(argVals)
+	}
+
 	results := make([]any, len(returnValues))
 	for i, res := range returnValues {
 		results[i] = res.Interface()

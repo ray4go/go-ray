@@ -68,6 +68,17 @@ func driver() {
 		demoTasks.CallOtherTaskLowLevel().Remote()
 		demoTasks.CallOtherTaskHighLevel().Remote()
 	}
+	// variadic arguments
+	{
+		future := demoTasks.Printf("str: %s, int: %d, float: %f\n", "hello", 42, 3.14).Remote()
+		res, err := future.Get()
+		fmt.Printf("call Printf -> %#v, %#v \n", res, err)
+	}
+	{
+		objRef := ray.RemoteCall("Printf", "str: %s, int: %d, float: %f\n", []any{"hello", 42, 3.14})
+		res, err := objRef.Get()
+		fmt.Printf("call Printf -> %#v, %#v \n", res, err)
+	}
 
 }
 
@@ -95,6 +106,12 @@ func (_ demo) Nil(a, b int64) {
 
 func (_ demo) MultiReturn(i int, s string) (int, string) {
 	return i, s
+}
+
+// Variadic arguments
+func (_ demo) Printf(format string, args ...any) int {
+	n, _ := fmt.Printf(format, args...)
+	return n
 }
 
 func (_ demo) AddPoints(points []Point) Point {
