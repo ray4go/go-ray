@@ -1,4 +1,4 @@
-module github.com/ray4go/go-ray/codegen
+module github.com/ray4go/go-ray/goraygen
 
 go 1.20
 

@@ -40,16 +40,23 @@ func main() {
 		fmt.Printf("Usage: go run %s/codegen <package-path>\n", workspaceRepo)
 		os.Exit(1)
 	}
-
 	packagePath := os.Args[1]
+	absTargetDir, err := filepath.Abs(packagePath)
+	if err != nil {
+		log.Fatalf("Failed to get absolute path for %s: %v", packagePath, err)
+	}
 
 	// Load the package
 	cfg := &packages.Config{
+		Dir: absTargetDir,
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax |
 			packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports,
 	}
 
-	pkgs, err := packages.Load(cfg, packagePath)
+	// "./..." 表示加载指定目录及其所有子目录下的所有包
+	// "./" 表示只加载该目录下的包（不包括子目录）
+	pkgPattern := "./"
+	pkgs, err := packages.Load(cfg, pkgPattern)
 	if err != nil {
 		log.Fatal(err)
 	}
