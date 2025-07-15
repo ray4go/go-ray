@@ -26,11 +26,6 @@ const (
 	Py2GoCmd_RunTask     = iota
 )
 
-type ObjectRef struct {
-	taskIndex int
-	pydata    []byte
-}
-
 var (
 	driverFunc    func()
 	taskRcvrVal   reflect.Value
@@ -205,45 +200,4 @@ func CallPythonCode(code string) (string, error) {
 		return "", fmt.Errorf("RunPythonCode failed: retCode=%v, message=%s", retCode, data)
 	}
 	return string(data), nil
-}
-
-// GetAll returns all return values of the given ObjectRefs.
-func (obj ObjectRef) GetAll() ([]any, error) {
-	// log.Debug("[Go] Get ObjectRef(%v)\n", obj.taskIndex)
-	data, retCode := ffi.CallServer(Go2PyCmd_GetObjects, obj.pydata)
-	if retCode != 0 {
-		return nil, fmt.Errorf("GetAll failed: retCode=%v, message=%s", retCode, data)
-	}
-	taskFunc := taskFuncs[obj.taskIndex]
-	// log.Debug("[Go] Get ObjectRef(%v) res: %v\n", obj.taskIndex, data)
-	res := decodeResult(taskFunc, data)
-	return res, nil
-}
-
-// Get returns the first return value of the given ObjectRefs.
-func (obj ObjectRef) Get() (any, error) {
-	res, err := obj.GetAll()
-	if len(res) == 0 {
-		return nil, err
-	}
-	return res[0], err
-}
-
-func (obj ObjectRef) Get2() (any, any, error) {
-	res, err := obj.GetAll()
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(res) < 2 {
-		panic("[Go] Get2: len(res) < 2")
-	}
-	return res[0], res[1], err
-}
-
-func (obj ObjectRef) Result() []any {
-	res, err := obj.GetAll()
-	if err != nil {
-		panic(fmt.Sprintf("[Go] Result: %v", err))
-	}
-	return res
 }
