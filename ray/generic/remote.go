@@ -41,11 +41,7 @@ func NewPointedValue[T any]() T {
 }
 
 func (r *RemoteFunc[T]) Remote(options ...*ray.TaskOption) T {
-	var argsAndOpts []any = r.args
-	for _, opt := range options {
-		argsAndOpts = append(argsAndOpts, opt)
-	}
-	obj := ray.RemoteCall(r.funcName, argsAndOpts...)
+	obj := ray.RemoteCallSlice(r.funcName, r.args, options)
 	t := NewPointedValue[T]()
 	t.setObjectRef(&obj)
 	return t

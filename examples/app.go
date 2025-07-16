@@ -26,10 +26,9 @@ func init() {
 func driver() {
 	host, _ := os.Hostname()
 	fmt.Printf("driver host: %s\n", host)
-
 	{
 		objRef := ray.RemoteCall("Hello", "ray", ray.WithTaskOption("num_cpus", 2))
-		res, err := objRef.Get()
+		res, err := objRef.Get1()
 		assert(err, nil)
 		fmt.Printf("call Hello -> %#v \n", res)
 	}
@@ -75,11 +74,10 @@ func driver() {
 		fmt.Printf("call Printf -> %#v, %#v \n", res, err)
 	}
 	{
-		objRef := ray.RemoteCall("Printf", "str: %s, int: %d, float: %f\n", []any{"hello", 42, 3.14})
-		res, err := objRef.Get()
+		objRef := ray.RemoteCall("Printf", "str: %s, int: %d, float: %f\n", "hello", 42, 3.14)
+		res, err := objRef.Get1()
 		fmt.Printf("call Printf -> %#v, %#v \n", res, err)
 	}
-
 }
 
 // raytasks
@@ -127,8 +125,8 @@ func (_ demo) CallOtherTaskLowLevel() {
 	objRef1 := ray.RemoteCall("Workload", "CallOtherTaskLowLevel task1")
 	objRef2 := ray.RemoteCall("Workload", "CallOtherTaskLowLevel task2")
 
-	t1, err1 := objRef1.Get()
-	t2, err2 := objRef2.Get()
+	t1, err1 := objRef1.Get1()
+	t2, err2 := objRef2.Get1()
 	assert(err1, nil)
 	assert(err2, nil)
 	fmt.Println("task results: ", t1, t2)

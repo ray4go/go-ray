@@ -173,10 +173,25 @@ func encodeOptions(opts []*TaskOption) []byte {
 }
 
 func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
-	log.Debug("[Go] RemoteCall %s %#v\n", name, argsAndOpts)
+	args, opts := splitArgsAndOptions(argsAndOpts)
 	funcId := tasksName2Idx[name]
 	taskFunc := taskFuncs[funcId]
-	args, opts := splitArgsAndOptions(argsAndOpts)
+
+	if taskFunc.Type.IsVariadic() {
+		variadics := args[taskFunc.Type.NumIn()-2:] // pack variadic arguments into slice
+		headArgs := args[:taskFunc.Type.NumIn()-2]
+		args = make([]any, 0, taskFunc.Type.NumIn()-1)
+		args = append(args, headArgs...)
+		args = append(args, variadics)
+	}
+	return RemoteCallSlice(name, args, opts)
+}
+
+// if remote function is variadic, args[len(args)-1] should be function's final variadic arguments (slice)
+func RemoteCallSlice(name string, args []any, opts []*TaskOption) ObjectRef {
+	log.Debug("[Go] RemoteCall %s %#v\n", name, args)
+	funcId := tasksName2Idx[name]
+	taskFunc := taskFuncs[funcId]
 	argData := encodeArgs(taskFunc, args)
 	optData := encodeOptions(opts)
 	data := append(argData, optData...) // TODO: optimize the memory allocation
