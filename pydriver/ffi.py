@@ -6,7 +6,7 @@ from ctypes.util import find_library
 import functools
 import logging
 
-from . import libpath
+from . import libpath, utils
 
 
 # execute 需要在 register_handler 之后调用
@@ -16,6 +16,8 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+utils.init_logger(logger)
+
 assert libpath.golibpath is not None, "libpath is None"
 go_lib = ctypes.CDLL(libpath.golibpath)
 

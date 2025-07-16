@@ -16,13 +16,14 @@ import pickle
 import sys
 import argparse
 
-from . import libpath
+from . import libpath, utils
 
 
 cmdBitsLen = 10
 cmdBitsMask = (1 << cmdBitsLen) - 1
 
 logger = logging.getLogger(__name__)
+utils.init_logger(logger)
 
 # 和 go 中的 enum 对应
 class Go2PyCmd(enum.IntEnum):
@@ -157,6 +158,7 @@ def main():
         description="Python driver for ray-core-go application.",
         formatter_class=argparse.RawTextHelpFormatter
     )
+    parser.add_argument('--debug', action='store_true', help="Enable debug logging")
     parser.add_argument(
         '--mode',
         type=str,
@@ -177,11 +179,17 @@ def main():
     libpath.golibpath = args.go_binary_path
     from . import ffi
 
+    ray_runtime_env = {"env_vars": {"GORAY_BIN_PATH": args.go_binary_path}}
+    if args.debug:
+        ray_runtime_env["env_vars"]["GORAY_DEBUG_LOGGING"] = "1"
+        utils.enable_logger(logger)
+        utils.enable_logger(ffi.logger)
+
     if args.mode == 'cluster':
-        ray.init(address='auto', runtime_env={"env_vars": {"GORAY_BIN_PATH": args.go_binary_path}})
+        ray.init(address='auto', runtime_env=ray_runtime_env)
         handlers = ray_handlers
     elif args.mode == 'local':
-        ray.init(runtime_env={"env_vars": {"GORAY_BIN_PATH": args.go_binary_path}})
+        ray.init(runtime_env=ray_runtime_env)
         handlers = ray_handlers
     elif args.mode == 'mock':
         handlers = local_handlers
