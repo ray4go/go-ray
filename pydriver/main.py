@@ -53,7 +53,7 @@ def ray_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
 @ray.remote
 def show(data):
     # debug
-    logger.debug('='*10, data)
+    print('='*10, data)
 
 def local_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
     from . import ffi
@@ -95,21 +95,21 @@ _futures = {}
 def handle_run_remote_task(data: bytes, bitmap: int) -> tuple[bytes, int]:
     func_id = bitmap & ((1 << 22) - 1)
     option_len = bitmap >> 22
-    options = json.loads(data[-option_len:])
+    args_data, opts_data = data[:-option_len], data[-option_len:]
+    options = json.loads(opts_data)
     logger.debug(f"[py] run remote task {func_id}, {options=}")
-    fut = ray_run_task.options(**options).remote(func_id, data[:-option_len])
-    _futures[fut.hex()] = fut  # make future outlive this function
-    args = dict(id=fut.binary(), owner_addr=fut.owner_address(), call_site_data=fut.call_site())
-    return pickle.dumps(args), 0
+    fut = ray_run_task.options(**options).remote(func_id, args_data)
+    fut_local_id = len(_futures)
+    _futures[fut_local_id] = fut  # make future outlive this function
+    # show.remote(fut)
+    return str(fut_local_id).encode(), 0
 
 
 def handle_get_objects(data: bytes, _: int) -> tuple[bytes, int]:
-    # ray._raylet.ObjectRef(id:bytes, owner_addr=u'', call_site_data=u'', skip_adding_local_ref=False)
-    obj_args = pickle.loads(data)
-    obj_ref = ray._raylet.ObjectRef(**obj_args)
-    if obj_ref.hex() in _futures:
-        obj_ref = _futures[obj_ref.hex()]  # seems not necessary
-    # show.remote(obj_ref)
+    fut_local_id = int(data.decode())
+    if fut_local_id not in _futures:
+        return b"object_ref not found!", 1
+    obj_ref = _futures[fut_local_id]
     logger.debug(f"[Py] get obj {obj_ref.hex()}")
     res, code = ray.get(obj_ref)
     return res, code

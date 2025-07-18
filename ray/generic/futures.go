@@ -9,7 +9,7 @@ import (
 	"github.com/ray4go/go-ray/ray"
 )
 
-// FutureN is a future that represents the result of a function call with N returns.
+// FutureN is a future that represents the result of a ray remote function call with N returns.
 
 // Future0
 

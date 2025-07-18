@@ -7,14 +7,14 @@ import (
 )
 
 type ObjectRef struct {
-	taskIndex int
-	pydata    []byte
+	taskIndex int // used to decode result
+	id        int64
 }
 
 // GetAll returns all return values of the given ObjectRefs.
 func (obj ObjectRef) GetAll() ([]any, error) {
 	// log.Debug("[Go] Get ObjectRef(%v)\n", obj.taskIndex)
-	data, retCode := ffi.CallServer(Go2PyCmd_GetObjects, obj.pydata)
+	data, retCode := ffi.CallServer(Go2PyCmd_GetObjects, []byte(fmt.Sprintf("%d", obj.id)))
 	if retCode != 0 {
 		return nil, fmt.Errorf("GetAll failed: retCode=%v, message=%s", retCode, data)
 	}

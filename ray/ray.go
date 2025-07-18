@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"reflect"
 	"runtime/debug"
+	"strconv"
 
 	"github.com/ray4go/go-ray/ray/ffi"
 	"github.com/ray4go/go-ray/ray/utils/log"
@@ -200,9 +201,10 @@ func RemoteCallSlice(name string, args []any, opts []*TaskOption) ObjectRef {
 	// | cmdId   | taskIndex | optionLength |
 	// | 10 bits | 22 bits   | 32 bits      |
 	request := Go2PyCmd_ExeRemoteTask | int64(funcId)<<cmdBitsLen | int64(len(optData))<<32
-	res, _ := ffi.CallServer(request, data)
+	res, _ := ffi.CallServer(request, data)        // todo: pass error to ObjectRef
+	id, _ := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
 	return ObjectRef{
-		pydata:    res,
+		id:        id,
 		taskIndex: funcId,
 	}
 }
