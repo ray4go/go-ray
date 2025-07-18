@@ -115,10 +115,12 @@ func main() {
 	fmt.Printf("Found raytasks struct: %s\n", targetStruct.Name.Name)
 
 	// Find all methods for this struct
-	methods := findMethods(pkg, targetStruct.Name.Name)
+	methods, imports_ := findMethods(pkg, targetStruct.Name.Name)
 
 	// Generate wrapper code
-	code := generateWrapperCode(pkg.Name, targetStruct.Name.Name, methods, pkg, structFile)
+	code := generateWrapperCode(pkg.Name, targetStruct.Name.Name, methods, pkg, structFile, imports_)
+
+	os.WriteFile("/tmp/out.go", []byte(code), 0644)
 
 	// Format the generated code
 	formatted, err := format.Source([]byte(code))
@@ -160,20 +162,21 @@ type Result struct {
 	Type string
 }
 
-func findMethods(pkg *packages.Package, structName string) []Method {
+func findMethods(pkg *packages.Package, structName string) ([]Method, map[string]struct{}) {
 	var methods []Method
 
 	// Get the struct type
 	obj := pkg.Types.Scope().Lookup(structName)
 	if obj == nil {
-		return methods
+		return methods, nil
 	}
 
 	named, ok := obj.Type().(*types.Named)
 	if !ok {
-		return methods
+		return methods, nil
 	}
 
+	imports := make(map[string]struct{})
 	// Iterate through all methods
 	for i := 0; i < named.NumMethods(); i++ {
 		method := named.Method(i)
@@ -206,8 +209,11 @@ func findMethods(pkg *packages.Package, structName string) []Method {
 		params := sig.Params()
 		for j := 0; j < params.Len(); j++ {
 			param := params.At(j)
-			paramType := types.TypeString(param.Type(), types.RelativeTo(pkg.Types))
-
+			paramPkgPath, paramTypeName := GetPackageAndTypeName(param.Type())
+			if paramPkgPath != pkg.Types.Path() && len(paramPkgPath) > 0 {
+				imports[fmt.Sprintf(`"%s"`, paramPkgPath)] = struct{}{}
+				paramTypeName = fmt.Sprintf("%s.%s", packageNmae(paramPkgPath), paramTypeName)
+			}
 			paramName := param.Name()
 			if paramName == "" {
 				paramName = fmt.Sprintf("arg%d", j)
@@ -215,7 +221,7 @@ func findMethods(pkg *packages.Package, structName string) []Method {
 
 			m.Params = append(m.Params, Param{
 				Name: paramName,
-				Type: paramType,
+				Type: paramTypeName,
 			})
 		}
 
@@ -236,7 +242,94 @@ func findMethods(pkg *packages.Package, structName string) []Method {
 		methods = append(methods, m)
 	}
 
-	return methods
+	return methods, imports
+}
+
+func packageNmae(pkgPath string) string {
+	sep := "/"
+	lastIndex := strings.LastIndex(pkgPath, sep)
+	if lastIndex == -1 {
+		// If separator not found, return the original string as the only element
+		return pkgPath
+	}
+	return pkgPath[lastIndex+len(sep):]
+}
+
+// GetPackageAndTypeName 从 types.Type 变量中提取包名和类型名。
+// 返回 (包名, 类型名)。如果类型没有显式的包名（例如基本类型或复合类型），包名将为空字符串。
+func GetPackageAndTypeName(typ types.Type) (packageName string, typeName string) {
+	// 首先检查是否是具名类型 (Named type)，这是最常见的情况，也是唯一有显式包名的情况。
+	if named, ok := typ.(*types.Named); ok {
+		obj := named.Obj() // 获取定义这个具名类型的 *types.TypeName 对象
+		if obj != nil {
+			// typeName 是这个类型的名称 (例如 "MyStruct", "Reader")
+			typeName = obj.Name()
+			// Package() 返回定义这个类型的包，如果类型是预声明的（如 int），则为 nil
+			if obj.Pkg() != nil {
+				packageName = obj.Pkg().Path() // 包的导入路径 (例如 "fmt", "main")
+			}
+		}
+		return packageName, typeName
+	}
+
+	// 接下来处理其他类型的 *types.Type，它们本身没有包名，但有类型名。
+	// 对于这些类型，packageName 将为空字符串。
+	switch t := typ.(type) {
+	case *types.Basic:
+		// 基本类型 (int, string, bool 等)
+		typeName = t.Name()
+	case *types.Pointer:
+		// 指针类型 (*int, *MyStruct)
+		// 类型名是 "ptrTo" + 元素类型名
+		// 如果需要更精确的表示，可以递归调用 GetPackageAndTypeName(t.Elem())
+		_, elemTypeName := GetPackageAndTypeName(t.Elem())
+		typeName = "*" + elemTypeName
+	case *types.Slice:
+		// 切片类型 ([]int, []MyStruct)
+		_, elemTypeName := GetPackageAndTypeName(t.Elem())
+		typeName = "[]" + elemTypeName
+	case *types.Array:
+		// 数组类型 ([N]int, [N]MyStruct)
+		_, elemTypeName := GetPackageAndTypeName(t.Elem())
+		typeName = fmt.Sprintf("[%d]%s", t.Len(), elemTypeName)
+	case *types.Map:
+		// 映射类型 (map[string]int)
+		_, keyTypeName := GetPackageAndTypeName(t.Key())
+		_, elemTypeName := GetPackageAndTypeName(t.Elem())
+		typeName = fmt.Sprintf("map[%s]%s", keyTypeName, elemTypeName)
+	case *types.Chan:
+		// 通道类型 (chan int, chan<- bool)
+		_, elemTypeName := GetPackageAndTypeName(t.Elem())
+		dir := ""
+		switch t.Dir() {
+		case types.SendRecv:
+			dir = "chan "
+		case types.SendOnly:
+			dir = "chan<- "
+		case types.RecvOnly:
+			dir = "<-chan "
+		}
+		typeName = dir + elemTypeName
+	case *types.Signature:
+		// 函数或方法签名类型 (func(int) string)
+		// 这通常只在需要打印完整的函数签名时有用。
+		// 对于包名和类型名，它本身通常不具有一个独立的“名称”。
+		// 如果需要表示，可以使用 t.String()。
+		typeName = t.String()
+	case *types.Struct:
+		// 结构体字面量类型 (struct { Field int })
+		// 类似于匿名结构体。
+		typeName = t.String()
+	case *types.Interface:
+		// 接口字面量类型 (interface { Method() })
+		// 类似于匿名接口。
+		typeName = t.String()
+	default:
+		// 对于其他未知或不常见的类型，使用其 String() 方法作为名称
+		typeName = typ.String()
+	}
+
+	return packageName, typeName
 }
 
 const typeDefTPL = `
@@ -245,7 +338,7 @@ type _rayTasks struct{}
 var %sTasks = _rayTasks{}
 `
 
-func generateWrapperCode(packageName, structName string, methods []Method, pkg *packages.Package, structFile *ast.File) string {
+func generateWrapperCode(packageName, structName string, methods []Method, pkg *packages.Package, structFile *ast.File, imports map[string]struct{}) string {
 	var buf bytes.Buffer
 
 	// Package comments
@@ -256,9 +349,8 @@ func generateWrapperCode(packageName, structName string, methods []Method, pkg *
 
 	// Collect and write imports
 	// imports := collectImports(methods, pkg, structFile)
-	imports := make(map[string]bool)
 	// Add goray generic import
-	imports[fmt.Sprintf(`. "%s/ray/generic"`, workspaceRepo)] = true
+	imports[fmt.Sprintf(`. "%s/ray/generic"`, workspaceRepo)] = struct{}{}
 	if len(imports) > 0 {
 		fmt.Fprintf(&buf, "import (\n")
 		for imp := range imports {
@@ -335,7 +427,7 @@ func generateWrapperFunction(buf *bytes.Buffer, method Method) {
 		resTypes[i] = res.Type
 	}
 	resTypesStr := ""
-	if len(resTypes) > 0 {
+	if len(resTypes) > 0 { // Future0 has no generic type
 		resTypesStr = fmt.Sprintf("[%s]", strings.Join(resTypes, ", "))
 	}
 
