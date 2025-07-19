@@ -21,7 +21,10 @@ var ErrTimeout = errors.New("timeout to get object")
 // Setting timeout=0 will return the object immediately if it’s available,
 // else return ErrTimeout.
 func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
-	// log.Debug("[Go] Get ObjectRef(%v)\n", obj.taskIndex)
+	if obj.taskIndex == -1 {
+		return nil, errors.New("cannot call Get on an ObjectRef of ray.Put(), pass it to a remote task or actor method instead")
+	}
+
 	data, err := json.Marshal([]any{obj.id, timeout})
 	if err != nil {
 		return nil, fmt.Errorf("GetAll json.Marshal failed: %w", err)
@@ -33,8 +36,9 @@ func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
 	if retCode != ErrorCode_Success {
 		return nil, fmt.Errorf("GetAll failed: retCode=%v, message=%s", retCode, data)
 	}
+
 	taskFunc := taskFuncs[obj.taskIndex]
-	res := decodeResult(taskFunc, resultData)
+	res := decodeFuncResult(taskFunc, resultData)
 	return res, nil
 }
 

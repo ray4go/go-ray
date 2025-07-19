@@ -1,7 +1,9 @@
 package ray
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"go/token"
@@ -20,6 +22,7 @@ const (
 	Go2PyCmd_Init          = 0
 	Go2PyCmd_ExeRemoteTask = iota
 	Go2PyCmd_GetObjects    = iota
+	Go2PyCmd_PutObject     = iota
 	Go2PyCmd_ExePyCode     = iota
 )
 
@@ -36,6 +39,9 @@ var (
 	tasksName2Idx map[string]int
 )
 
+// Init goray environment and register the ray driver and tasks.
+// All public methods of the given taskRcvr will be registered as ray tasks.
+// This function should be called in the init() function of your ray application.
 func Init(driverFunc_ func(), taskRcvr any) {
 	driverFunc = driverFunc_
 	taskRcvrVal = reflect.ValueOf(taskRcvr)
@@ -198,6 +204,10 @@ func encodeOptions(opts []*TaskOption, objRefs map[int]ObjectRef) []byte {
 	return data
 }
 
+// RemoteCall calls the remote task of the given name with the given arguments.
+// The ray task options can be passed in the last with WithTaskOption(key, value).
+// The call is asynchronous, and returns an ObjectRef that can be used to get the result later.
+// The ObjectRef can also be passed to a remote task or actor method as an argument.
 func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	args, opts := splitArgsAndOptions(argsAndOpts)
 	funcId, ok := tasksName2Idx[name]
@@ -231,15 +241,42 @@ func splitsplitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
 	args := make([]any, 0, len(items))
 	objs := make(map[int]ObjectRef)
 	for idx, item := range items {
-		if obj, ok := item.(ObjectRef); ok {
-			objs[idx] = obj
-		} else {
+		switch v := item.(type) {
+		case ObjectRef:
+			objs[idx] = v
+		case *ObjectRef:
+			objs[idx] = *v
+		default:
 			args = append(args, item)
 		}
 	}
 	return args, objs
 }
 
+// Put stores an object in the object store.
+// Noted the returned ObjectRef can only be passed to a remote task or actor method. It cannot be used for ObjectRef.GetXXX().
+func Put(data any) (ObjectRef, error) {
+	log.Debug("[Go] Put %#v\n", data)
+	var buffer bytes.Buffer
+	enc := gob.NewEncoder(&buffer)
+	err := enc.Encode(data)
+	if err != nil {
+		return ObjectRef{-1, -1}, fmt.Errorf("gob encode type %v error: %v", reflect.TypeOf(data), err)
+	}
+	res, retCode := ffi.CallServer(Go2PyCmd_PutObject, buffer.Bytes()) // todo: pass error to ObjectRef
+	if retCode != 0 {
+		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
+	}
+	id, _ := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
+	return ObjectRef{
+		id:        id,
+		taskIndex: -1,
+	}, nil
+}
+
+// CallPythonCode executes python code in current ray worker.
+// You can use `write(str)` function to write result as the return value.
+// The `write` function can be used multiple times.
 func CallPythonCode(code string) (string, error) {
 	log.Debug("[Go] RunPythonCode %s\n", code)
 	data, retCode := ffi.CallServer(Go2PyCmd_ExePyCode, []byte(code))

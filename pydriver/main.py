@@ -1,23 +1,18 @@
-import io
-import threading
-import traceback
-import time
-import ray
-import os
-import threading
-import logging
-import time
-import datetime
-import socket
+import argparse
 import enum
 import functools
+import io
 import json
-import pickle
-import sys
-import argparse
+import logging
+import os
+import threading
+import time
 
-from . import libpath, utils
+import ray
 
+from . import consts
+from . import libpath
+from . import utils
 
 cmdBitsLen = 10
 cmdBitsMask = (1 << cmdBitsLen) - 1
@@ -25,12 +20,15 @@ cmdBitsMask = (1 << cmdBitsLen) - 1
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
 
+
 # 和 go 中的 enum 对应
 class Go2PyCmd(enum.IntEnum):
     CMD_INIT = 0
     CMD_EXECUTE_REMOTE_TASK = 1
     CMD_GET_OBJECTS = 2
-    CMD_EXECUTE_PYTHON_CODE = 3
+    CMD_PUT_OBJECT = 3
+    CMD_EXECUTE_PYTHON_CODE = 4
+
 
 class Py2GoCmd(enum.IntEnum):
     CMD_START_DRIVER = 0
@@ -40,16 +38,18 @@ class Py2GoCmd(enum.IntEnum):
 @ray.remote
 def show(data):
     # debug
-    print('='*10, data)
+    print('=' * 10, data)
+
 
 def handle_init(data: bytes, _: int) -> tuple[bytes, int]:
     logger.debug(f"[py] init")
     return b'', 0
 
+
 def handle_run_python_code(code: bytes, _: int) -> tuple[bytes, int]:
     stream = io.StringIO()
     injects = {
-        'put': lambda x: stream.write(str(x)),
+        'write': lambda x: stream.write(str(x)),
     }
     try:
         """
@@ -61,10 +61,8 @@ def handle_run_python_code(code: bytes, _: int) -> tuple[bytes, int]:
         exec(code.decode('utf-8'), injects)
     except Exception as e:
         return f"[goray error] python exec() error: {e}".encode('utf-8'), 1
-    
+
     return stream.getvalue().encode("utf-8"), 0
-
-
 
 
 def init_ffi_once():
@@ -77,8 +75,10 @@ def init_ffi_once():
         ffi.register_handler(functools.partial(handle, handlers))
         logger.debug("register handler")
 
+
 @ray.remote
-def ray_run_task(func_id: int, raw_args: bytes, object_positions: list[int], *object_refs:list[tuple[bytes, int]]) -> tuple[bytes, int]:
+def ray_run_task(func_id: int, raw_args: bytes, object_positions: list[int], *object_refs: list[tuple[bytes, int]]) -> \
+        tuple[bytes, int]:
     """
     :param func_id:
     :param data:
@@ -90,7 +90,8 @@ def ray_run_task(func_id: int, raw_args: bytes, object_positions: list[int], *ob
     return run_task(func_id, raw_args, object_positions, *object_refs)
 
 
-def run_task(func_id: int, raw_args: bytes, object_positions: list[int], *object_refs:list[tuple[bytes, int]]) -> tuple[bytes, int]:
+def run_task(func_id: int, raw_args: bytes, object_positions: list[int], *object_refs: list[tuple[bytes, int]]) -> \
+        tuple[bytes, int]:
     data = [raw_args]
     for pos in object_positions:
         raw_res, code = object_refs[pos]
@@ -123,12 +124,13 @@ def local_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
 # in other modes, value is ray object ref
 _futures = {}
 
+
 def handle_run_remote_task(data: bytes, bitmap: int, mock=False) -> tuple[bytes, int]:
     func_id = bitmap & ((1 << 22) - 1)
     option_len = bitmap >> 22
     args_data, opts_data = data[:-option_len], data[-option_len:]
     options = json.loads(opts_data)
-    object_pos_to_local_id = options.pop("go_ray_object_pos_to_local_id", {})  
+    object_pos_to_local_id = options.pop("go_ray_object_pos_to_local_id", {})
     logger.debug(f"[py] run remote task {func_id}, {options=}, {object_pos_to_local_id=}")
 
     object_positions = []
@@ -138,7 +140,7 @@ def handle_run_remote_task(data: bytes, bitmap: int, mock=False) -> tuple[bytes,
         if local_id not in _futures:
             return b"object_ref not found!", 1
         object_refs.append(_futures[local_id])
-    
+
     if mock:
         fut = run_task(func_id, args_data, object_positions, *object_refs)
     else:
@@ -153,7 +155,7 @@ def handle_get_objects(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     fut_local_id, timeout = json.loads(data)
     if fut_local_id not in _futures:
         return b"object_ref not found!", 1
-    
+
     if mock:
         return _futures[fut_local_id]
     else:
@@ -164,8 +166,18 @@ def handle_get_objects(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
         try:
             res, code = ray.get(obj_ref, timeout=timeout)
         except ray.exceptions.GetTimeoutError:
-            return b"timeout to get object", 2
+            return b"timeout to get object", consts.ErrCode.Timeout
         return res, code
+
+
+def handle_put_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
+    if mock:
+        fut = data, 0
+    else:
+        fut = ray.put([data, 0])
+    fut_local_id = len(_futures)
+    _futures[fut_local_id] = fut  # make future outlive this function
+    return str(fut_local_id).encode(), 0
 
 
 def handle(handlers, cmd: int, data: bytes) -> tuple[bytes, int]:
@@ -183,6 +195,7 @@ handlers = {
     Go2PyCmd.CMD_INIT: handle_init,
     Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: functools.partial(handle_run_remote_task, mock=False),
     Go2PyCmd.CMD_GET_OBJECTS: functools.partial(handle_get_objects, mock=False),
+    Go2PyCmd.CMD_PUT_OBJECT: functools.partial(handle_put_object, mock=False),
     Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
 }
 
@@ -190,8 +203,10 @@ mock_handlers = {
     Go2PyCmd.CMD_INIT: handle_init,
     Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: functools.partial(handle_run_remote_task, mock=True),
     Go2PyCmd.CMD_GET_OBJECTS: functools.partial(handle_get_objects, mock=True),
+    Go2PyCmd.CMD_PUT_OBJECT: functools.partial(handle_put_object, mock=True),
     Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
 }
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -215,7 +230,7 @@ def main():
         help="指定 Goray 应用二进制文件的路径 (使用 go build -buildmode=c-shared 构建)"
     )
     args = parser.parse_args()
-    
+
     libpath.golibpath = args.go_binary_path
     from . import ffi
 
@@ -251,4 +266,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

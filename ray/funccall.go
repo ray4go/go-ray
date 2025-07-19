@@ -69,7 +69,7 @@ func funcCall(rcvrVal reflect.Value, method reflect.Method, rawArgs []byte, posA
 	return encodeSlice(results)
 }
 
-func decodeResult(method reflect.Method, rawResult []byte) []any {
+func decodeFuncResult(method reflect.Method, rawResult []byte) []any {
 	return decodeWithType(rawResult, nil, method.Type.Out)
 }
 
@@ -100,8 +100,6 @@ func decodeWithType(args []byte, posArgs map[int][]byte, typeGetter func(int) re
 			dec = argsDec
 		}
 		typ := typeGetter(idx)
-		log.Println("decodeWithType:", idx, typ)
-
 		item := reflect.New(typ)
 		err := dec.Decode(item.Interface())
 		if err != nil {
