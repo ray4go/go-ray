@@ -150,7 +150,7 @@ def handle_run_remote_task(data: bytes, bitmap: int, mock=False) -> tuple[bytes,
 
 
 def handle_get_objects(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
-    fut_local_id = int(data.decode())
+    fut_local_id, timeout = json.loads(data)
     if fut_local_id not in _futures:
         return b"object_ref not found!", 1
     
@@ -159,7 +159,12 @@ def handle_get_objects(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     else:
         obj_ref = _futures[fut_local_id]  # todo: consider to pop it to avoid memory leak
         logger.debug(f"[Py] get obj {obj_ref.hex()}")
-        res, code = ray.get(obj_ref)
+        if timeout == -1:
+            timeout = None
+        try:
+            res, code = ray.get(obj_ref, timeout=timeout)
+        except ray.exceptions.GetTimeoutError:
+            return b"timeout to get object", 2
         return res, code
 
 
@@ -197,7 +202,7 @@ def main():
     parser.add_argument(
         '--mode',
         type=str,
-        choices=['cluster', 'local', 'mock'],
+        choices=['cluster', 'local', 'mock', 'debug'],
         default='cluster',
         help="指定运行模式：\n"
              "  cluster: 在集群模式下运行\n"
@@ -226,9 +231,13 @@ def main():
         ray.init(runtime_env=ray_runtime_env)
 
     handlers_ = handlers
-    if args.mode == 'mock':
+    if args.mode in ('mock', 'debug'):
         handlers_ = mock_handlers
     ffi.register_handler(functools.partial(handle, handlers_))
+
+    if args.mode == 'debug':
+        print(f"pid: {os.getpid()}")
+        time.sleep(2)  # wait for dlv to attach
 
     try:
         data, code = ffi.execute(Py2GoCmd.CMD_START_DRIVER, b'')

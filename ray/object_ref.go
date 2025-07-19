@@ -1,9 +1,10 @@
 package ray
 
 import (
-	"fmt"
-
 	"github.com/ray4go/go-ray/ray/ffi"
+	"encoding/json"
+	"errors"
+	"fmt"
 )
 
 // ObjectRef is a reference to an object in Ray's object store.
@@ -13,17 +14,33 @@ type ObjectRef struct {
 	id        int64
 }
 
-// GetAll returns all return values of the ObjectRefs in []any.
-func (obj ObjectRef) GetAll() ([]any, error) {
+var ErrTimeout = errors.New("timeout to get object")
+
+// GetAllTimeout returns all return values of the ObjectRefs in []any.
+// timeout: the maximum amount of time in seconds to wait before returning.
+// Setting timeout=0 will return the object immediately if it’s available,
+// else return ErrTimeout.
+func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
 	// log.Debug("[Go] Get ObjectRef(%v)\n", obj.taskIndex)
-	data, retCode := ffi.CallServer(Go2PyCmd_GetObjects, []byte(fmt.Sprintf("%d", obj.id)))
-	if retCode != 0 {
+	data, err := json.Marshal([]any{obj.id, timeout})
+	if err != nil {
+		return nil, fmt.Errorf("GetAll json.Marshal failed: %w", err)
+	}
+	resultData, retCode := ffi.CallServer(Go2PyCmd_GetObjects, data)
+	if retCode == ErrorCode_Timeout {
+		return nil, ErrTimeout
+	}
+	if retCode != ErrorCode_Success {
 		return nil, fmt.Errorf("GetAll failed: retCode=%v, message=%s", retCode, data)
 	}
 	taskFunc := taskFuncs[obj.taskIndex]
-	// log.Debug("[Go] Get ObjectRef(%v) res: %v\n", obj.taskIndex, data)
-	res := decodeResult(taskFunc, data)
+	res := decodeResult(taskFunc, resultData)
 	return res, nil
+}
+
+// GetAll returns all return values of the ObjectRefs in []any.
+func (obj ObjectRef) GetAll() ([]any, error) {
+	return obj.GetAllTimeout(-1)
 }
 
 // Get0 is used to wait remote task / actor method execution finish.
