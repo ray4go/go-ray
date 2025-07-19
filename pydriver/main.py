@@ -38,34 +38,9 @@ class Py2GoCmd(enum.IntEnum):
 
 
 @ray.remote
-def ray_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
-    global _has_init
-
-    _has_init = globals().get("_has_init", False)
-    if not _has_init:
-        from . import ffi
-        _has_init = True
-        ffi.register_handler(functools.partial(handle, ray_handlers))
-        logger.debug("register handler")
-        
-    return local_run_task(func_id, data)
-
-@ray.remote
 def show(data):
     # debug
     print('='*10, data)
-
-def local_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
-    from . import ffi
-    cmd = Py2GoCmd.CMD_RUN_TASK | func_id << cmdBitsLen
-    try:
-        res, code = ffi.execute(cmd, data)
-        logger.debug(f"[py] local_run_task {func_id=}, {res=} {code=}")
-    except Exception as e:
-        logging.exception(f"[py] execute error {e}")
-        return f"[goray error] python ffi.execute() error: {e}".encode('utf-8'), 1
-    return res, code
-
 
 def handle_init(data: bytes, _: int) -> tuple[bytes, int]:
     logger.debug(f"[py] init")
@@ -90,68 +65,128 @@ def handle_run_python_code(code: bytes, _: int) -> tuple[bytes, int]:
     return stream.getvalue().encode("utf-8"), 0
 
 
+
+
+def init_ffi_once():
+    global _has_init
+
+    _has_init = globals().get("_has_init", False)
+    if not _has_init:
+        from . import ffi  # lazy import, since the libpath is injected dynamic 
+        _has_init = True
+        ffi.register_handler(functools.partial(handle, handlers))
+        logger.debug("register handler")
+
+@ray.remote
+def ray_run_task(func_id: int, raw_args: bytes, object_positions: list[int], *object_refs:list[tuple[bytes, int]]) -> tuple[bytes, int]:
+    """
+    :param func_id:
+    :param data:
+    :param object_positions: 调用的go task func中, 传入的object_ref作为参数的位置列表, 有序
+    :param object_refs: object_ref列表, 会被ray core替换为实际的数据
+    :return:
+    """
+    init_ffi_once()
+    return run_task(func_id, raw_args, object_positions, *object_refs)
+
+
+def run_task(func_id: int, raw_args: bytes, object_positions: list[int], *object_refs:list[tuple[bytes, int]]) -> tuple[bytes, int]:
+    data = [raw_args]
+    for pos in object_positions:
+        raw_res, code = object_refs[pos]
+        if code != 0:
+            origin_err_msg = raw_res.decode('utf-8')
+            err_msg = f"get object for argument {pos} error: {origin_err_msg}"
+            return err_msg.encode('utf-8'), code
+        data.append(pos.to_bytes(8, byteorder='little') + raw_res)
+
+    return local_run_task(func_id, pack_bytes_list(data))
+
+
+def pack_bytes_list(data: list[bytes]) -> bytes:
+    return b''.join([len(d).to_bytes(8, byteorder='little') + d for d in data])
+
+
+def local_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
+    from . import ffi
+    cmd = Py2GoCmd.CMD_RUN_TASK | func_id << cmdBitsLen
+    try:
+        res, code = ffi.execute(cmd, data)
+        logger.debug(f"[py] local_run_task {func_id=}, {res=} {code=}")
+    except Exception as e:
+        logging.exception(f"[py] execute error {e}")
+        return f"[goray error] python ffi.execute() error: {e}".encode('utf-8'), 1
+    return res, code
+
+
+# in mock mode, value is actual return value
+# in other modes, value is ray object ref
 _futures = {}
 
-def handle_run_remote_task(data: bytes, bitmap: int) -> tuple[bytes, int]:
+def handle_run_remote_task(data: bytes, bitmap: int, mock=False) -> tuple[bytes, int]:
     func_id = bitmap & ((1 << 22) - 1)
     option_len = bitmap >> 22
     args_data, opts_data = data[:-option_len], data[-option_len:]
     options = json.loads(opts_data)
-    logger.debug(f"[py] run remote task {func_id}, {options=}")
-    fut = ray_run_task.options(**options).remote(func_id, args_data)
+    object_pos_to_local_id = options.pop("go_ray_object_pos_to_local_id", {})  
+    logger.debug(f"[py] run remote task {func_id}, {options=}, {object_pos_to_local_id=}")
+
+    object_positions = []
+    object_refs = []
+    for pos, local_id in sorted(object_pos_to_local_id.items()):
+        object_positions.append(int(pos))
+        if local_id not in _futures:
+            return b"object_ref not found!", 1
+        object_refs.append(_futures[local_id])
+    
+    if mock:
+        fut = run_task(func_id, args_data, object_positions, *object_refs)
+    else:
+        fut = ray_run_task.options(**options).remote(func_id, args_data, object_positions, *object_refs)
     fut_local_id = len(_futures)
     _futures[fut_local_id] = fut  # make future outlive this function
     # show.remote(fut)
     return str(fut_local_id).encode(), 0
 
 
-def handle_get_objects(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_get_objects(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     fut_local_id = int(data.decode())
     if fut_local_id not in _futures:
         return b"object_ref not found!", 1
-    obj_ref = _futures[fut_local_id]
-    logger.debug(f"[Py] get obj {obj_ref.hex()}")
-    res, code = ray.get(obj_ref)
-    return res, code
+    
+    if mock:
+        return _futures[fut_local_id]
+    else:
+        obj_ref = _futures[fut_local_id]  # todo: consider to pop it to avoid memory leak
+        logger.debug(f"[Py] get obj {obj_ref.hex()}")
+        res, code = ray.get(obj_ref)
+        return res, code
 
 
-futures:dict[int, tuple[bytes, int]] = {}
-def handle_run_local_task(data: bytes, bitmap: int) -> tuple[bytes, int]:
-    func_id = bitmap & ((1 << 22) - 1)
-    option_len = bitmap >> 22
-    ret = local_run_task(func_id, data[:-option_len])
-    fut = len(futures)
-    futures[fut] = ret
-    return str(fut).encode('utf-8'), 0
-
-
-def handle_get_local_objects(data: bytes, index: int) -> tuple[bytes, int]:
-    future_id = int(data.decode('utf-8'))
-    return futures[future_id]
-
-ray_handlers = {
-    Go2PyCmd.CMD_INIT: handle_init,
-    Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: handle_run_remote_task,
-    Go2PyCmd.CMD_GET_OBJECTS: handle_get_objects,
-    Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
-}
-local_handlers = {
-    Go2PyCmd.CMD_INIT: handle_init,
-    Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: handle_run_local_task,
-    Go2PyCmd.CMD_GET_OBJECTS: handle_get_local_objects,
-    Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
-}
-
-def handle(hanlers, cmd: int, data: bytes) -> tuple[bytes, int]:
+def handle(handlers, cmd: int, data: bytes) -> tuple[bytes, int]:
     cmd, index = cmd & cmdBitsMask, cmd >> cmdBitsLen
     logger.debug(f"[py] handle {Go2PyCmd(cmd).name}, {index=}, {len(data)=}, {threading.current_thread().name}")
-    func = hanlers[cmd]
+    func = handlers[cmd]
     try:
         return func(data, index)
     except Exception as e:
         logging.exception(f"[py] handle {Go2PyCmd(cmd).name} error {e}")
         return b'', 0
 
+
+handlers = {
+    Go2PyCmd.CMD_INIT: handle_init,
+    Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: functools.partial(handle_run_remote_task, mock=False),
+    Go2PyCmd.CMD_GET_OBJECTS: functools.partial(handle_get_objects, mock=False),
+    Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
+}
+
+mock_handlers = {
+    Go2PyCmd.CMD_INIT: handle_init,
+    Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: functools.partial(handle_run_remote_task, mock=True),
+    Go2PyCmd.CMD_GET_OBJECTS: functools.partial(handle_get_objects, mock=True),
+    Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
+}
 
 def main():
     parser = argparse.ArgumentParser(
@@ -187,14 +222,13 @@ def main():
 
     if args.mode == 'cluster':
         ray.init(address='auto', runtime_env=ray_runtime_env)
-        handlers = ray_handlers
     elif args.mode == 'local':
         ray.init(runtime_env=ray_runtime_env)
-        handlers = ray_handlers
-    elif args.mode == 'mock':
-        handlers = local_handlers
 
-    ffi.register_handler(functools.partial(handle, handlers))
+    handlers_ = handlers
+    if args.mode == 'mock':
+        handlers_ = mock_handlers
+    ffi.register_handler(functools.partial(handle, handlers_))
 
     try:
         data, code = ffi.execute(Py2GoCmd.CMD_START_DRIVER, b'')

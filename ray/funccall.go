@@ -8,23 +8,50 @@ import (
 	"github.com/ray4go/go-ray/ray/utils/log"
 )
 
-func encodeArgs(method reflect.Method, args []any) []byte {
-	if len(args) != (method.Type.NumIn() - 1) {
-		log.Panicf("encodeArgs [%#v]: args length not match, given %v, expect %v", method, len(args), method.Type.NumIn()-1)
-	}
-	return encodeSlice(args)
+type MethodType struct {
+	reflect.Type // must be a method type
 }
 
-func decodeArgs(method reflect.Method, rawArgs []byte) []any {
-	argTypes := make([]reflect.Type, 0, method.Type.NumIn()-1)
-	for i := 1; i < method.Type.NumIn(); i++ {
-		argTypes = append(argTypes, method.Type.In(i))
+func (m *MethodType) IsValidArgNum(numIn int) bool {
+	if m.Type.IsVariadic() {
+		return numIn >= m.Type.NumIn()-1
 	}
-	return decodeWithTypes(rawArgs, argTypes)
+	return numIn == m.Type.NumIn()-1
 }
 
-func funcCall(rcvrVal reflect.Value, method reflect.Method, rawArgs []byte) []byte {
-	args := decodeArgs(method, rawArgs)
+func (m *MethodType) InType(idx int) reflect.Type {
+	if m.Type.IsVariadic() {
+		// The index of the variadic argument (from the user's perspective) is NumIn() - 2.
+		if idx >= m.Type.NumIn()-2 {
+			// If the requested index is for the variadic part,
+			// get the slice type of the last parameter...
+			sliceType := m.Type.In(m.Type.NumIn() - 1)
+			// ...and return its element type.
+			return sliceType.Elem()
+		}
+	}
+	return m.Type.In(idx + 1)
+}
+
+func encodeArgs(method reflect.Method, args []any, opsArgLen int) []byte {
+	if !(&MethodType{method.Type}).IsValidArgNum(len(args) + opsArgLen) {
+		log.Panicf(
+			"encodeArgs: method `%s` args length not match, given %v, expect %v. MethodType: %s",
+			method.Name, len(args)+opsArgLen, method.Type.NumIn()-1, method.Type,
+		)
+	}
+	rawArgs := encodeSlice(args)
+	return rawArgs
+}
+
+func decodeArgs(method reflect.Method, rawArgs []byte, posArgs map[int][]byte) []any {
+	methodType := &MethodType{method.Type}
+	return decodeWithType(rawArgs, posArgs, methodType.InType)
+}
+
+func funcCall(rcvrVal reflect.Value, method reflect.Method, rawArgs []byte, posArgs map[int][]byte) []byte {
+	args := decodeArgs(method, rawArgs, posArgs)
+
 	log.Debug("[Go] funcCall: %v", method.Name)
 
 	funcVal := method.Func
@@ -33,13 +60,7 @@ func funcCall(rcvrVal reflect.Value, method reflect.Method, rawArgs []byte) []by
 	for i, arg := range args {
 		argVals[i+1] = reflect.ValueOf(arg)
 	}
-
-	var returnValues []reflect.Value
-	if method.Type.IsVariadic() {
-		returnValues = funcVal.CallSlice(argVals)
-	} else {
-		returnValues = funcVal.Call(argVals)
-	}
+	returnValues := funcVal.Call(argVals)
 
 	results := make([]any, len(returnValues))
 	for i, res := range returnValues {
@@ -49,11 +70,7 @@ func funcCall(rcvrVal reflect.Value, method reflect.Method, rawArgs []byte) []by
 }
 
 func decodeResult(method reflect.Method, rawResult []byte) []any {
-	retTypes := make([]reflect.Type, 0, method.Type.NumOut())
-	for i := 0; i < method.Type.NumOut(); i++ {
-		retTypes = append(retTypes, method.Type.Out(i))
-	}
-	return decodeWithTypes(rawResult, retTypes)
+	return decodeWithType(rawResult, nil, method.Type.Out)
 }
 
 func encodeSlice(items []any) []byte {
@@ -68,16 +85,28 @@ func encodeSlice(items []any) []byte {
 	return buffer.Bytes()
 }
 
-func decodeWithTypes(data []byte, types []reflect.Type) []any {
-	var buffer bytes.Buffer
-	buffer.Write(data)
-	dec := gob.NewDecoder(&buffer)
-	outs := make([]any, 0, len(types))
-	for _, typ := range types {
+func decodeWithType(args []byte, posArgs map[int][]byte, typeGetter func(int) reflect.Type) []any {
+	buf := bytes.NewBuffer(args)
+	argsDec := gob.NewDecoder(buf)
+	outs := make([]any, 0)
+	posArgs = copyMap(posArgs)
+	for idx := 0; buf.Len() > 0 || len(posArgs) > 0; idx++ {
+		argData, ok := posArgs[idx]
+		var dec *gob.Decoder
+		if ok {
+			dec = gob.NewDecoder(bytes.NewBuffer(argData))
+			delete(posArgs, idx) // remove the processed pos arg
+		} else {
+			dec = argsDec
+		}
+		typ := typeGetter(idx)
+		log.Println("decodeWithType:", idx, typ)
+
 		item := reflect.New(typ)
 		err := dec.Decode(item.Interface())
 		if err != nil {
-			log.Panicf("gob decode type %v error: %v", typ, err)
+			log.Printf("decodeWithTypes: %#v \n", item.Interface())
+			log.Panicf("gob decode type `%v` error: %v", typ, err)
 		}
 		outs = append(outs, item.Elem().Interface())
 	}

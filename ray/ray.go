@@ -1,6 +1,7 @@
 package ray
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"go/token"
@@ -55,7 +56,7 @@ func getExportedMethods(typ reflect.Type) []reflect.Method {
 	for i := 0; i < typ.NumMethod(); i++ {
 		method := typ.Method(i)
 		mtype := method.Type
-		// Method must be exported.
+		// MethodType must be exported.
 		ok := method.IsExported()
 		// All arguments must be exported or builtin types.
 		for j := 1; j < mtype.NumIn(); j++ {
@@ -105,6 +106,14 @@ func handleStartDriver(_ int64, _ []byte) (res []byte, retCode int64) {
 	return []byte{}, 0
 }
 
+/*
+data format: multiple bytes units
+bytes unit format: | length:8byte:int64 | data:${length}byte:[]byte |
+
+- first unit is raw args data;
+- other units are objectRefs resolved data;
+  - resolved data format: | arg_pos:8byte:int64 | data:[]byte |
+*/
 func handleRunTask(taskIndex int64, data []byte) (res []byte, retCode int64) {
 	taskFunc := taskFuncs[taskIndex]
 	defer func() {
@@ -114,7 +123,18 @@ func handleRunTask(taskIndex int64, data []byte) (res []byte, retCode int64) {
 			res = []byte(fmt.Sprintf("panic when call %s(): %v", taskFunc.Name, err))
 		}
 	}()
-	res = funcCall(taskRcvrVal, taskFunc, data)
+
+	args, ok := decodeBytesUnits(data)
+	if !ok || len(args) == 0 {
+		return []byte("Error: handleRunTask decode args failed"), 1
+	}
+	posArgs := make(map[int][]byte)
+	for i := 1; i < len(args); i++ { // skip first unit, which is raw args
+		pos := int(binary.LittleEndian.Uint64(args[i][:8]))
+		posArgs[pos] = args[i][8:]
+	}
+
+	res = funcCall(taskRcvrVal, taskFunc, args[0], posArgs)
 	log.Debug("funcCall %v -> %v\n", taskFunc, res)
 	return res, 0
 }
@@ -161,11 +181,16 @@ func splitArgsAndOptions(items []any) ([]any, []*TaskOption) {
 	return args, opts
 }
 
-func encodeOptions(opts []*TaskOption) []byte {
+func encodeOptions(opts []*TaskOption, objRefs map[int]ObjectRef) []byte {
 	kvs := make(map[string]any)
 	for _, opt := range opts {
 		kvs[opt.name] = opt.value
 	}
+	objIdx2Ids := make(map[int]int64)
+	for idx, obj := range objRefs {
+		objIdx2Ids[idx] = obj.id
+	}
+	kvs["go_ray_object_pos_to_local_id"] = objIdx2Ids
 	data, err := json.Marshal(kvs)
 	if err != nil {
 		panic(fmt.Sprintf("Error encoding options to JSON: %v", err))
@@ -175,38 +200,44 @@ func encodeOptions(opts []*TaskOption) []byte {
 
 func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	args, opts := splitArgsAndOptions(argsAndOpts)
-	funcId := tasksName2Idx[name]
-	taskFunc := taskFuncs[funcId]
-
-	if taskFunc.Type.IsVariadic() {
-		variadics := args[taskFunc.Type.NumIn()-2:] // pack variadic arguments into slice
-		headArgs := args[:taskFunc.Type.NumIn()-2]
-		args = make([]any, 0, taskFunc.Type.NumIn()-1)
-		args = append(args, headArgs...)
-		args = append(args, variadics)
+	funcId, ok := tasksName2Idx[name]
+	if !ok {
+		panic(fmt.Sprintf("Error: RemoteCall failed: task %s not found", name))
 	}
-	return RemoteCallSlice(name, args, opts)
-}
-
-// if remote function is variadic, args[len(args)-1] should be function's final variadic arguments (slice)
-func RemoteCallSlice(name string, args []any, opts []*TaskOption) ObjectRef {
 	log.Debug("[Go] RemoteCall %s %#v\n", name, args)
-	funcId := tasksName2Idx[name]
 	taskFunc := taskFuncs[funcId]
-	argData := encodeArgs(taskFunc, args)
-	optData := encodeOptions(opts)
+
+	args, objRefs := splitsplitArgsAndObjectRefs(args)
+	argData := encodeArgs(taskFunc, args, len(objRefs))
+	optData := encodeOptions(opts, objRefs)
 	data := append(argData, optData...) // TODO: optimize the memory allocation
 
 	// request bitmap layout (64 bits, LSB first)
 	// | cmdId   | taskIndex | optionLength |
 	// | 10 bits | 22 bits   | 32 bits      |
 	request := Go2PyCmd_ExeRemoteTask | int64(funcId)<<cmdBitsLen | int64(len(optData))<<32
-	res, _ := ffi.CallServer(request, data)        // todo: pass error to ObjectRef
+	res, retCode := ffi.CallServer(request, data) // todo: pass error to ObjectRef
+	if retCode != 0 {
+		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
+	}
 	id, _ := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
 	return ObjectRef{
 		id:        id,
 		taskIndex: funcId,
 	}
+}
+
+func splitsplitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
+	args := make([]any, 0, len(items))
+	objs := make(map[int]ObjectRef)
+	for idx, item := range items {
+		if obj, ok := item.(ObjectRef); ok {
+			objs[idx] = obj
+		} else {
+			args = append(args, item)
+		}
+	}
+	return args, objs
 }
 
 func CallPythonCode(code string) (string, error) {

@@ -389,17 +389,17 @@ func collectImports(methods []Method, pkg *packages.Package, structFile *ast.Fil
 const funcDefTpl = `
 func (_ _rayTasks){{.FuncName}}({{.ParamList}}) *RemoteFunc[*Future{{.ResLen}}{{.ResTypes}}] {
 	_ = ({{.ReceiverType}}).{{.FuncName}}  // help you to find the original method
-	return NewRemoteFunc[*Future{{.ResLen}}{{.ResTypes}}]("{{.FuncName}}", []any{ {{.ParamNames}} })
+	return NewRemoteFunc[*Future{{.ResLen}}{{.ResTypes}}]("{{.FuncName}}", {{.ArgsStatement}})
 }
 `
 
 type FuncDef struct {
-	FuncName     string
-	ParamList    string
-	ResLen       int
-	ResTypes     string
-	ParamNames   string
-	ReceiverType string
+	FuncName      string
+	ParamList     string
+	ResLen        int
+	ResTypes      string
+	ArgsStatement string
+	ReceiverType  string
 }
 
 func generateWrapperFunction(buf *bytes.Buffer, method Method) {
@@ -431,13 +431,22 @@ func generateWrapperFunction(buf *bytes.Buffer, method Method) {
 		resTypesStr = fmt.Sprintf("[%s]", strings.Join(resTypes, ", "))
 	}
 
+	argsStatement := fmt.Sprintf("[]any{%s}", strings.Join(paramNames, ", "))
+	if method.IsVariadic {
+		argsStatement = fmt.Sprintf(
+			"ExpandArgs([]any{%s}, %s)",
+			strings.Join(paramNames[:len(paramNames)-1], ", "),
+			paramNames[len(paramNames)-1],
+		)
+	}
+
 	funcDef := FuncDef{
-		FuncName:     method.Name,
-		ParamList:    paramList,
-		ResLen:       len(method.Results),
-		ResTypes:     resTypesStr,
-		ParamNames:   strings.Join(paramNames, ", "),
-		ReceiverType: method.ReceiverType,
+		FuncName:      method.Name,
+		ParamList:     paramList,
+		ResLen:        len(method.Results),
+		ResTypes:      resTypesStr,
+		ArgsStatement: argsStatement,
+		ReceiverType:  method.ReceiverType,
 	}
 
 	tmpl, err := template.New("funcDef").Parse(funcDefTpl)
