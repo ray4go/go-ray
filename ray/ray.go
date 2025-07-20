@@ -199,7 +199,7 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	log.Debug("[Go] RemoteCall %s %#v\n", name, args)
 	taskFunc := taskFuncs[funcId]
 
-	args, objRefs := splitsplitArgsAndObjectRefs(args)
+	args, objRefs := splitArgsAndObjectRefs(args)
 	argData := encodeArgs(taskFunc, args, len(objRefs))
 	optData := encodeOptions(opts, objRefs)
 	data := append(argData, optData...) // TODO: optimize the memory allocation
@@ -219,7 +219,15 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	}
 }
 
-func splitsplitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
+func (obj ObjectRef) numReturn() int {
+	if obj.taskIndex == -1 {
+		return 1 // ray.Put() ObjectRef
+	}
+	taskFunc := taskFuncs[obj.taskIndex]
+	return taskFunc.Type.NumOut()
+}
+
+func splitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
 	args := make([]any, 0, len(items))
 	objs := make(map[int]ObjectRef)
 	for idx, item := range items {
@@ -233,6 +241,11 @@ func splitsplitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
 			objs[idx] = *v
 		default:
 			args = append(args, item)
+		}
+		if obj, ok := objs[idx]; ok {
+			if obj.numReturn() != 1 {
+				panic(fmt.Sprintf("Error: invalid ObjectRef in arguments[%d], only accept ObjectRef with one return value", idx))
+			}
 		}
 	}
 	return args, objs
