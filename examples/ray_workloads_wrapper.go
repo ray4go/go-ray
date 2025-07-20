@@ -9,6 +9,8 @@
 package main
 
 import (
+	"time"
+
 	. "github.com/ray4go/go-ray/ray/generic"
 )
 
@@ -21,47 +23,32 @@ func (_ _rayTasks) Hello(name string) *RemoteFunc[*Future1[string]] {
 	return NewRemoteFunc[*Future1[string]]("Hello", []any{name})
 }
 
-func (_ _rayTasks) Workload(name string) *RemoteFunc[*Future1[string]] {
-	_ = (demo).Workload // help you to find the original method
-	return NewRemoteFunc[*Future1[string]]("Workload", []any{name})
+func (_ _rayTasks) Busy(name string, duration time.Duration) *RemoteFunc[*Future1[string]] {
+	_ = (demo).Busy // help you to find the original method
+	return NewRemoteFunc[*Future1[string]]("Busy", []any{name, duration})
 }
 
-func (_ _rayTasks) Add(a int64, b int64) *RemoteFunc[*Future1[int64]] {
-	_ = (demo).Add // help you to find the original method
-	return NewRemoteFunc[*Future1[int64]]("Add", []any{a, b})
+func (_ _rayTasks) AddPointSlice(ps []Point) *RemoteFunc[*Future1[Point]] {
+	_ = (demo).AddPointSlice // help you to find the original method
+	return NewRemoteFunc[*Future1[Point]]("AddPointSlice", []any{ps})
 }
 
-func (_ _rayTasks) Nil(a int64, b int64) *RemoteFunc[*Future0] {
-	_ = (demo).Nil // help you to find the original method
-	return NewRemoteFunc[*Future0]("Nil", []any{a, b})
+func (_ _rayTasks) Add2Points(p1 Point, p2 Point) *RemoteFunc[*Future1[Point]] {
+	_ = (demo).Add2Points // help you to find the original method
+	return NewRemoteFunc[*Future1[Point]]("Add2Points", []any{p1, p2})
+}
+
+func (_ _rayTasks) AddPointsVar(ps ...Point) *RemoteFunc[*Future1[Point]] {
+	_ = (demo).AddPointsVar // help you to find the original method
+	return NewRemoteFunc[*Future1[Point]]("AddPointsVar", ExpandArgs([]any{}, ps))
+}
+
+func (_ _rayTasks) NoReturnVal(a int64, b int64) *RemoteFunc[*Future0] {
+	_ = (demo).NoReturnVal // help you to find the original method
+	return NewRemoteFunc[*Future0]("NoReturnVal", []any{a, b})
 }
 
 func (_ _rayTasks) MultiReturn(i int, s string) *RemoteFunc[*Future2[int, string]] {
 	_ = (demo).MultiReturn // help you to find the original method
 	return NewRemoteFunc[*Future2[int, string]]("MultiReturn", []any{i, s})
-}
-
-func (_ _rayTasks) Printf(format string, args ...any) *RemoteFunc[*Future1[int]] {
-	_ = (demo).Printf // help you to find the original method
-	return NewRemoteFunc[*Future1[int]]("Printf", []any{format, args})
-}
-
-func (_ _rayTasks) AddPoints(points []Point) *RemoteFunc[*Future1[Point]] {
-	_ = (demo).AddPoints // help you to find the original method
-	return NewRemoteFunc[*Future1[Point]]("AddPoints", []any{points})
-}
-
-func (_ _rayTasks) CallOtherTaskLowLevel() *RemoteFunc[*Future0] {
-	_ = (demo).CallOtherTaskLowLevel // help you to find the original method
-	return NewRemoteFunc[*Future0]("CallOtherTaskLowLevel", []any{})
-}
-
-func (_ _rayTasks) CallOtherTaskHighLevel() *RemoteFunc[*Future0] {
-	_ = (demo).CallOtherTaskHighLevel // help you to find the original method
-	return NewRemoteFunc[*Future0]("CallOtherTaskHighLevel", []any{})
-}
-
-func (_ _rayTasks) ErrorReturn() *RemoteFunc[*Future2[string, error]] {
-	_ = (demo).ErrorReturn // help you to find the original method
-	return NewRemoteFunc[*Future2[string, error]]("ErrorReturn", []any{})
 }
