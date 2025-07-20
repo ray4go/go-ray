@@ -18,19 +18,6 @@ import (
 const cmdBitsLen = 10
 const cmdBitsMask = (1 << cmdBitsLen) - 1
 
-const (
-	Go2PyCmd_Init          = 0
-	Go2PyCmd_ExeRemoteTask = iota
-	Go2PyCmd_GetObjects    = iota
-	Go2PyCmd_PutObject     = iota
-	Go2PyCmd_ExePyCode     = iota
-)
-
-const (
-	Py2GoCmd_StartDriver = 0
-	Py2GoCmd_RunTask     = iota
-)
-
 var (
 	driverFunc    func()
 	taskRcvrVal   reflect.Value
@@ -162,16 +149,11 @@ func handlePythonCmd(request int64, data []byte) ([]byte, int64) {
 	return handler(index, data)
 }
 
-type TaskOption struct {
-	name  string
-	value any
-}
+// TaskOption is used to pass options to RemoteCall().
+type TaskOption struct{ *Option }
 
 func WithTaskOption(name string, value any) *TaskOption {
-	return &TaskOption{
-		name:  name,
-		value: value,
-	}
+	return &TaskOption{NewOption(name, value)}
 }
 
 func splitArgsAndOptions(items []any) ([]any, []*TaskOption) {
@@ -190,7 +172,7 @@ func splitArgsAndOptions(items []any) ([]any, []*TaskOption) {
 func encodeOptions(opts []*TaskOption, objRefs map[int]ObjectRef) []byte {
 	kvs := make(map[string]any)
 	for _, opt := range opts {
-		kvs[opt.name] = opt.value
+		kvs[opt.Name()] = opt.Value()
 	}
 	objIdx2Ids := make(map[int]int64)
 	for idx, obj := range objRefs {
@@ -245,6 +227,9 @@ func splitsplitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
 		case ObjectRef:
 			objs[idx] = v
 		case *ObjectRef:
+			if v == nil {
+				panic("invalid ObjectRef, got nil")
+			}
 			objs[idx] = *v
 		default:
 			args = append(args, item)
@@ -255,6 +240,7 @@ func splitsplitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
 
 // Put stores an object in the object store.
 // Noted the returned ObjectRef can only be passed to a remote task or actor method. It cannot be used for ObjectRef.GetXXX().
+// todo: return *ObjectRef
 func Put(data any) (ObjectRef, error) {
 	log.Debug("[Go] Put %#v\n", data)
 	var buffer bytes.Buffer
@@ -265,13 +251,62 @@ func Put(data any) (ObjectRef, error) {
 	}
 	res, retCode := ffi.CallServer(Go2PyCmd_PutObject, buffer.Bytes()) // todo: pass error to ObjectRef
 	if retCode != 0 {
-		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
+		return ObjectRef{-1, -1}, fmt.Errorf("error: ray.Put() failed: retCode=%v, message=%s", retCode, res)
 	}
 	id, _ := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
 	return ObjectRef{
 		id:        id,
 		taskIndex: -1,
 	}, nil
+}
+
+// Cancel a remote function (Task) or a remote Actor method (Actor Task)
+// See https://docs.ray.io/en/latest/ray-core/api/doc/ray.cancel.html#ray-cancel
+func (obj ObjectRef) Cancel(opts ...*Option) error {
+	kvs := EncodeOptions(opts)
+	kvs["object_ref_local_id"] = obj.id
+	data, err := json.Marshal(kvs)
+	if err != nil {
+		log.Panicf("Error encoding options to JSON: %v", err)
+	}
+	res, retCode := ffi.CallServer(Go2PyCmd_CancelObject, data)
+	if retCode != ErrorCode_Success {
+		return fmt.Errorf("ray.Cancel() failed, reason: %w, detail: %s", NewError(retCode), res)
+	}
+	return nil
+}
+
+// Wait return a list of IDs that are ready and a list of IDs that are not.
+// See https://docs.ray.io/en/latest/ray-core/api/doc/ray.wait.html#ray.wait
+func Wait(objRefs []ObjectRef, opts ...*Option) ([]ObjectRef, []ObjectRef, error) {
+	objIds := make([]int64, 0, len(objRefs))
+	for _, obj := range objRefs {
+		objIds = append(objIds, obj.id)
+	}
+	kvs := EncodeOptions(opts)
+	kvs["object_ref_local_ids"] = objIds
+	data, err := json.Marshal(kvs)
+	if err != nil {
+		log.Panicf("Error encoding options to JSON: %v", err)
+	}
+	retData, retCode := ffi.CallServer(Go2PyCmd_WaitObject, data)
+	if retCode != ErrorCode_Success {
+		return nil, nil, fmt.Errorf("ray.Wait() failed, reason: %w, detail: %s", NewError(retCode), retData)
+	}
+	var res [][]int
+	err = json.Unmarshal(retData, &res)
+	if err != nil {
+		log.Panicf("ray.Wait(): decode response failed, response: %s", retData)
+	}
+	ready := make([]ObjectRef, len(res[0]))
+	notReady := make([]ObjectRef, len(res[1]))
+	for i, idx := range res[0] {
+		ready[i] = objRefs[idx]
+	}
+	for i, idx := range res[1] {
+		notReady[i] = objRefs[idx]
+	}
+	return ready, notReady, nil
 }
 
 // CallPythonCode executes python code in current ray worker.

@@ -14,8 +14,6 @@ type ObjectRef struct {
 	id        int64
 }
 
-var ErrTimeout = errors.New("timeout to get object")
-
 // GetAllTimeout returns all return values of the ObjectRefs in []any.
 // timeout: the maximum amount of time in seconds to wait before returning.
 // Setting timeout=0 will return the object immediately if it’s available,
@@ -29,12 +27,10 @@ func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("GetAll json.Marshal failed: %w", err)
 	}
-	resultData, retCode := ffi.CallServer(Go2PyCmd_GetObjects, data)
-	if retCode == ErrorCode_Timeout {
-		return nil, ErrTimeout
-	}
+	resultData, retCode := ffi.CallServer(Go2PyCmd_GetObject, data)
+
 	if retCode != ErrorCode_Success {
-		return nil, fmt.Errorf("GetAll failed: retCode=%v, message=%s", retCode, data)
+		return nil, fmt.Errorf("ObjectRef.GetAll failed, reason: %w, detail: %s", NewError(retCode), resultData)
 	}
 
 	taskFunc := taskFuncs[obj.taskIndex]

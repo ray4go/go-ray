@@ -1,5 +1,4 @@
 import argparse
-import enum
 import functools
 import io
 import json
@@ -13,26 +12,13 @@ import ray
 from . import consts
 from . import libpath
 from . import utils
+from .consts import *
 
 cmdBitsLen = 10
 cmdBitsMask = (1 << cmdBitsLen) - 1
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
-
-
-# 和 go 中的 enum 对应
-class Go2PyCmd(enum.IntEnum):
-    CMD_INIT = 0
-    CMD_EXECUTE_REMOTE_TASK = 1
-    CMD_GET_OBJECTS = 2
-    CMD_PUT_OBJECT = 3
-    CMD_EXECUTE_PYTHON_CODE = 4
-
-
-class Py2GoCmd(enum.IntEnum):
-    CMD_START_DRIVER = 0
-    CMD_RUN_TASK = 1
 
 
 @ray.remote
@@ -167,6 +153,8 @@ def handle_get_objects(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
             res, code = ray.get(obj_ref, timeout=timeout)
         except ray.exceptions.GetTimeoutError:
             return b"timeout to get object", consts.ErrCode.Timeout
+        except ray.exceptions.TaskCancelledError:
+            return b"task cancelled", consts.ErrCode.Cancelled
         return res, code
 
 
@@ -178,6 +166,42 @@ def handle_put_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     fut_local_id = len(_futures)
     _futures[fut_local_id] = fut  # make future outlive this function
     return str(fut_local_id).encode(), 0
+
+
+def handle_wait_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
+    opts = json.loads(data)
+    fut_local_ids = opts.pop("object_ref_local_ids")
+
+    if mock:
+        return json.dumps([fut_local_ids, []]).encode(), 0
+
+    futs = []
+    fut_hex2local_id = {}
+    for fut_local_id in fut_local_ids:
+        if fut_local_id not in _futures:
+            return b"object_ref not found!", 1
+        fut = _futures[fut_local_id]
+        futs.append(fut)
+        fut_hex2local_id[fut.hex()] = fut_local_id
+
+    ready, not_ready = ray.wait(futs, **opts)
+
+    ready_ids = [fut_hex2local_id[i.hex()] for i in ready]
+    not_ready_ids = [fut_hex2local_id[i.hex()] for i in not_ready]
+    ret_data = json.dumps([ready_ids, not_ready_ids]).encode()
+    return ret_data, 0
+
+
+
+def handle_cancel_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
+    opts = json.loads(data)
+    fut_local_id = opts.pop("object_ref_local_id")
+    if fut_local_id not in _futures:
+        return b"object_ref not found!", 1
+    fut = _futures[fut_local_id]
+    if not mock:
+        ray.cancel(fut, **opts)
+    return b'', 0
 
 
 def handle(handlers, cmd: int, data: bytes) -> tuple[bytes, int]:
@@ -194,16 +218,20 @@ def handle(handlers, cmd: int, data: bytes) -> tuple[bytes, int]:
 handlers = {
     Go2PyCmd.CMD_INIT: handle_init,
     Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: functools.partial(handle_run_remote_task, mock=False),
-    Go2PyCmd.CMD_GET_OBJECTS: functools.partial(handle_get_objects, mock=False),
+    Go2PyCmd.CMD_GET_OBJECT: functools.partial(handle_get_objects, mock=False),
     Go2PyCmd.CMD_PUT_OBJECT: functools.partial(handle_put_object, mock=False),
+    Go2PyCmd.CMD_WAIT_OBJECT: functools.partial(handle_wait_object, mock=False),
+    Go2PyCmd.CMD_CANCEL_OBJECT: functools.partial(handle_cancel_object, mock=False),
     Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
 }
 
 mock_handlers = {
     Go2PyCmd.CMD_INIT: handle_init,
     Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: functools.partial(handle_run_remote_task, mock=True),
-    Go2PyCmd.CMD_GET_OBJECTS: functools.partial(handle_get_objects, mock=True),
+    Go2PyCmd.CMD_GET_OBJECT: functools.partial(handle_get_objects, mock=True),
     Go2PyCmd.CMD_PUT_OBJECT: functools.partial(handle_put_object, mock=True),
+    Go2PyCmd.CMD_WAIT_OBJECT: functools.partial(handle_wait_object, mock=True),
+    Go2PyCmd.CMD_CANCEL_OBJECT: functools.partial(handle_cancel_object, mock=True),
     Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
 }
 
