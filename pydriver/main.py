@@ -25,29 +25,29 @@ utils.init_logger(logger)
 @ray.remote
 def show(data):
     # debug
-    print('=' * 10, data)
+    print("=" * 10, data)
 
 
 def handle_init(data: bytes, _: int) -> tuple[bytes, int]:
     logger.debug(f"[py] init")
-    return b'', 0
+    return b"", 0
 
 
 def handle_run_python_code(code: bytes, _: int) -> tuple[bytes, int]:
     stream = io.StringIO()
     injects = {
-        'write': lambda x: stream.write(str(x)),
+        "write": lambda x: stream.write(str(x)),
     }
     try:
         """
-        Remember that at module level, globals and locals are the same dictionary. 
-        If exec gets two separate objects as globals and locals, 
+        Remember that at module level, globals and locals are the same dictionary.
+        If exec gets two separate objects as globals and locals,
         the code will be executed as if it were embedded in a class definition.
         https://docs.python.org/3/library/functions.html#exec
         """
-        exec(code.decode('utf-8'), injects)
+        exec(code.decode("utf-8"), injects)
     except Exception as e:
-        return f"[goray error] python exec() error: {e}".encode('utf-8'), 1
+        return f"[goray error] python exec() error: {e}".encode("utf-8"), 1
 
     return stream.getvalue().encode("utf-8"), 0
 
@@ -58,14 +58,19 @@ def init_ffi_once():
     _has_init = globals().get("_has_init", False)
     if not _has_init:
         from . import ffi  # lazy import, since the libpath is injected dynamic
+
         _has_init = True
         ffi.register_handler(functools.partial(handle, handlers))
         logger.debug("register handler")
 
 
 @ray.remote
-def ray_run_task(func_id: int, raw_args: bytes, object_positions: list[int], *object_refs: list[tuple[bytes, int]]) -> \
-        tuple[bytes, int]:
+def ray_run_task(
+    func_id: int,
+    raw_args: bytes,
+    object_positions: list[int],
+    *object_refs: list[tuple[bytes, int]],
+) -> tuple[bytes, int]:
     """
     :param func_id:
     :param data:
@@ -78,35 +83,38 @@ def ray_run_task(func_id: int, raw_args: bytes, object_positions: list[int], *ob
 
 
 def run_task(
-        func_id: int,
-        raw_args: bytes,
-        object_positions: list[int],
-        *object_refs: list[tuple[bytes, int]],
+    func_id: int,
+    raw_args: bytes,
+    object_positions: list[int],
+    *object_refs: list[tuple[bytes, int]],
 ) -> tuple[bytes, int]:
     data = [raw_args]
     for pos, (raw_res, code) in zip(object_positions, object_refs):
         if code != 0:  # ray task for this object failed
-            origin_err_msg = raw_res.decode('utf-8')
-            err_msg = f"ray task for the object in {pos}th argument error: {origin_err_msg}"
-            return err_msg.encode('utf-8'), code
-        data.append(pos.to_bytes(8, byteorder='little') + raw_res)
+            origin_err_msg = raw_res.decode("utf-8")
+            err_msg = (
+                f"ray task for the object in {pos}th argument error: {origin_err_msg}"
+            )
+            return err_msg.encode("utf-8"), code
+        data.append(pos.to_bytes(8, byteorder="little") + raw_res)
 
     return local_run_task(func_id, pack_bytes_list(data))
 
 
 def pack_bytes_list(data: list[bytes]) -> bytes:
-    return b''.join([len(d).to_bytes(8, byteorder='little') + d for d in data])
+    return b"".join([len(d).to_bytes(8, byteorder="little") + d for d in data])
 
 
 def local_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
     from . import ffi
+
     cmd = Py2GoCmd.CMD_RUN_TASK | func_id << cmdBitsLen
     try:
         res, code = ffi.execute(cmd, data)
         logger.debug(f"[py] local_run_task {func_id=}, {res=} {code=}")
     except Exception as e:
         logging.exception(f"[py] execute error {e}")
-        return f"[goray error] python ffi.execute() error: {e}".encode('utf-8'), 1
+        return f"[goray error] python ffi.execute() error: {e}".encode("utf-8"), 1
     return res, code
 
 
@@ -121,7 +129,9 @@ def handle_run_remote_task(data: bytes, bitmap: int, mock=False) -> tuple[bytes,
     args_data, opts_data = data[:-option_len], data[-option_len:]
     options = json.loads(opts_data)
     object_pos_to_local_id = options.pop("go_ray_object_pos_to_local_id", {})
-    logger.debug(f"[py] run remote task {func_id}, {options=}, {object_pos_to_local_id=}")
+    logger.debug(
+        f"[py] run remote task {func_id}, {options=}, {object_pos_to_local_id=}"
+    )
 
     object_positions = []
     object_refs = []
@@ -134,7 +144,9 @@ def handle_run_remote_task(data: bytes, bitmap: int, mock=False) -> tuple[bytes,
     if mock:
         fut = run_task(func_id, args_data, object_positions, *object_refs)
     else:
-        fut = ray_run_task.options(**options).remote(func_id, args_data, object_positions, *object_refs)
+        fut = ray_run_task.options(**options).remote(
+            func_id, args_data, object_positions, *object_refs
+        )
     fut_local_id = len(_futures)
     _futures[fut_local_id] = fut  # make future outlive this function
     # show.remote(fut)
@@ -149,7 +161,9 @@ def handle_get_objects(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     if mock:
         return _futures[fut_local_id]
     else:
-        obj_ref = _futures[fut_local_id]  # todo: consider to pop it to avoid memory leak
+        obj_ref = _futures[
+            fut_local_id
+        ]  # todo: consider to pop it to avoid memory leak
         logger.debug(f"[Py] get obj {obj_ref.hex()}")
         if timeout == -1:
             timeout = None
@@ -204,24 +218,30 @@ def handle_cancel_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     fut = _futures[fut_local_id]
     if not mock:
         ray.cancel(fut, **opts)
-    return b'', 0
+    return b"", 0
 
 
 def handle(handlers, cmd: int, data: bytes) -> tuple[bytes, int]:
     cmd, index = cmd & cmdBitsMask, cmd >> cmdBitsLen
-    logger.debug(f"[py] handle {Go2PyCmd(cmd).name}, {index=}, {len(data)=}, {threading.current_thread().name}")
+    logger.debug(
+        f"[py] handle {Go2PyCmd(cmd).name}, {index=}, {len(data)=}, {threading.current_thread().name}"
+    )
     func = handlers[cmd]
     try:
         return func(data, index)
     except Exception as e:
-        error_string = f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()
+        error_string = (
+            f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()
+        )
         logger.error(error_string)
-        return error_string.encode('utf8'), ErrCode.Failed
+        return error_string.encode("utf8"), ErrCode.Failed
 
 
 handlers = {
     Go2PyCmd.CMD_INIT: handle_init,
-    Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: functools.partial(handle_run_remote_task, mock=False),
+    Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: functools.partial(
+        handle_run_remote_task, mock=False
+    ),
     Go2PyCmd.CMD_GET_OBJECT: functools.partial(handle_get_objects, mock=False),
     Go2PyCmd.CMD_PUT_OBJECT: functools.partial(handle_put_object, mock=False),
     Go2PyCmd.CMD_WAIT_OBJECT: functools.partial(handle_wait_object, mock=False),
@@ -231,7 +251,9 @@ handlers = {
 
 mock_handlers = {
     Go2PyCmd.CMD_INIT: handle_init,
-    Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: functools.partial(handle_run_remote_task, mock=True),
+    Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: functools.partial(
+        handle_run_remote_task, mock=True
+    ),
     Go2PyCmd.CMD_GET_OBJECT: functools.partial(handle_get_objects, mock=True),
     Go2PyCmd.CMD_PUT_OBJECT: functools.partial(handle_put_object, mock=True),
     Go2PyCmd.CMD_WAIT_OBJECT: functools.partial(handle_wait_object, mock=True),
@@ -243,23 +265,23 @@ mock_handlers = {
 def main():
     parser = argparse.ArgumentParser(
         description="Python driver for ray-core-go application.",
-        formatter_class=argparse.RawTextHelpFormatter
+        formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument('--debug', action='store_true', help="Enable debug logging")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument(
-        '--mode',
+        "--mode",
         type=str,
-        choices=['cluster', 'local', 'mock', 'debug'],
-        default='cluster',
+        choices=["cluster", "local", "mock", "debug"],
+        default="cluster",
         help="指定运行模式：\n"
-             "  cluster: 在集群模式下运行\n"
-             "  local: 在ray本地模式下运行\n"
-             "  mock: 在模拟模式下运行"
+        "  cluster: 在集群模式下运行\n"
+        "  local: 在ray本地模式下运行\n"
+        "  mock: 在模拟模式下运行",
     )
     parser.add_argument(
-        'go_binary_path',  # 位置参数
+        "go_binary_path",  # 位置参数
         type=str,
-        help="指定 Goray 应用二进制文件的路径 (使用 go build -buildmode=c-shared 构建)"
+        help="指定 Goray 应用二进制文件的路径 (使用 go build -buildmode=c-shared 构建)",
     )
     args = parser.parse_args()
 
@@ -272,24 +294,24 @@ def main():
         utils.enable_logger(logger)
         utils.enable_logger(ffi.logger)
 
-    if args.mode == 'cluster':
-        ray.init(address='auto', runtime_env=ray_runtime_env)
-    elif args.mode == 'local':
+    if args.mode == "cluster":
+        ray.init(address="auto", runtime_env=ray_runtime_env)
+    elif args.mode == "local":
         ray.init(runtime_env=ray_runtime_env)
 
     handlers_ = handlers
-    if args.mode in ('mock', 'debug'):
+    if args.mode in ("mock", "debug"):
         handlers_ = mock_handlers
     ffi.register_handler(functools.partial(handle, handlers_))
 
-    if args.mode == 'debug':
+    if args.mode == "debug":
         print(f"pid: {os.getpid()}")
         time.sleep(2)  # wait for dlv to attach
 
     try:
-        data, code = ffi.execute(Py2GoCmd.CMD_START_DRIVER, b'')
+        data, code = ffi.execute(Py2GoCmd.CMD_START_DRIVER, b"")
         if code != 0:
-            err_msg = data.decode('utf-8')
+            err_msg = data.decode("utf-8")
             logger.debug(f"[py] driver error[{code}]: {err_msg}")
             exit(1)
     except KeyboardInterrupt:

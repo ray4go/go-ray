@@ -1,11 +1,13 @@
 """
 和 go 中的 enum 对应
 """
+
 import enum
+
 
 class ErrCode(enum.IntEnum):
     Success = 0
-    Failed  = enum.auto()
+    Failed = enum.auto()
     Timeout = enum.auto()
     Cancelled = enum.auto()
 
