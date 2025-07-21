@@ -3,6 +3,7 @@ package ray
 import (
 	"bytes"
 	"encoding/gob"
+	"fmt"
 	"reflect"
 
 	"github.com/ray4go/go-ray/ray/utils/log"
@@ -35,10 +36,10 @@ func (m *MethodType) InType(idx int) reflect.Type {
 
 func encodeArgs(method reflect.Method, args []any, opsArgLen int) []byte {
 	if !(&MethodType{method.Type}).IsValidArgNum(len(args) + opsArgLen) {
-		log.Panicf(
+		panic(fmt.Sprintf(
 			"encodeArgs: method `%s` args length not match, given %v, expect %v. MethodType: %s",
 			method.Name, len(args)+opsArgLen, method.Type.NumIn()-1, method.Type,
-		)
+		))
 	}
 	rawArgs := encodeSlice(args)
 	return rawArgs

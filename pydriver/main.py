@@ -6,6 +6,7 @@ import logging
 import os
 import threading
 import time
+import traceback
 
 import ray
 
@@ -56,7 +57,7 @@ def init_ffi_once():
 
     _has_init = globals().get("_has_init", False)
     if not _has_init:
-        from . import ffi  # lazy import, since the libpath is injected dynamic 
+        from . import ffi  # lazy import, since the libpath is injected dynamic
         _has_init = True
         ffi.register_handler(functools.partial(handle, handlers))
         logger.debug("register handler")
@@ -76,14 +77,17 @@ def ray_run_task(func_id: int, raw_args: bytes, object_positions: list[int], *ob
     return run_task(func_id, raw_args, object_positions, *object_refs)
 
 
-def run_task(func_id: int, raw_args: bytes, object_positions: list[int], *object_refs: list[tuple[bytes, int]]) -> \
-        tuple[bytes, int]:
+def run_task(
+        func_id: int,
+        raw_args: bytes,
+        object_positions: list[int],
+        *object_refs: list[tuple[bytes, int]],
+) -> tuple[bytes, int]:
     data = [raw_args]
-    for pos in object_positions:
-        raw_res, code = object_refs[pos]
-        if code != 0:
+    for pos, (raw_res, code) in zip(object_positions, object_refs):
+        if code != 0:  # ray task for this object failed
             origin_err_msg = raw_res.decode('utf-8')
-            err_msg = f"get object for argument {pos} error: {origin_err_msg}"
+            err_msg = f"ray task for the object in {pos}th argument error: {origin_err_msg}"
             return err_msg.encode('utf-8'), code
         data.append(pos.to_bytes(8, byteorder='little') + raw_res)
 
@@ -106,7 +110,7 @@ def local_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
     return res, code
 
 
-# in mock mode, value is actual return value
+# in mock mode, value is actual return value, i.e. (data, code).
 # in other modes, value is ray object ref
 _futures = {}
 
@@ -176,21 +180,20 @@ def handle_wait_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
         return json.dumps([fut_local_ids, []]).encode(), 0
 
     futs = []
-    fut_hex2local_id = {}
-    for fut_local_id in fut_local_ids:
+    fut_hex2idx = {}
+    for idx, fut_local_id in enumerate(fut_local_ids):
         if fut_local_id not in _futures:
             return b"object_ref not found!", 1
         fut = _futures[fut_local_id]
         futs.append(fut)
-        fut_hex2local_id[fut.hex()] = fut_local_id
+        fut_hex2idx[fut.hex()] = idx
 
     ready, not_ready = ray.wait(futs, **opts)
 
-    ready_ids = [fut_hex2local_id[i.hex()] for i in ready]
-    not_ready_ids = [fut_hex2local_id[i.hex()] for i in not_ready]
+    ready_ids = [fut_hex2idx[i.hex()] for i in ready]
+    not_ready_ids = [fut_hex2idx[i.hex()] for i in not_ready]
     ret_data = json.dumps([ready_ids, not_ready_ids]).encode()
     return ret_data, 0
-
 
 
 def handle_cancel_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
@@ -211,8 +214,9 @@ def handle(handlers, cmd: int, data: bytes) -> tuple[bytes, int]:
     try:
         return func(data, index)
     except Exception as e:
-        logging.exception(f"[py] handle {Go2PyCmd(cmd).name} error {e}")
-        return b'', 0
+        error_string = f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()
+        logger.error(error_string)
+        return error_string.encode('utf8'), ErrCode.Failed
 
 
 handlers = {
