@@ -98,11 +98,7 @@ def run_task(
             return err_msg.encode("utf-8"), code
         data.append(pos.to_bytes(8, byteorder="little") + raw_res)
 
-    return local_run_task(func_id, pack_bytes_list(data))
-
-
-def pack_bytes_list(data: list[bytes]) -> bytes:
-    return b"".join([len(d).to_bytes(8, byteorder="little") + d for d in data])
+    return local_run_task(func_id, utils.pack_bytes_units(data))
 
 
 def local_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
@@ -120,13 +116,11 @@ def local_run_task(func_id: int, data: bytes) -> tuple[bytes, int]:
 
 # in mock mode, value is actual return value, i.e. (data, code).
 # in other modes, value is ray object ref
-_futures = {}
+_futures = utils.ThreadSafeLocalStore()
 
 
-def handle_run_remote_task(data: bytes, bitmap: int, mock=False) -> tuple[bytes, int]:
-    func_id = bitmap & ((1 << 22) - 1)
-    option_len = bitmap >> 22
-    args_data, opts_data = data[:-option_len], data[-option_len:]
+def handle_run_remote_task(data: bytes, func_id: int, mock=False) -> tuple[bytes, int]:
+    args_data, opts_data = utils.unpack_bytes_units(data)
     options = json.loads(opts_data)
     object_pos_to_local_id = options.pop("go_ray_object_pos_to_local_id", {})
     logger.debug(
@@ -147,8 +141,7 @@ def handle_run_remote_task(data: bytes, bitmap: int, mock=False) -> tuple[bytes,
         fut = ray_run_task.options(**options).remote(
             func_id, args_data, object_positions, *object_refs
         )
-    fut_local_id = len(_futures)
-    _futures[fut_local_id] = fut  # make future outlive this function
+    fut_local_id = _futures.add(fut)
     # show.remote(fut)
     return str(fut_local_id).encode(), 0
 
@@ -181,8 +174,8 @@ def handle_put_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
         fut = data, 0
     else:
         fut = ray.put([data, 0])
-    fut_local_id = len(_futures)
-    _futures[fut_local_id] = fut  # make future outlive this function
+    # side effect: make future outlive this function (on purpose)
+    fut_local_id = _futures.add(fut)
     return str(fut_local_id).encode(), 0
 
 

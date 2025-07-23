@@ -1,5 +1,8 @@
 package ray
 
+const cmdBitsLen = 10
+const cmdBitsMask = (1 << cmdBitsLen) - 1
+
 const (
 	ErrorCode_Success   = 0
 	ErrorCode_Failed    = iota

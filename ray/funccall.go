@@ -9,57 +9,27 @@ import (
 	"github.com/ray4go/go-ray/ray/utils/log"
 )
 
-type MethodType struct {
-	reflect.Type // must be a method type
-}
-
-func (m *MethodType) IsValidArgNum(numIn int) bool {
-	if m.Type.IsVariadic() {
-		return numIn >= m.Type.NumIn()-1
-	}
-	return numIn == m.Type.NumIn()-1
-}
-
-func (m *MethodType) InType(idx int) reflect.Type {
-	if m.Type.IsVariadic() {
-		// The index of the variadic argument (from the user's perspective) is NumIn() - 2.
-		if idx >= m.Type.NumIn()-2 {
-			// If the requested index is for the variadic part,
-			// get the slice type of the last parameter...
-			sliceType := m.Type.In(m.Type.NumIn() - 1)
-			// ...and return its element type.
-			return sliceType.Elem()
-		}
-	}
-	return m.Type.In(idx + 1)
-}
-
-func encodeArgs(method reflect.Method, args []any, opsArgLen int) []byte {
-	if !(&MethodType{method.Type}).IsValidArgNum(len(args) + opsArgLen) {
+func encodeArgs(callable *CallableType, args []any, opsArgLen int) []byte {
+	if !(callable.IsValidArgNum(len(args) + opsArgLen)) {
 		panic(fmt.Sprintf(
-			"encodeArgs: method `%s` args length not match, given %v, expect %v. MethodType: %s",
-			method.Name, len(args)+opsArgLen, method.Type.NumIn()-1, method.Type,
+			"encodeArgs: func/method args length not match, given %v, expect %v. CallableType: %s",
+			len(args)+opsArgLen, callable.NumIn()-1, callable.Type,
 		))
 	}
 	rawArgs := encodeSlice(args)
 	return rawArgs
 }
 
-func decodeArgs(method reflect.Method, rawArgs []byte, posArgs map[int][]byte) []any {
-	methodType := &MethodType{method.Type}
-	return decodeWithType(rawArgs, posArgs, methodType.InType)
-}
+func funcCall(rcvrVal *reflect.Value, funcVal reflect.Value, callable *CallableType, rawArgs []byte, posArgs map[int][]byte) []byte {
+	args := decodeWithType(rawArgs, posArgs, callable.InType)
+	log.Debug("[Go] funcCall: %v", callable.Type)
 
-func funcCall(rcvrVal reflect.Value, method reflect.Method, rawArgs []byte, posArgs map[int][]byte) []byte {
-	args := decodeArgs(method, rawArgs, posArgs)
-
-	log.Debug("[Go] funcCall: %v", method.Name)
-
-	funcVal := method.Func
-	argVals := make([]reflect.Value, len(args)+1)
-	argVals[0] = rcvrVal
-	for i, arg := range args {
-		argVals[i+1] = reflect.ValueOf(arg)
+	argVals := make([]reflect.Value, 0, len(args)+1)
+	if rcvrVal != nil {
+		argVals = append(argVals, *rcvrVal)
+	}
+	for _, arg := range args {
+		argVals = append(argVals, reflect.ValueOf(arg))
 	}
 	returnValues := funcVal.Call(argVals)
 

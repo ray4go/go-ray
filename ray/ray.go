@@ -6,7 +6,6 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"go/token"
 	"reflect"
 	"runtime/debug"
 	"strconv"
@@ -15,15 +14,11 @@ import (
 	"github.com/ray4go/go-ray/ray/utils/log"
 )
 
-const cmdBitsLen = 10
-const cmdBitsMask = (1 << cmdBitsLen) - 1
-
 var (
-	driverFunc    func()
-	taskRcvrVal   reflect.Value
-	taskRcvrTyp   reflect.Type
-	taskFuncs     []reflect.Method
-	tasksName2Idx map[string]int
+	driverFunc      func()
+	taskReceiverVal reflect.Value
+	taskFuncs       []reflect.Method
+	tasksName2Idx   map[string]int
 )
 
 // Init goray environment and register the ray driver and tasks.
@@ -31,10 +26,9 @@ var (
 // This function should be called in the init() function of your ray application.
 func Init(driverFunc_ func(), taskRcvr any) {
 	driverFunc = driverFunc_
-	taskRcvrVal = reflect.ValueOf(taskRcvr)
-	taskRcvrTyp = reflect.TypeOf(taskRcvr)
+	taskReceiverVal = reflect.ValueOf(taskRcvr)
 	// TODO: check taskRcvr's underlying type is pointer of struct{} (make sure it's stateless)
-	taskFuncs = getExportedMethods(taskRcvrTyp)
+	taskFuncs = getExportedMethods(reflect.TypeOf(taskRcvr))
 	tasksName2Idx = make(map[string]int)
 	for i, task := range taskFuncs {
 		tasksName2Idx[task.Name] = i
@@ -42,49 +36,6 @@ func Init(driverFunc_ func(), taskRcvr any) {
 
 	log.Debug("[Go] Init %v %v\n", driverFunc_, tasksName2Idx)
 	ffi.RegisterHandler(handlePythonCmd)
-}
-
-func getExportedMethods(typ reflect.Type) []reflect.Method {
-	methods := make([]reflect.Method, 0)
-	for i := 0; i < typ.NumMethod(); i++ {
-		method := typ.Method(i)
-		mtype := method.Type
-		// MethodType must be exported.
-		ok := method.IsExported()
-		// All arguments must be exported or builtin types.
-		for j := 1; j < mtype.NumIn(); j++ {
-			argType := mtype.In(j)
-			if !isExportedOrBuiltinType(argType) {
-				log.Debug("[Go] method %v arg %v is not exported\n", method, argType)
-				ok = false
-				break
-			}
-		}
-		// all return values must be exported or builtin types.
-		for j := 0; j < mtype.NumOut(); j++ {
-			argType := mtype.Out(j)
-			if !isExportedOrBuiltinType(argType) {
-				ok = false
-				break
-			}
-		}
-		if ok {
-			methods = append(methods, method)
-		} else {
-			log.Debug("[Go] skip method %v\n", method)
-		}
-	}
-	return methods
-}
-
-// Is this type exported or a builtin?
-func isExportedOrBuiltinType(t reflect.Type) bool {
-	for t.Kind() == reflect.Pointer {
-		t = t.Elem()
-	}
-	// PkgPath will be non-empty even for an exported type,
-	// so we need to check the type name as well.
-	return token.IsExported(t.Name()) || t.PkgPath() == ""
 }
 
 func handleStartDriver(_ int64, _ []byte) (res []byte, retCode int64) {
@@ -127,7 +78,7 @@ func handleRunTask(taskIndex int64, data []byte) (res []byte, retCode int64) {
 		posArgs[pos] = args[i][8:]
 	}
 
-	res = funcCall(taskRcvrVal, taskFunc, args[0], posArgs)
+	res = funcCall(&taskReceiverVal, taskFunc.Func, NewCallableType(taskFunc.Type, true), args[0], posArgs)
 	log.Debug("funcCall %v -> %v\n", taskFunc, res)
 	return res, 0
 }
@@ -199,20 +150,26 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	log.Debug("[Go] RemoteCall %s %#v\n", name, args)
 	taskFunc := taskFuncs[funcId]
 
+	buffer := bytes.NewBuffer(nil)
 	args, objRefs := splitArgsAndObjectRefs(args)
-	argData := encodeArgs(taskFunc, args, len(objRefs))
+	argData := encodeArgs(NewCallableType(taskFunc.Type, true), args, len(objRefs))
+	appendBytesUnit(buffer, argData)
 	optData := encodeOptions(opts, objRefs)
-	data := append(argData, optData...) // TODO: optimize the memory allocation
+	appendBytesUnit(buffer, optData)
 
 	// request bitmap layout (64 bits, LSB first)
-	// | cmdId   | taskIndex | optionLength |
-	// | 10 bits | 22 bits   | 32 bits      |
-	request := Go2PyCmd_ExeRemoteTask | int64(funcId)<<cmdBitsLen | int64(len(optData))<<32
-	res, retCode := ffi.CallServer(request, data) // todo: pass error to ObjectRef
+	// | cmdId   | taskIndex |
+	// | 10 bits | 54 bits   |
+	request := Go2PyCmd_ExeRemoteTask | int64(funcId)<<cmdBitsLen
+	res, retCode := ffi.CallServer(request, buffer.Bytes()) // todo: pass error to ObjectRef
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
 	}
-	id, _ := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
+	id, err := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
+	if err != nil {
+		panic(fmt.Sprintf("Error: RemoteCall invald return: %s, expect a number", res))
+	}
+
 	return ObjectRef{
 		id:        id,
 		taskIndex: funcId,
