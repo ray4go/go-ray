@@ -57,13 +57,13 @@ class ThreadSafeLocalStore:
 
     def __setstate__(self, state):
         """used by pickle to deserialize the object"""
-        # assert not state, (
-        #     f"ThreadSafeLocalStore should not be serialized with {state=}, it's a bug in goray"
-        # )
-        if state:
-            logging.warning(
-                f"ThreadSafeLocalStore should not be serialized with {state=}, it's a bug in goray"
-            )
+        # todo: figure out this
+        # if state:
+        #     logging.warning(
+        #         f"ThreadSafeLocalStore should not be serialized with {state=}, it's a bug in goray"
+        #     )
+        self._write_lock = threading.Lock()
+        self._store = {}
         return
 
     def __contains__(self, key: int):

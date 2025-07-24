@@ -90,7 +90,7 @@ class Actor:
 
 * remote python -> go: new_actor
 | cmdId   | actorIndex |
-| 10 bits | 22 bits    |
+| 10 bits | 54 bits    |
 
 data format: multiple bytes units
 - first unit is raw args data;
@@ -105,8 +105,8 @@ return actorGoInstanceIndex
 ### actor method call
 
 * go -> python: actor_call
-  | cmdId   | actorPyLocalId | methodIndex | optionLength |
-  | 10 bits | 12 bits        |   10 bits   | 32 bits      |
+  | cmdId   | methodIndex | PyActorId |
+  | 10 bits | 22 bits     |  32 bits  |
   data: arguments_bytes + options_bytes
 
 * python:
@@ -114,6 +114,16 @@ return actorGoInstanceIndex
 - call actor method
 - save objectref to local store
 - return objectref_local_id
+
+* remote python -> go: actor_method_call
+  | cmdId   | methodIndex |  actorGoInstanceIndex |
+  | 10 bits | 22 bits     |  32 bits              |
+
+data format: multiple bytes units
+- first unit is raw args data;
+- other units are objectRefs resolved data;
+  - resolved data format: | arg_pos:8byte:int64 | data:[]byte |
+
 
 ### Get actor
 

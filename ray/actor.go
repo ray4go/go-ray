@@ -37,7 +37,7 @@ var (
 
 // 传入actor类型的指针
 // todo: 考虑使用 New(...) (pointer, error) 签名作为构造函数
-func RegisterActors(actorFactories map[string]any) {
+func registerActors(actorFactories map[string]any) {
 	mapOrderedIterate(actorFactories, func(name string, actorNewFunc any) {
 		typ := getFuncReturnType(actorNewFunc)
 

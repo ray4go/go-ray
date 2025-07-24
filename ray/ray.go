@@ -24,7 +24,7 @@ var (
 // Init goray environment and register the ray driver and tasks.
 // All public methods of the given taskRcvr will be registered as ray tasks.
 // This function should be called in the init() function of your ray application.
-func Init(driverFunc_ func(), taskRcvr any) {
+func Init(driverFunc_ func(), taskRcvr any, actorFactories map[string]any) {
 	driverFunc = driverFunc_
 	taskReceiverVal = reflect.ValueOf(taskRcvr)
 	// TODO: check taskRcvr's underlying type is pointer of struct{} (make sure it's stateless)
@@ -33,7 +33,7 @@ func Init(driverFunc_ func(), taskRcvr any) {
 	for i, task := range taskFuncs {
 		tasksName2Idx[task.Name] = i
 	}
-
+	registerActors(actorFactories)
 	log.Debug("[Go] Init %v %v\n", driverFunc_, tasksName2Idx)
 	ffi.RegisterHandler(handlePythonCmd)
 }

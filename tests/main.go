@@ -15,7 +15,7 @@ var tests = make([]testing.InternalTest, 0)
 type testTask struct{}
 
 func init() {
-	ray.Init(driver, testTask{}) // 初始化，注册ray driver 和 tasks
+	ray.Init(driver, testTask{}, nil) // 初始化，注册ray driver 和 tasks
 }
 
 func addTestCase(name string, f func(*require.Assertions)) {

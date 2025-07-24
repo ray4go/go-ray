@@ -15,12 +15,80 @@ type Point struct {
 
 func init() {
 	// raylog.Init(true)  // enable debug log
-	ray.Init(driver, demo{})
+	ray.Init(driver, demo{}, map[string]any{"actor": NewActor})
 }
+
+func (_ demo) BatchTask(batchId int, items []string) []string {
+	result := make([]string, len(items))
+	for i, item := range items {
+		result[i] = item + "_batch_" + string(rune(batchId+'0'))
+	}
+	return result
+}
+
+type actor struct {
+	num int
+}
+
+func NewActor(n int) *actor {
+	return &actor{num: n}
+}
+
+func (actor *actor) Incr(n int) int {
+	fmt.Printf("Incr %d -> %d\n", actor.num, actor.num+n)
+	actor.num += n
+	return actor.num
+}
+
+func (actor *actor) Decr(n int) int {
+	fmt.Printf("Decr %d -> %d\n", actor.num, actor.num-n)
+	actor.num -= n
+	return actor.num
+}
+
+const pycode = `
+import threading
+current_thread = threading.current_thread()
+print(f"Thread name: {current_thread.name}")
+`
 
 func driver() {
 	host, _ := os.Hostname()
 	fmt.Printf("driver host: %s\n", host)
+	{
+		a := ray.NewActor("actor", 1)
+		fmt.Printf("a: %#v\n", a)
+		obj := a.RemoteCall("Incr", 1)
+		fmt.Println("obj ", obj)
+		res, err := obj.Get1()
+		fmt.Println("res ", res, err)
+
+		obj2 := a.RemoteCall("Incr", 1)
+		obj3 := a.RemoteCall("Incr", obj2)
+		fmt.Println("obj3 ", obj3)
+		fmt.Println(obj3.Get1())
+
+	}
+	{
+		obj := ray.RemoteCall("Nest", "nest", 2)
+		res, err := obj.Get1()
+		fmt.Println("res ", res, err)
+	}
+	{
+		go func() {
+			ray.CallPythonCode(pycode)
+		}()
+		time.Sleep(1 * time.Second) // wait for Python thread to start
+	}
+	{
+		dataRef, _ := ray.Put([]string{"ref_item1", "ref_item2"})
+		fmt.Println(dataRef)
+		objRef := ray.RemoteCall("BatchTask", 99, dataRef,
+			ray.WithTaskOption("num_cpus", 1),
+			ray.WithTaskOption("memory", 50*1024*1024))
+		fmt.Println(objRef.Get1())
+	}
+	return
 	{
 		obj1 := ray.RemoteCall("Busy", "Workload1", 4, ray.WithTaskOption("num_cpus", 1))
 		obj2 := ray.RemoteCall("Busy", "Workload2", 4)
@@ -70,6 +138,13 @@ func (_ demo) Busy(name string, duration time.Duration) string {
 	time.Sleep(duration * time.Second)
 	fmt.Println("BusyTask", name, "finished at", time.Now())
 	return fmt.Sprintf("BusyTask %s success", name)
+}
+
+func (_ demo) Nest(name string, duration time.Duration) string {
+	obj := ray.RemoteCall("Busy", name, duration)
+	res, err := obj.Get1()
+	fmt.Println("Nest: ", res, err)
+	return res.(string)
 }
 
 // 传递自定义类型的slice

@@ -28,12 +28,12 @@ def show(data):
     print("=" * 10, data)
 
 
-def handle_init(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_init(data: bytes, _: int, **kwargs) -> tuple[bytes, int]:
     logger.debug(f"[py] init")
     return b"", 0
 
 
-def handle_run_python_code(code: bytes, _: int) -> tuple[bytes, int]:
+def handle_run_python_code(code: bytes, _: int, **kwargs) -> tuple[bytes, int]:
     stream = io.StringIO()
     injects = {
         "write": lambda x: stream.write(str(x)),
@@ -60,7 +60,7 @@ def init_ffi_once():
         from . import ffi  # lazy import, since the libpath is injected dynamic
 
         _has_init = True
-        ffi.register_handler(functools.partial(handle, handlers))
+        ffi.register_handler(handle)
         logger.debug("register handler")
 
 
@@ -129,8 +129,6 @@ def pack_golang_funccall_data(
     return utils.pack_bytes_units(data), 0
 
 
-
-
 class _Actor:
     go_instance_index:int
 
@@ -146,7 +144,6 @@ class _Actor:
         )
         if err != 0:
             raise Exception(data.decode("utf-8"))
-        # init_ffi_once()
 
         from . import ffi
         cmd = Py2GoCmd.CMD_NEW_ACTOR | actor_class_idx << cmdBitsLen
@@ -303,7 +300,7 @@ def handle_wait_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     fut_local_ids = opts.pop("object_ref_local_ids")
 
     if mock:
-        return json.dumps([fut_local_ids, []]).encode(), 0
+        return json.dumps([list(range(fut_local_ids)), []]).encode(), 0
 
     futs = []
     fut_hex2idx = {}
@@ -332,57 +329,41 @@ def handle_cancel_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
         ray.cancel(fut, **opts)
     return b"", 0
 
+handlers = {
+    Go2PyCmd.CMD_INIT: handle_init,
+    Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: handle_run_remote_task,
+    Go2PyCmd.CMD_GET_OBJECT:  handle_get_objects,
+    Go2PyCmd.CMD_PUT_OBJECT:  handle_put_object,
+    Go2PyCmd.CMD_WAIT_OBJECT:  handle_wait_object,
+    Go2PyCmd.CMD_CANCEL_OBJECT:  handle_cancel_object,
+    Go2PyCmd.CMD_NEW_ACTOR: handle_new_actor,
+    Go2PyCmd.CMD_ACTOR_METHOD_CALL: handle_actor_method_call,
+    Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
+}
 
-def handle(handlers, cmd: int, data: bytes) -> tuple[bytes, int]:
+_mock_mode = False
+
+def handle(cmd: int, data: bytes) -> tuple[bytes, int]:
     cmd, index = cmd & cmdBitsMask, cmd >> cmdBitsLen
     logger.debug(
         f"[py] handle {Go2PyCmd(cmd).name}, {index=}, {len(data)=}, {threading.current_thread().name}"
     )
     func = handlers[cmd]
     try:
-        return func(data, index)
+        return func(data, index, mock=_mock_mode)
     except Exception as e:
         error_string = (
-            f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()
+                f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()
         )
         logger.error(error_string)
         return error_string.encode("utf8"), ErrCode.Failed
 
 
-handlers = {
-    Go2PyCmd.CMD_INIT: handle_init,
-    Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: functools.partial(
-        handle_run_remote_task, mock=False
-    ),
-    Go2PyCmd.CMD_GET_OBJECT: functools.partial(handle_get_objects, mock=False),
-    Go2PyCmd.CMD_PUT_OBJECT: functools.partial(handle_put_object, mock=False),
-    Go2PyCmd.CMD_WAIT_OBJECT: functools.partial(handle_wait_object, mock=False),
-    Go2PyCmd.CMD_CANCEL_OBJECT: functools.partial(handle_cancel_object, mock=False),
-
-    Go2PyCmd.CMD_NEW_ACTOR: handle_new_actor,
-    Go2PyCmd.CMD_ACTOR_METHOD_CALL: handle_actor_method_call,
-
-    Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
-}
-
-mock_handlers = {
-    Go2PyCmd.CMD_INIT: handle_init,
-    Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: functools.partial(
-        handle_run_remote_task, mock=True
-    ),
-    Go2PyCmd.CMD_GET_OBJECT: functools.partial(handle_get_objects, mock=True),
-    Go2PyCmd.CMD_PUT_OBJECT: functools.partial(handle_put_object, mock=True),
-    Go2PyCmd.CMD_WAIT_OBJECT: functools.partial(handle_wait_object, mock=True),
-    Go2PyCmd.CMD_CANCEL_OBJECT: functools.partial(handle_cancel_object, mock=True),
-
-    Go2PyCmd.CMD_NEW_ACTOR:functools.partial(handle_new_actor, mock=True),
-    Go2PyCmd.CMD_ACTOR_METHOD_CALL: functools.partial(handle_actor_method_call, mock=True),
-
-    Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
-}
-
 
 def main():
+    """
+    仅会在ray driver上被调用
+    """
     parser = argparse.ArgumentParser(
         description="Python driver for ray-core-go application.",
         formatter_class=argparse.RawTextHelpFormatter,
@@ -419,10 +400,11 @@ def main():
     elif args.mode == "local":
         ray.init(runtime_env=ray_runtime_env)
 
-    handlers_ = handlers
     if args.mode in ("mock", "debug"):
-        handlers_ = mock_handlers
-    ffi.register_handler(functools.partial(handle, handlers_))
+        global _mock_mode
+        _mock_mode = True
+
+    ffi.register_handler(handle)
 
     if args.mode == "debug":
         print(f"pid: {os.getpid()}")
