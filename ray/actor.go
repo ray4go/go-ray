@@ -36,6 +36,7 @@ var (
 )
 
 // 传入actor类型的指针
+// todo: 考虑使用 New(...) (pointer, error) 签名作为构造函数
 func RegisterActors(actors_ []any) {
 	for _, actorNewFunc := range actors_ {
 		typ := getFuncReturnType(actorNewFunc)
@@ -94,10 +95,6 @@ func NewActor(typeName string, argsAndOpts ...any) *DummyActor {
 	}
 }
 
-func (actor *DummyActor) RemoteCall(methodName string, argsAndOpts ...any) ObjectRef {
-	return ObjectRef{}
-}
-
 func handleCreateActor(actorTypeIndex int64, data []byte) (resData []byte, retCode int64) {
 	actor := actorTypes[actorTypeIndex]
 	defer func() {
@@ -128,10 +125,78 @@ func handleCreateActor(actorTypeIndex int64, data []byte) (resData []byte, retCo
 	log.Debug("create actor %v -> %v\n", actor.name, res)
 
 	instance := &actorInstance{
-		receiver: res,
+		receiver: res[0],
 		typ:      actor,
 	}
 	instanceId := fmt.Sprintf("%d", len(actorInstances))
 	actorInstances = append(actorInstances, instance)
 	return []byte(instanceId), 0
+}
+
+func (actor *DummyActor) RemoteCall(methodName string, argsAndOpts ...any) ObjectRef {
+	methodIdx, ok := actor.typ.methodName2Idx[methodName]
+	if !ok {
+		panic(fmt.Sprintf(
+			"Error: RemoteCall failed: no method %s not found in actor %s",
+			methodName, actor.typ.name,
+		))
+	}
+	log.Debug("[Go] RemoteCall %s.%s() %#v\n", actor.typ.name, methodName)
+
+	method := actor.typ.methods[methodIdx]
+	args, opts := splitArgsAndOptions(argsAndOpts)
+	buffer := bytes.NewBuffer(nil)
+	args, objRefs := splitArgsAndObjectRefs(args)
+	argData := encodeArgs(NewCallableType(method.Type, true), args, len(objRefs))
+	appendBytesUnit(buffer, argData)
+	optData := encodeOptions(opts, objRefs)
+	appendBytesUnit(buffer, optData)
+
+	// request bitmap layout (64 bits, LSB first)
+	// | cmdId   | methodIndex | PyActorId |
+	// | 10 bits | 22 bits     |  32 bits  |
+	request := Go2PyCmd_ActorMethodCall | int64(methodIdx)<<cmdBitsLen | actor.pyLocalId<<32
+	res, retCode := ffi.CallServer(request, buffer.Bytes())
+	if retCode != 0 {
+		// todo: pass error to ObjectRef
+		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
+	}
+	id, err := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
+	if err != nil {
+		panic(fmt.Sprintf("Error: RemoteCall invald return: %s, expect a number", res))
+	}
+
+	return ObjectRef{
+		id:         id,
+		originFunc: method.Type,
+	}
+}
+
+func handleActorMethodCall(request int64, data []byte) (resData []byte, retCode int64) {
+	// methodIndex:22bits, actorGoInstanceIndex:32bits
+	actorGoInstanceIndex := request >> 32
+	methodIndex := request & ((1 << 22) - 1)
+	actorIns := actorInstances[actorGoInstanceIndex]
+	method := actorIns.typ.methods[methodIndex]
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("actor method call panic: %v\n%s\n", err, debug.Stack())
+			retCode = 1
+			resData = []byte(fmt.Sprintf("panic when call %s.%s(): %v", actorIns.typ.name, method.Name, err))
+		}
+	}()
+
+	args, ok := decodeBytesUnits(data)
+	if !ok || len(args) == 0 {
+		return []byte("Error: handleActorMethodCall decode args failed"), 1
+	}
+	posArgs := make(map[int][]byte)
+	for i := 1; i < len(args); i++ { // skip first unit, which is raw args
+		pos := int(binary.LittleEndian.Uint64(args[i][:8]))
+		posArgs[pos] = args[i][8:]
+	}
+	val := reflect.ValueOf(actorIns.receiver)
+	res := funcCall(&val, method.Func, NewCallableType(method.Type, true), args[0], posArgs)
+	resData = encodeSlice(res)
+	return resData, 0
 }

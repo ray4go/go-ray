@@ -21,7 +21,7 @@ func encodeArgs(callable *CallableType, args []any, opsArgLen int) []byte {
 }
 
 func funcCall(rcvrVal *reflect.Value, funcVal reflect.Value, callable *CallableType, rawArgs []byte, posArgs map[int][]byte) []any {
-	args := decodeWithType(rawArgs, posArgs, callable.InType)
+	args := decodeWithType(rawArgs, posArgs, callable.InType) // todo: move to caller
 	log.Debug("[Go] funcCall: %v", callable.Type)
 
 	argVals := make([]reflect.Value, 0, len(args)+1)
@@ -40,8 +40,8 @@ func funcCall(rcvrVal *reflect.Value, funcVal reflect.Value, callable *CallableT
 	return results
 }
 
-func decodeFuncResult(method reflect.Method, rawResult []byte) []any {
-	return decodeWithType(rawResult, nil, method.Type.Out)
+func decodeFuncResult(funcType reflect.Type, rawResult []byte) []any {
+	return decodeWithType(rawResult, nil, funcType.Out)
 }
 
 func encodeSlice(items []any) []byte {

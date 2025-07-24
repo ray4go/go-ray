@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 )
 
 // ObjectRef is a reference to an object in Ray's object store.
 // It represents the result of a remote task execution, an actor method call or ray.Put().
 type ObjectRef struct {
-	taskIndex int // used to decode result
-	id        int64
+	originFunc reflect.Type // used to decode result, nil for ray.Put() ObjectRef
+	id         int64
 }
 
 // GetAllTimeout returns all return values of the ObjectRefs in []any.
@@ -19,7 +20,7 @@ type ObjectRef struct {
 // Setting timeout=0 will return the object immediately if it’s available,
 // else return ErrTimeout.
 func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
-	if obj.taskIndex == -1 {
+	if obj.originFunc == nil {
 		return nil, errors.New("cannot call Get on an ObjectRef of ray.Put(), pass it to a remote task or actor method instead")
 	}
 
@@ -33,8 +34,7 @@ func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
 		return nil, fmt.Errorf("ObjectRef.GetAll failed, reason: %w, detail: %s", NewError(retCode), resultData)
 	}
 
-	taskFunc := taskFuncs[obj.taskIndex]
-	res := decodeFuncResult(taskFunc, resultData)
+	res := decodeFuncResult(obj.originFunc, resultData)
 	return res, nil
 }
 

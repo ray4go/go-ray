@@ -85,9 +85,10 @@ func handleRunTask(taskIndex int64, data []byte) (resData []byte, retCode int64)
 }
 
 var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
-	Py2GoCmd_StartDriver: handleStartDriver,
-	Py2GoCmd_RunTask:     handleRunTask,
-	Py2GoCmd_NewActor:    handleCreateActor,
+	Py2GoCmd_StartDriver:     handleStartDriver,
+	Py2GoCmd_RunTask:         handleRunTask,
+	Py2GoCmd_NewActor:        handleCreateActor,
+	Py2GoCmd_ActorMethodCall: handleActorMethodCall,
 }
 
 func handlePythonCmd(request int64, data []byte) ([]byte, int64) {
@@ -173,17 +174,16 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	}
 
 	return ObjectRef{
-		id:        id,
-		taskIndex: funcId,
+		id:         id,
+		originFunc: taskFunc.Type,
 	}
 }
 
 func (obj ObjectRef) numReturn() int {
-	if obj.taskIndex == -1 {
+	if obj.originFunc == nil {
 		return 1 // ray.Put() ObjectRef
 	}
-	taskFunc := taskFuncs[obj.taskIndex]
-	return taskFunc.Type.NumOut()
+	return obj.originFunc.NumOut()
 }
 
 func splitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
@@ -219,16 +219,16 @@ func Put(data any) (ObjectRef, error) {
 	enc := gob.NewEncoder(&buffer)
 	err := enc.Encode(data)
 	if err != nil {
-		return ObjectRef{-1, -1}, fmt.Errorf("gob encode type %v error: %v", reflect.TypeOf(data), err)
+		return ObjectRef{nil, -1}, fmt.Errorf("gob encode type %v error: %v", reflect.TypeOf(data), err)
 	}
 	res, retCode := ffi.CallServer(Go2PyCmd_PutObject, buffer.Bytes()) // todo: pass error to ObjectRef
 	if retCode != 0 {
-		return ObjectRef{-1, -1}, fmt.Errorf("error: ray.Put() failed: retCode=%v, message=%s", retCode, res)
+		return ObjectRef{nil, -1}, fmt.Errorf("error: ray.Put() failed: retCode=%v, message=%s", retCode, res)
 	}
 	id, _ := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
 	return ObjectRef{
-		id:        id,
-		taskIndex: -1,
+		id:         id,
+		originFunc: nil,
 	}, nil
 }
 
