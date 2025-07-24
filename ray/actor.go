@@ -37,28 +37,26 @@ var (
 
 // 传入actor类型的指针
 // todo: 考虑使用 New(...) (pointer, error) 签名作为构造函数
-func RegisterActors(actors_ []any) {
-	for _, actorNewFunc := range actors_ {
+func RegisterActors(actorFactories map[string]any) {
+	mapOrderedIterate(actorFactories, func(name string, actorNewFunc any) {
 		typ := getFuncReturnType(actorNewFunc)
-		if _, exists := actorsName2Idx[typ.String()]; exists {
-			panic(fmt.Sprintf("Duplcated actor name '%v'", typ.Name()))
-		}
-		log.Printf("RegisterActors %v\n", typ.String())
+
 		methods := getExportedMethods(typ)
 		methodName2Idx := make(map[string]int)
 		for i, method := range methods {
 			methodName2Idx[method.Name] = i
 		}
 		actor := &actorType{
-			name:           typ.String(),
+			name:           name,
 			newFunc:        actorNewFunc,
 			methods:        methods,
 			methodName2Idx: methodName2Idx,
 		}
 		actorTypes = append(actorTypes, actor)
 		actorsName2Idx[actor.name] = len(actorTypes) - 1
-		log.Printf("RegisterActors %v %v\n", typ.String(), methods)
-	}
+		log.Printf("RegisterActors %s %v, methods %v\n", name, typ.String(), methodName2Idx)
+	})
+
 }
 
 func NewActor(typeName string, argsAndOpts ...any) *DummyActor {

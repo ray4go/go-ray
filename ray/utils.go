@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"go/token"
 	"reflect"
+	"sort"
 )
 
 // decodeBytesUnits decodes byte units from a single bytes.
@@ -134,6 +135,17 @@ func copyMap(src map[int][]byte) map[int][]byte {
 		dst[k] = v
 	}
 	return dst
+}
+
+func mapOrderedIterate[V any](m map[string]V, f func(key string, value V)) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		f(k, m[k])
+	}
 }
 
 // CallableType represents a method type or function type.
