@@ -58,13 +58,13 @@ bytes unit format: | length:8byte:int64 | data:${length}byte:[]byte |
 - other units are objectRefs resolved data;
   - resolved data format: | arg_pos:8byte:int64 | data:[]byte |
 */
-func handleRunTask(taskIndex int64, data []byte) (res []byte, retCode int64) {
+func handleRunTask(taskIndex int64, data []byte) (resData []byte, retCode int64) {
 	taskFunc := taskFuncs[taskIndex]
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Printf("funcCall panic: %v\n%s\n", err, debug.Stack())
 			retCode = 1
-			res = []byte(fmt.Sprintf("panic when call %s(): %v", taskFunc.Name, err))
+			resData = []byte(fmt.Sprintf("panic when call %s(): %v", taskFunc.Name, err))
 		}
 	}()
 
@@ -78,14 +78,16 @@ func handleRunTask(taskIndex int64, data []byte) (res []byte, retCode int64) {
 		posArgs[pos] = args[i][8:]
 	}
 
-	res = funcCall(&taskReceiverVal, taskFunc.Func, NewCallableType(taskFunc.Type, true), args[0], posArgs)
+	res := funcCall(&taskReceiverVal, taskFunc.Func, NewCallableType(taskFunc.Type, true), args[0], posArgs)
+	resData = encodeSlice(res)
 	log.Debug("funcCall %v -> %v\n", taskFunc, res)
-	return res, 0
+	return resData, 0
 }
 
 var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 	Py2GoCmd_StartDriver: handleStartDriver,
 	Py2GoCmd_RunTask:     handleRunTask,
+	Py2GoCmd_NewActor:    handleCreateActor,
 }
 
 func handlePythonCmd(request int64, data []byte) ([]byte, int64) {

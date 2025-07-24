@@ -19,9 +19,16 @@ class Go2PyCmd(enum.IntEnum):
     CMD_PUT_OBJECT = enum.auto()
     CMD_WAIT_OBJECT = enum.auto()
     CMD_CANCEL_OBJECT = enum.auto()
+
+    CMD_NEW_ACTOR = enum.auto()
+    CMD_RUN_ACTOR = enum.auto()
+    CMD_GET_ACTOR = enum.auto()
+
     CMD_EXECUTE_PYTHON_CODE = enum.auto()
 
 
 class Py2GoCmd(enum.IntEnum):
     CMD_START_DRIVER = 0
     CMD_RUN_TASK = enum.auto()
+    CMD_NEW_ACTOR = enum.auto()
+    CMD_RUN_ACTOR = enum.auto()
