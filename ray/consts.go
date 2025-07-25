@@ -20,6 +20,7 @@ const (
 
 	Go2PyCmd_NewActor        = iota
 	Go2PyCmd_ActorMethodCall = iota
+	Go2PyCmd_KillActor       = iota
 	Go2PyCmd_GetActor        = iota
 
 	Go2PyCmd_ExePyCode = iota

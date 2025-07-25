@@ -22,6 +22,7 @@ class Go2PyCmd(enum.IntEnum):
 
     CMD_NEW_ACTOR = enum.auto()
     CMD_ACTOR_METHOD_CALL = enum.auto()
+    CMD_KILL_ACTOR = enum.auto()
     CMD_GET_ACTOR = enum.auto()
 
     CMD_EXECUTE_PYTHON_CODE = enum.auto()

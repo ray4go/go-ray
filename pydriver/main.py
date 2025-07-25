@@ -226,6 +226,15 @@ def handle_actor_method_call(
     return str(fut_local_id).encode(), 0
 
 
+def handle_kill_actor(data: bytes, actor_local_id: int, mock=False) -> tuple[bytes, int]:
+    if actor_local_id not in _actors:
+        return b"actor not found!", ErrCode.Failed
+    actor_handle = _actors[actor_local_id]
+    options = json.loads(data)
+    if not mock:
+        ray.kill(actor_handle, **options)
+    return b"", 0
+
 # in mock mode, value is actual return value, i.e. (data, code).
 # in other modes, value is ray object ref
 _futures = utils.ThreadSafeLocalStore()
@@ -337,6 +346,7 @@ handlers = {
     Go2PyCmd.CMD_WAIT_OBJECT:  handle_wait_object,
     Go2PyCmd.CMD_CANCEL_OBJECT:  handle_cancel_object,
     Go2PyCmd.CMD_NEW_ACTOR: handle_new_actor,
+    Go2PyCmd.CMD_KILL_ACTOR: handle_kill_actor,
     Go2PyCmd.CMD_ACTOR_METHOD_CALL: handle_actor_method_call,
     Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
 }
@@ -355,7 +365,7 @@ def handle(cmd: int, data: bytes) -> tuple[bytes, int]:
         error_string = (
                 f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()
         )
-        logger.error(error_string)
+        # logger.error(error_string)
         return error_string.encode("utf8"), ErrCode.Failed
 
 

@@ -5,6 +5,7 @@ import (
 	"github.com/ray4go/go-ray/ray/ffi"
 	"github.com/ray4go/go-ray/ray/utils/log"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"runtime/debug"
@@ -197,4 +198,20 @@ func handleActorMethodCall(request int64, data []byte) (resData []byte, retCode 
 	res := funcCall(&val, method.Func, NewCallableType(method.Type, true), args[0], posArgs)
 	resData = encodeSlice(res)
 	return resData, 0
+}
+
+func (actor *DummyActor) Kill(opts ...*Option) error {
+	kvs := EncodeOptions(opts)
+	data, err := json.Marshal(kvs)
+	if err != nil {
+		return fmt.Errorf("Kill json.Marshal failed: %w", err)
+	}
+
+	request := Go2PyCmd_KillActor | int64(actor.pyLocalId)<<cmdBitsLen
+	res, retCode := ffi.CallServer(request, data)
+
+	if retCode != ErrorCode_Success {
+		return fmt.Errorf("actor.Kill failed, reason: %w, detail: %s", NewError(retCode), res)
+	}
+	return nil
 }
