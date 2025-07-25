@@ -119,7 +119,7 @@ func init() {
 		refs := []ray.ObjectRef{fastRef, slowRef, mediumRef}
 
 		// Wait for at least 2 tasks to complete
-		ready, notReady, err := ray.Wait(refs, ray.NewOption("num_returns", 2), ray.NewOption("timeout", 1.0))
+		ready, notReady, err := ray.Wait(refs, ray.Option("num_returns", 2), ray.Option("timeout", 1.0))
 
 		assert.Nil(err)
 		assert.Equal(len(refs), len(ready)+len(notReady))
@@ -138,7 +138,7 @@ func init() {
 		refs := []ray.ObjectRef{ref1, ref2}
 
 		// Wait for all tasks
-		ready, notReady, err := ray.Wait(refs, ray.NewOption("num_returns", 2), ray.NewOption("timeout", 2.0))
+		ready, notReady, err := ray.Wait(refs, ray.Option("num_returns", 2), ray.Option("timeout", 2.0))
 
 		assert.Nil(err)
 		assert.Len(ready, 2)

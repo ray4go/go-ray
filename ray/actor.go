@@ -199,11 +199,10 @@ func handleActorMethodCall(request int64, data []byte) (resData []byte, retCode 
 	return resData, 0
 }
 
-func (actor *DummyActor) Kill(opts ...*Option) error {
-	kvs := EncodeOptions(opts)
-	data, err := json.Marshal(kvs)
+func (actor *DummyActor) Kill(opts ...*option) error {
+	data, err := JsonEncodeOptions(opts)
 	if err != nil {
-		return fmt.Errorf("Kill json.Marshal failed: %w", err)
+		return fmt.Errorf("error to json encode ray option: %w", err)
 	}
 
 	request := Go2PyCmd_KillActor | int64(actor.pyLocalId)<<cmdBitsLen
@@ -216,13 +215,11 @@ func (actor *DummyActor) Kill(opts ...*Option) error {
 }
 
 // GetActor returns the actor instance by name.
-// Noted that the instance name is assigned by passing ray.NewOption("name", name) to NewActor().
-func GetActor(name string, opts ...*Option) (*DummyActor, error) {
-	kvs := EncodeOptions(opts)
-	kvs["name"] = name
-	data, err := json.Marshal(kvs)
+// Noted that the instance name is assigned by passing ray.Option("name", name) to NewActor().
+func GetActor(name string, opts ...*option) (*DummyActor, error) {
+	data, err := JsonEncodeOptions(opts, Option("name", name))
 	if err != nil {
-		return nil, fmt.Errorf("Kill json.Marshal failed: %w", err)
+		return nil, fmt.Errorf("error to json encode ray option: %w", err)
 	}
 	resData, retCode := ffi.CallServer(Go2PyCmd_GetActor, data)
 

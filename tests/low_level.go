@@ -13,7 +13,7 @@ func (_ testTask) Divide(a, b int64) (int64, int64) {
 
 func init() {
 	addTestCase("TestDivide", func(assert *require.Assertions) {
-		objRef := ray.RemoteCall("Divide", 16, 5, ray.WithTaskOption("num_cpus", 2))
+		objRef := ray.RemoteCall("Divide", 16, 5, ray.Option("num_cpus", 2))
 		res, remainder, err := objRef.Get2()
 		assert.Equal(int64(3), res)
 		assert.Equal(int64(1), remainder)
@@ -53,7 +53,7 @@ func init() {
 		_, err2 := obj.GetAll()
 		assert.ErrorIs(err2, ray.ErrCancelled)
 
-		ready, notReady, err := ray.Wait([]ray.ObjectRef{obj}, ray.NewOption("timeout", 0))
+		ready, notReady, err := ray.Wait([]ray.ObjectRef{obj}, ray.Option("timeout", 0))
 		assert.Equal(ready, []ray.ObjectRef{obj})
 		assert.Empty(notReady)
 	})

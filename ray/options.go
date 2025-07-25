@@ -1,22 +1,26 @@
 package ray
 
-type Option struct {
+import (
+	"encoding/json"
+)
+
+type option struct {
 	name  string
 	value any
 }
 
-func NewOption(name string, value any) *Option {
-	return &Option{
+func Option(name string, value any) *option {
+	return &option{
 		name:  name,
 		value: value,
 	}
 }
 
-func (opt *Option) Name() string {
+func (opt *option) Name() string {
 	return opt.name
 }
 
-func (opt *Option) Value() any {
+func (opt *option) Value() any {
 	return opt.value
 }
 
@@ -25,10 +29,13 @@ type KV interface {
 	Value() any
 }
 
-func EncodeOptions[T KV](opts []T) map[string]any {
+func JsonEncodeOptions[T KV](opts []T, extra ...T) ([]byte, error) {
 	kvs := make(map[string]any)
 	for _, opt := range opts {
 		kvs[opt.Name()] = opt.Value()
 	}
-	return kvs
+	for _, opt := range extra {
+		kvs[opt.Name()] = opt.Value()
+	}
+	return json.Marshal(kvs)
 }

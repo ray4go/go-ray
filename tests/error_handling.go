@@ -159,7 +159,7 @@ func init() {
 		refs := []ray.ObjectRef{slowRef}
 
 		// Wait with short timeout
-		ready, notReady, err := ray.Wait(refs, ray.NewOption("timeout", 0.1)) // 100ms timeout
+		ready, notReady, err := ray.Wait(refs, ray.Option("timeout", 0.1)) // 100ms timeout
 
 		assert.Nil(err)
 		assert.Empty(ready)

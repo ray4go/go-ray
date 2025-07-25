@@ -45,7 +45,7 @@ func init() {
 	addTestCase("TestTaskWithCpuOption", func(assert *require.Assertions) {
 		// Test task with CPU resource specification
 		objRef := ray.RemoteCall("CpuIntensiveTask", 1000,
-			ray.WithTaskOption("num_cpus", 2))
+			ray.Option("num_cpus", 2))
 
 		result, err := objRef.Get1()
 		assert.Nil(err)
@@ -59,7 +59,7 @@ func init() {
 	addTestCase("TestTaskWithMemoryOption", func(assert *require.Assertions) {
 		// Test task with memory resource specification
 		objRef := ray.RemoteCall("MemoryIntensiveTask", 10000,
-			ray.WithTaskOption("memory", 100*1024*1024)) // 100MB
+			ray.Option("memory", 100*1024*1024)) // 100MB
 
 		result, err := objRef.Get1()
 		assert.Nil(err)
@@ -73,8 +73,8 @@ func init() {
 	addTestCase("TestTaskWithMultipleOptions", func(assert *require.Assertions) {
 		// Test task with multiple resource options
 		objRef := ray.RemoteCall("ResourceTrackingTask", "multi_option", 100,
-			ray.WithTaskOption("num_cpus", 1),
-			ray.WithTaskOption("memory", 50*1024*1024), // 50MB
+			ray.Option("num_cpus", 1),
+			ray.Option("memory", 50*1024*1024), // 50MB
 		)
 
 		result, err := objRef.Get1()
@@ -85,8 +85,8 @@ func init() {
 	addTestCase("TestTaskWithRetryOptions", func(assert *require.Assertions) {
 		// Test task with retry configuration
 		objRef := ray.RemoteCall("ResourceTrackingTask", "retry", 25,
-			ray.WithTaskOption("max_retries", 3),
-			ray.WithTaskOption("retry_exceptions", true))
+			ray.Option("max_retries", 3),
+			ray.Option("retry_exceptions", true))
 
 		result, err := objRef.Get1()
 		assert.Nil(err)
@@ -101,17 +101,17 @@ func init() {
 
 		// Task with low resources
 		ref1 := ray.RemoteCall("BatchTask", 1, items1,
-			ray.WithTaskOption("num_cpus", 0.5))
+			ray.Option("num_cpus", 0.5))
 
 		// Task with medium resources
 		ref2 := ray.RemoteCall("BatchTask", 2, items2,
-			ray.WithTaskOption("num_cpus", 1),
-			ray.WithTaskOption("memory", 100*1024*1024))
+			ray.Option("num_cpus", 1),
+			ray.Option("memory", 100*1024*1024))
 
 		// Task with high resources
 		ref3 := ray.RemoteCall("BatchTask", 3, items3,
-			ray.WithTaskOption("num_cpus", 2),
-			ray.WithTaskOption("memory", 200*1024*1024))
+			ray.Option("num_cpus", 2),
+			ray.Option("memory", 200*1024*1024))
 
 		// Get all results
 		result1, err1 := ref1.Get1()
@@ -131,8 +131,8 @@ func init() {
 	addTestCase("TestTaskWithSchedulingOptions", func(assert *require.Assertions) {
 		// Test task with scheduling-related options
 		objRef := ray.RemoteCall("ResourceTrackingTask", "scheduled", 30,
-			ray.WithTaskOption("scheduling_strategy", "SPREAD"),
-			ray.WithTaskOption("placement_group", nil))
+			ray.Option("scheduling_strategy", "SPREAD"),
+			ray.Option("placement_group", nil))
 
 		result, err := objRef.Get1()
 		assert.Nil(err)
@@ -142,8 +142,8 @@ func init() {
 	addTestCase("TestTaskWithStringOption", func(assert *require.Assertions) {
 		// Test task with string-based options
 		objRef := ray.RemoteCall("ResourceTrackingTask", "string_opt", 20,
-			ray.WithTaskOption("name", "custom_task_name"),
-			ray.WithTaskOption("runtime_env", map[string]interface{}{
+			ray.Option("name", "custom_task_name"),
+			ray.Option("runtime_env", map[string]interface{}{
 				"env_vars": map[string]string{"TEST_VAR": "test_value"},
 			}))
 
@@ -156,8 +156,8 @@ func init() {
 		// Test with potentially invalid options (should crash)
 		assert.Panicsf(func() {
 			ray.RemoteCall("ResourceTrackingTask", "invalid_opt", 10,
-				ray.WithTaskOption("invalid_option", "invalid_value"),
-				ray.WithTaskOption("negative_cpus", -1))
+				ray.Option("invalid_option", "invalid_value"),
+				ray.Option("negative_cpus", -1))
 		}, "Invalid option")
 	})
 
@@ -167,8 +167,8 @@ func init() {
 		assert.Nil(err)
 
 		objRef := ray.RemoteCall("BatchTask", 99, dataRef,
-			ray.WithTaskOption("num_cpus", 1),
-			ray.WithTaskOption("memory", 50*1024*1024))
+			ray.Option("num_cpus", 1),
+			ray.Option("memory", 50*1024*1024))
 
 		result, err := objRef.Get1()
 		assert.Nil(err)

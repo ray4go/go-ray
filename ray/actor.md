@@ -124,10 +124,33 @@ data format: multiple bytes units
 - other units are objectRefs resolved data;
   - resolved data format: | arg_pos:8byte:int64 | data:[]byte |
 
+### kill
+
+* go -> python: kill_call
+  | cmdId   | PyActorId |
+  | 10 bits | 54 bits   |
+  data: options_bytes
+
+* python:
+- get actor handle from actorPyLocalId
+- kill actor
+- return 0
+
 
 ### Get actor
 
-go:get_actor
+* go -> python: get_actor
+  | cmdId   | empty   |
+  | 10 bits | 54 bits |
+  data: options_bytes
+
+* python:
+- ray.get_actor(**options)
+- save actor to local store
+- query actorIndex from actor.
+- return actor_local_id
+
+
 
 // todo 指定类型，应用场景，获取之前提交的detached task
 ----

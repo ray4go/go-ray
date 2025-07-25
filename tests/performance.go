@@ -266,15 +266,15 @@ func init() {
 		start := time.Now()
 
 		// Mix of different task types
-		cpuRef1 := ray.RemoteCall("FibonacciTask", 18, ray.WithTaskOption("num_cpus", 1))
-		cpuRef2 := ray.RemoteCall("FibonacciTask", 19, ray.WithTaskOption("num_cpus", 1))
+		cpuRef1 := ray.RemoteCall("FibonacciTask", 18, ray.Option("num_cpus", 1))
+		cpuRef2 := ray.RemoteCall("FibonacciTask", 19, ray.Option("num_cpus", 1))
 
-		memRef1 := ray.RemoteCall("ProcessLargeData", 15000, ray.WithTaskOption("memory", 100*1024*1024))
-		memRef2 := ray.RemoteCall("ProcessLargeData", 12000, ray.WithTaskOption("memory", 80*1024*1024))
+		memRef1 := ray.RemoteCall("ProcessLargeData", 15000, ray.Option("memory", 100*1024*1024))
+		memRef2 := ray.RemoteCall("ProcessLargeData", 12000, ray.Option("memory", 80*1024*1024))
 
 		// Wait for all to complete
 		refs := []ray.ObjectRef{cpuRef1, cpuRef2, memRef1, memRef2}
-		ready, notReady, err := ray.Wait(refs, ray.NewOption("num_returns", 4), ray.NewOption("timeout", 30.0))
+		ready, notReady, err := ray.Wait(refs, ray.Option("num_returns", 4), ray.Option("timeout", 30.0))
 
 		assert.Nil(err)
 		assert.Len(ready, 4)
@@ -307,8 +307,8 @@ func init() {
 
 			// Wait for this round to complete
 			ready, notReady, err := ray.Wait(refs,
-				ray.NewOption("num_returns", tasksPerRound),
-				ray.NewOption("timeout", 5.0))
+				ray.Option("num_returns", tasksPerRound),
+				ray.Option("timeout", 5.0))
 
 			assert.Nil(err)
 			assert.Len(ready, tasksPerRound)

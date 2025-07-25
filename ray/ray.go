@@ -103,18 +103,11 @@ func handlePythonCmd(request int64, data []byte) ([]byte, int64) {
 	return handler(index, data)
 }
 
-// TaskOption is used to pass options to RemoteCall().
-type TaskOption struct{ *Option }
-
-func WithTaskOption(name string, value any) *TaskOption {
-	return &TaskOption{NewOption(name, value)}
-}
-
-func splitArgsAndOptions(items []any) ([]any, []*TaskOption) {
+func splitArgsAndOptions(items []any) ([]any, []*option) {
 	args := make([]any, 0, len(items))
-	opts := make([]*TaskOption, 0, len(items))
+	opts := make([]*option, 0, len(items))
 	for _, item := range items {
-		if opt, ok := item.(*TaskOption); ok {
+		if opt, ok := item.(*option); ok {
 			opts = append(opts, opt)
 		} else {
 			args = append(args, item)
@@ -123,7 +116,7 @@ func splitArgsAndOptions(items []any) ([]any, []*TaskOption) {
 	return args, opts
 }
 
-func encodeOptions(opts []*TaskOption, objRefs map[int]ObjectRef) []byte {
+func encodeOptions(opts []*option, objRefs map[int]ObjectRef) []byte {
 	kvs := make(map[string]any)
 	for _, opt := range opts {
 		kvs[opt.Name()] = opt.Value()
@@ -234,10 +227,8 @@ func Put(data any) (ObjectRef, error) {
 
 // Cancel a remote function (Task) or a remote Actor method (Actor Task)
 // See https://docs.ray.io/en/latest/ray-core/api/doc/ray.cancel.html#ray-cancel
-func (obj ObjectRef) Cancel(opts ...*Option) error {
-	kvs := EncodeOptions(opts)
-	kvs["object_ref_local_id"] = obj.id
-	data, err := json.Marshal(kvs)
+func (obj ObjectRef) Cancel(opts ...*option) error {
+	data, err := JsonEncodeOptions(opts, Option("object_ref_local_id", obj.id))
 	if err != nil {
 		log.Panicf("Error encoding options to JSON: %v", err)
 	}
@@ -250,14 +241,12 @@ func (obj ObjectRef) Cancel(opts ...*Option) error {
 
 // Wait return a list of IDs that are ready and a list of IDs that are not.
 // See https://docs.ray.io/en/latest/ray-core/api/doc/ray.wait.html#ray.wait
-func Wait(objRefs []ObjectRef, opts ...*Option) ([]ObjectRef, []ObjectRef, error) {
+func Wait(objRefs []ObjectRef, opts ...*option) ([]ObjectRef, []ObjectRef, error) {
 	objIds := make([]int64, 0, len(objRefs))
 	for _, obj := range objRefs {
 		objIds = append(objIds, obj.id)
 	}
-	kvs := EncodeOptions(opts)
-	kvs["object_ref_local_ids"] = objIds
-	data, err := json.Marshal(kvs)
+	data, err := JsonEncodeOptions(opts, Option("object_ref_local_ids", objIds))
 	if err != nil {
 		log.Panicf("Error encoding options to JSON: %v", err)
 	}
