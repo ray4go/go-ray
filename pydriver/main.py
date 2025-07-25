@@ -131,6 +131,7 @@ def pack_golang_funccall_data(
 
 class _Actor:
     go_instance_index:int
+    go_class_idx:int
 
     def __init__(
             self,
@@ -151,7 +152,9 @@ class _Actor:
         logger.debug(f"[py] CMD_NEW_ACTOR {actor_class_idx=}, {res=} {code=}")
         if code != ErrCode.Success:
             raise Exception("go ffi.execute failed: "+res.decode("utf-8"))
+
         self.go_instance_index = int(res.decode("utf-8"))
+        self.go_class_idx = actor_class_idx
 
     def method(
             self,
@@ -183,8 +186,12 @@ class Actor:
     def __init__(self, *args, **kwargs):
         init_ffi_once()
         self._actor = _Actor(*args, **kwargs)
+
     def method(self, *args, **kwargs):
         return self._actor.method(*args, **kwargs)
+
+    def get_go_class_index(self):
+        return self._actor.go_class_idx
 
 _actors = utils.ThreadSafeLocalStore()
 
@@ -234,6 +241,21 @@ def handle_kill_actor(data: bytes, actor_local_id: int, mock=False) -> tuple[byt
     if not mock:
         ray.kill(actor_handle, **options)
     return b"", 0
+
+def handle_get_actor(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
+    options = json.loads(data)
+    actor_handle = ray.get_actor(**options)
+    actor_local_id = _actors.add(actor_handle)
+    if not mock:
+        go_class_idx = ray.get(actor_handle.get_go_class_index.remote())
+    else:
+        go_class_idx = actor_handle.go_class_idx
+
+    res = json.dumps({
+        "py_local_id": actor_local_id,
+        "actor_index": go_class_idx,
+    })
+    return res.encode(), 0
 
 # in mock mode, value is actual return value, i.e. (data, code).
 # in other modes, value is ray object ref
@@ -347,6 +369,7 @@ handlers = {
     Go2PyCmd.CMD_CANCEL_OBJECT:  handle_cancel_object,
     Go2PyCmd.CMD_NEW_ACTOR: handle_new_actor,
     Go2PyCmd.CMD_KILL_ACTOR: handle_kill_actor,
+    Go2PyCmd.CMD_GET_ACTOR: handle_get_actor,
     Go2PyCmd.CMD_ACTOR_METHOD_CALL: handle_actor_method_call,
     Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
 }

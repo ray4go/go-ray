@@ -17,8 +17,8 @@ type ObjectRef struct {
 
 // GetAllTimeout returns all return values of the ObjectRefs in []any.
 // timeout: the maximum amount of time in seconds to wait before returning.
-// Setting timeout=0 will return the object immediately if it’s available,
-// else return ErrTimeout.
+// Setting timeout=0 will return the object immediately if it’s available.
+// Returns ErrTimeout if the object is not available within the specified timeout.
 func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
 	if obj.originFunc == nil {
 		return nil, errors.New("cannot call Get on an ObjectRef of ray.Put(), pass it to a remote task or actor method instead")

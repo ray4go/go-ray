@@ -55,9 +55,8 @@ func registerActors(actorFactories map[string]any) {
 		}
 		actorTypes = append(actorTypes, actor)
 		actorsName2Idx[actor.name] = len(actorTypes) - 1
-		log.Printf("RegisterActors %s %v, methods %v\n", name, typ.String(), methodName2Idx)
+		//log.Printf("RegisterActors %s %v, methods %v\n", name, typ.String(), methodName2Idx)
 	})
-
 }
 
 func NewActor(typeName string, argsAndOpts ...any) *DummyActor {
@@ -214,4 +213,34 @@ func (actor *DummyActor) Kill(opts ...*Option) error {
 		return fmt.Errorf("actor.Kill failed, reason: %w, detail: %s", NewError(retCode), res)
 	}
 	return nil
+}
+
+// GetActor returns the actor instance by name.
+// Noted that the instance name is assigned by passing ray.NewOption("name", name) to NewActor().
+func GetActor(name string, opts ...*Option) (*DummyActor, error) {
+	kvs := EncodeOptions(opts)
+	kvs["name"] = name
+	data, err := json.Marshal(kvs)
+	if err != nil {
+		return nil, fmt.Errorf("Kill json.Marshal failed: %w", err)
+	}
+	resData, retCode := ffi.CallServer(Go2PyCmd_GetActor, data)
+
+	if retCode != ErrorCode_Success {
+		return nil, fmt.Errorf("actor.Kill failed, reason: %w, detail: %s", NewError(retCode), resData)
+	}
+
+	var res map[string]int
+	err = json.Unmarshal(resData, &res)
+	if err != nil {
+		return nil, fmt.Errorf("json.Unmarshal failed, reason: %w, detail: %s", err, resData)
+	}
+	pyLocalId := int64(res["py_local_id"])
+	actorIndex := res["actor_index"]
+	actor := actorTypes[actorIndex]
+
+	return &DummyActor{
+		pyLocalId: pyLocalId,
+		typ:       actor,
+	}, nil
 }
