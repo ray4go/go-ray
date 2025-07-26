@@ -38,6 +38,13 @@ func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
 	return res, nil
 }
 
+func (obj ObjectRef) numReturn() int {
+	if obj.originFunc == nil {
+		return 1 // ray.Put() ObjectRef
+	}
+	return obj.originFunc.NumOut()
+}
+
 // GetAll returns all return values of the ObjectRefs in []any.
 func (obj ObjectRef) GetAll() ([]any, error) {
 	return obj.GetAllTimeout(-1)

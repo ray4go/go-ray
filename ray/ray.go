@@ -2,7 +2,6 @@ package ray
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
@@ -15,74 +14,8 @@ import (
 )
 
 var (
-	driverFunc      func()
-	taskReceiverVal reflect.Value
-	taskFuncs       []reflect.Method
-	tasksName2Idx   map[string]int
+	driverFunc func()
 )
-
-// Init goray environment and register the ray driver and tasks.
-// All public methods of the given taskRcvr will be registered as ray tasks.
-// This function should be called in the init() function of your ray application.
-func Init(driverFunc_ func(), taskRcvr any, actorFactories map[string]any) {
-	driverFunc = driverFunc_
-	taskReceiverVal = reflect.ValueOf(taskRcvr)
-	// TODO: check taskRcvr's underlying type is pointer of struct{} (make sure it's stateless)
-	taskFuncs = getExportedMethods(reflect.TypeOf(taskRcvr))
-	tasksName2Idx = make(map[string]int)
-	for i, task := range taskFuncs {
-		tasksName2Idx[task.Name] = i
-	}
-	registerActors(actorFactories)
-	log.Debug("[Go] Init %v %v\n", driverFunc_, tasksName2Idx)
-	ffi.RegisterHandler(handlePythonCmd)
-}
-
-func handleStartDriver(_ int64, _ []byte) (res []byte, retCode int64) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Printf("Driver panic: %v\n%s\n", err, debug.Stack())
-			retCode = 1
-			res = []byte(fmt.Sprintf("panic when run driver: %v", err))
-		}
-	}()
-	driverFunc()
-	return []byte{}, 0
-}
-
-/*
-data format: multiple bytes units
-bytes unit format: | length:8byte:int64 | data:${length}byte:[]byte |
-
-- first unit is raw args data;
-- other units are objectRefs resolved data;
-  - resolved data format: | arg_pos:8byte:int64 | data:[]byte |
-*/
-func handleRunTask(taskIndex int64, data []byte) (resData []byte, retCode int64) {
-	taskFunc := taskFuncs[taskIndex]
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Printf("funcCall panic: %v\n%s\n", err, debug.Stack())
-			retCode = 1
-			resData = []byte(fmt.Sprintf("panic when call %s(): %v", taskFunc.Name, err))
-		}
-	}()
-
-	args, ok := decodeBytesUnits(data)
-	if !ok || len(args) == 0 {
-		return []byte("Error: handleRunTask decode args failed"), 1
-	}
-	posArgs := make(map[int][]byte)
-	for i := 1; i < len(args); i++ { // skip first unit, which is raw args
-		pos := int(binary.LittleEndian.Uint64(args[i][:8]))
-		posArgs[pos] = args[i][8:]
-	}
-
-	res := funcCall(&taskReceiverVal, taskFunc.Func, NewCallableType(taskFunc.Type, true), args[0], posArgs)
-	resData = encodeSlice(res)
-	log.Debug("funcCall %v -> %v\n", taskFunc, res)
-	return resData, 0
-}
 
 var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 	Py2GoCmd_StartDriver:     handleStartDriver,
@@ -91,7 +24,26 @@ var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 	Py2GoCmd_ActorMethodCall: handleActorMethodCall,
 }
 
-func handlePythonCmd(request int64, data []byte) ([]byte, int64) {
+// Init goray environment and register the ray driver and tasks.
+// All public methods of the given taskRcvr will be registered as ray tasks.
+// This function should be called in the init() function of your ray application.
+func Init(driverFunc_ func(), taskRcvr any, actorFactories map[string]any) {
+	driverFunc = driverFunc_
+
+	registerTasks(taskRcvr)
+	registerActors(actorFactories)
+	log.Debug("[Go] Init %v %v\n", driverFunc_, tasksName2Idx)
+	ffi.RegisterHandler(handlePythonCmd)
+}
+
+func handlePythonCmd(request int64, data []byte) (resData []byte, retCode int64) {
+	defer func() {
+		if err := recover(); err != nil {
+			retCode = ErrorCode_Failed
+			resData = []byte(fmt.Sprintf("handlePythonCmd panic: %v\n%s\n", err, debug.Stack()))
+		}
+	}()
+
 	cmdId := request & cmdBitsMask
 	index := request >> cmdBitsLen
 	log.Debug("[Go] handlePythonCmd cmdId:%d, index:%d\n", cmdId, index)
@@ -103,104 +55,9 @@ func handlePythonCmd(request int64, data []byte) ([]byte, int64) {
 	return handler(index, data)
 }
 
-func splitArgsAndOptions(items []any) ([]any, []*option) {
-	args := make([]any, 0, len(items))
-	opts := make([]*option, 0, len(items))
-	for _, item := range items {
-		if opt, ok := item.(*option); ok {
-			opts = append(opts, opt)
-		} else {
-			args = append(args, item)
-		}
-	}
-	return args, opts
-}
-
-func encodeOptions(opts []*option, objRefs map[int]ObjectRef) []byte {
-	kvs := make(map[string]any)
-	for _, opt := range opts {
-		kvs[opt.Name()] = opt.Value()
-	}
-	objIdx2Ids := make(map[int]int64)
-	for idx, obj := range objRefs {
-		objIdx2Ids[idx] = obj.id
-	}
-	kvs["go_ray_object_pos_to_local_id"] = objIdx2Ids
-	data, err := json.Marshal(kvs)
-	if err != nil {
-		panic(fmt.Sprintf("Error encoding options to JSON: %v", err))
-	}
-	return data
-}
-
-// RemoteCall calls the remote task of the given name with the given arguments.
-// The ray task options can be passed in the last with WithTaskOption(key, value).
-// The call is asynchronous, and returns an ObjectRef that can be used to get the result later.
-// The ObjectRef can also be passed to a remote task or actor method as an argument.
-func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
-	args, opts := splitArgsAndOptions(argsAndOpts)
-	funcId, ok := tasksName2Idx[name]
-	if !ok {
-		panic(fmt.Sprintf("Error: RemoteCall failed: task %s not found", name))
-	}
-	log.Debug("[Go] RemoteCall %s %#v\n", name, args)
-	taskFunc := taskFuncs[funcId]
-
-	buffer := bytes.NewBuffer(nil)
-	args, objRefs := splitArgsAndObjectRefs(args)
-	argData := encodeArgs(NewCallableType(taskFunc.Type, true), args, len(objRefs))
-	appendBytesUnit(buffer, argData)
-	optData := encodeOptions(opts, objRefs)
-	appendBytesUnit(buffer, optData)
-
-	// request bitmap layout (64 bits, LSB first)
-	// | cmdId   | taskIndex |
-	// | 10 bits | 54 bits   |
-	request := Go2PyCmd_ExeRemoteTask | int64(funcId)<<cmdBitsLen
-	res, retCode := ffi.CallServer(request, buffer.Bytes()) // todo: pass error to ObjectRef
-	if retCode != 0 {
-		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
-	}
-	id, err := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
-	if err != nil {
-		panic(fmt.Sprintf("Error: RemoteCall invald return: %s, expect a number", res))
-	}
-
-	return ObjectRef{
-		id:         id,
-		originFunc: taskFunc.Type,
-	}
-}
-
-func (obj ObjectRef) numReturn() int {
-	if obj.originFunc == nil {
-		return 1 // ray.Put() ObjectRef
-	}
-	return obj.originFunc.NumOut()
-}
-
-func splitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
-	args := make([]any, 0, len(items))
-	objs := make(map[int]ObjectRef)
-	for idx, item := range items {
-		switch v := item.(type) {
-		case ObjectRef:
-			objs[idx] = v
-		case *ObjectRef:
-			if v == nil {
-				panic("invalid ObjectRef, got nil")
-			}
-			objs[idx] = *v
-		default:
-			args = append(args, item)
-		}
-		if obj, ok := objs[idx]; ok {
-			if obj.numReturn() != 1 {
-				panic(fmt.Sprintf("Error: invalid ObjectRef in arguments[%d], only accept ObjectRef with one return value", idx))
-			}
-		}
-	}
-	return args, objs
+func handleStartDriver(_ int64, _ []byte) ([]byte, int64) {
+	driverFunc()
+	return []byte{}, 0
 }
 
 // Put stores an object in the object store.
