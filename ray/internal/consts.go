@@ -1,7 +1,7 @@
-package ray
+package internal
 
-const cmdBitsLen = 10
-const cmdBitsMask = (1 << cmdBitsLen) - 1
+const CmdBitsLen = 10
+const CmdBitsMask = (1 << CmdBitsLen) - 1
 
 const (
 	ErrorCode_Success   = 0

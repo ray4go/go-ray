@@ -63,7 +63,7 @@ func getExportedMethods(typ reflect.Type) []reflect.Method {
 	for i := 0; i < typ.NumMethod(); i++ {
 		method := typ.Method(i) // deterministic: sort in lexicographic order.
 		mtype := method.Type
-		// CallableType must be exported.
+		// callableType must be exported.
 		ok := method.IsExported()
 		// All arguments must be exported or builtin types.
 		for j := 1; j < mtype.NumIn(); j++ {
@@ -148,34 +148,34 @@ func mapOrderedIterate[V any](m map[string]V, f func(key string, value V)) {
 	}
 }
 
-// CallableType represents a method type or function type.
-type CallableType struct {
+// callableType represents a method type or function type.
+type callableType struct {
 	reflect.Type
 	argOffset int
 }
 
-func NewCallableType(typ reflect.Type, isMethod bool) *CallableType {
+func newCallableType(typ reflect.Type, isMethod bool) *callableType {
 	if typ.Kind() != reflect.Func {
-		panic(fmt.Sprintf("NewCallableType: type %v is not a function / method", typ))
+		panic(fmt.Sprintf("newCallableType: type %v is not a function / method", typ))
 	}
 	argOffset := 0
 	if isMethod {
 		argOffset = 1
 	}
-	return &CallableType{
+	return &callableType{
 		Type:      typ,
 		argOffset: argOffset,
 	}
 }
 
-func (m *CallableType) IsValidArgNum(numIn int) bool {
+func (m *callableType) IsValidArgNum(numIn int) bool {
 	if m.Type.IsVariadic() {
 		return numIn >= m.Type.NumIn()-m.argOffset
 	}
 	return numIn == m.Type.NumIn()-m.argOffset
 }
 
-func (m *CallableType) InType(idx int) reflect.Type {
+func (m *callableType) InType(idx int) reflect.Type {
 	if m.Type.IsVariadic() {
 		// The index of the variadic argument (from the user's perspective) is NumIn() - 1 - m.argOffset.
 		if idx >= m.Type.NumIn()-1-m.argOffset {

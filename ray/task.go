@@ -2,6 +2,7 @@ package ray
 
 import (
 	"github.com/ray4go/go-ray/ray/ffi"
+	"github.com/ray4go/go-ray/ray/internal"
 	"github.com/ray4go/go-ray/ray/utils/log"
 	"fmt"
 	"reflect"
@@ -24,10 +25,11 @@ func registerTasks(taskReceiver any) {
 	}
 }
 
-// RemoteCall calls the remote task of the given name with the given arguments.
-// The ray task options can be passed in the last with WithTaskOption(key, value).
-// The call is asynchronous, and returns an ObjectRef that can be used to get the result later.
-// The ObjectRef can also be passed to a remote task or actor method as an argument.
+// RemoteCall calls the remote task by its name with the given arguments.
+// The ray task options can be passed in the last with Option(key, value).
+// This call is asynchronous, returning an ObjectRef that resolves to the task's result.
+// The returned ObjectRef can be used to retrieve the result or passed as an argument to other remote tasks or actor methods.
+// For complete ray options, see https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote_function.RemoteFunction.options.html#ray.remote_function.RemoteFunction.options
 func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	log.Debug("[Go] RemoteCall %s %#v\n", name, argsAndOpts)
 
@@ -36,13 +38,13 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 		panic(fmt.Sprintf("Error: RemoteCall failed: task %s not found", name))
 	}
 	taskFunc := taskFuncs[funcId]
-	callable := NewCallableType(taskFunc.Type, true)
+	callable := newCallableType(taskFunc.Type, true)
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
 	// request bitmap layout (64 bits, LSB first)
 	// | cmdId   | taskIndex |
 	// | 10 bits | 54 bits   |
-	request := Go2PyCmd_ExeRemoteTask | int64(funcId)<<cmdBitsLen
+	request := internal.Go2PyCmd_ExeRemoteTask | int64(funcId)<<internal.CmdBitsLen
 	res, retCode := ffi.CallServer(request, argsData) // todo: pass error to ObjectRef
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
@@ -60,7 +62,7 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 
 func handleRunTask(taskIndex int64, data []byte) (resData []byte, retCode int64) {
 	taskFunc := taskFuncs[taskIndex]
-	args := decodeRemoteCallArgs(NewCallableType(taskFunc.Type, true), data)
+	args := decodeRemoteCallArgs(newCallableType(taskFunc.Type, true), data)
 	res := funcCall(&taskReceiverVal, taskFunc.Func, args)
 	resData = encodeFuncResult(res)
 	log.Debug("funcCall %v -> %v\n", taskFunc, res)

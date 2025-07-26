@@ -274,7 +274,7 @@ func init() {
 
 		// Wait for all to complete
 		refs := []ray.ObjectRef{cpuRef1, cpuRef2, memRef1, memRef2}
-		ready, notReady, err := ray.Wait(refs, ray.Option("num_returns", 4), ray.Option("timeout", 30.0))
+		ready, notReady, err := ray.Wait(refs, 4, ray.Option("timeout", 30.0))
 
 		assert.Nil(err)
 		assert.Len(ready, 4)
@@ -306,8 +306,7 @@ func init() {
 			}
 
 			// Wait for this round to complete
-			ready, notReady, err := ray.Wait(refs,
-				ray.Option("num_returns", tasksPerRound),
+			ready, notReady, err := ray.Wait(refs, tasksPerRound,
 				ray.Option("timeout", 5.0))
 
 			assert.Nil(err)

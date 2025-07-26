@@ -2,6 +2,7 @@ package ray
 
 import (
 	"github.com/ray4go/go-ray/ray/ffi"
+	"github.com/ray4go/go-ray/ray/internal"
 	"github.com/ray4go/go-ray/ray/utils/log"
 	"encoding/json"
 	"fmt"
@@ -21,7 +22,11 @@ type actorInstance struct {
 	typ      *actorType
 }
 
-type DummyActor struct {
+// A handle to an actor.
+// Noted, currtently, you cann't pass an actor handle into a task.
+// Workaround: create a named actor via NewActor(typeName, ray.Option("name", name))
+// and use GetActor(name) to get the actor handle in other tasks.
+type ActorHandle struct {
 	pyLocalId int64
 	typ       *actorType
 }
@@ -56,7 +61,11 @@ func registerActors(actorFactories map[string]any) {
 	})
 }
 
-func NewActor(typeName string, argsAndOpts ...any) *DummyActor {
+// NewActor creates a remote actor instance of the given type with the provided arguments.
+// Ray actor instantiation parameters can be passed in the last with Option(key, value).
+// For complete options for actor creation, see
+// https://docs.ray.io/en/latest/ray-core/api/doc/ray.actor.ActorClass.options.html#ray.actor.ActorClass.options
+func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 	log.Debug("[Go] NewActor %s %#v\n", typeName, argsAndOpts)
 
 	actorIndex, ok := actorsName2Idx[typeName]
@@ -64,13 +73,13 @@ func NewActor(typeName string, argsAndOpts ...any) *DummyActor {
 		panic(fmt.Sprintf("Actor type '%v' not found", typeName))
 	}
 	actor := actorTypes[actorIndex]
-	callable := NewCallableType(reflect.TypeOf(actor.newFunc), false)
+	callable := newCallableType(reflect.TypeOf(actor.newFunc), false)
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
 	// request bitmap layout (64 bits, LSB first)
 	// | cmdId   | actorIndex |
 	// | 10 bits | 54 bits   |
-	request := Go2PyCmd_NewActor | int64(actorIndex)<<cmdBitsLen
+	request := internal.Go2PyCmd_NewActor | int64(actorIndex)<<internal.CmdBitsLen
 	res, retCode := ffi.CallServer(request, argsData)
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: NewActor failed: retCode=%v, message=%s", retCode, res))
@@ -79,7 +88,7 @@ func NewActor(typeName string, argsAndOpts ...any) *DummyActor {
 	if err != nil {
 		panic(fmt.Sprintf("Error: NewActor invald return: %s, expect a number", res))
 	}
-	return &DummyActor{
+	return &ActorHandle{
 		pyLocalId: id,
 		typ:       actor,
 	}
@@ -87,7 +96,7 @@ func NewActor(typeName string, argsAndOpts ...any) *DummyActor {
 
 func handleCreateActor(actorTypeIndex int64, data []byte) (resData []byte, retCode int64) {
 	actor := actorTypes[actorTypeIndex]
-	args := decodeRemoteCallArgs(NewCallableType(reflect.TypeOf(actor.newFunc), false), data)
+	args := decodeRemoteCallArgs(newCallableType(reflect.TypeOf(actor.newFunc), false), data)
 	res := funcCall(nil, reflect.ValueOf(actor.newFunc), args)
 	log.Debug("create actor %v -> %v\n", actor.name, res)
 
@@ -100,7 +109,11 @@ func handleCreateActor(actorTypeIndex int64, data []byte) (resData []byte, retCo
 	return []byte(instanceId), 0
 }
 
-func (actor *DummyActor) RemoteCall(methodName string, argsAndOpts ...any) ObjectRef {
+// RemoteCall calls a remote actor method by method name with the given arguments.
+// The usage is same as RemoteCall for tasks except the available options.
+// The complete options for actor method call can be found in
+// https://docs.ray.io/en/latest/ray-core/api/doc/ray.actor.ActorClass.options.html#ray.actor.ActorClass.options
+func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) ObjectRef {
 	methodIdx, ok := actor.typ.methodName2Idx[methodName]
 	if !ok {
 		panic(fmt.Sprintf(
@@ -111,13 +124,13 @@ func (actor *DummyActor) RemoteCall(methodName string, argsAndOpts ...any) Objec
 	log.Debug("[Go] RemoteCall %s.%s() %#v\n", actor.typ.name, methodName)
 
 	method := actor.typ.methods[methodIdx]
-	callable := NewCallableType(method.Type, true)
+	callable := newCallableType(method.Type, true)
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
 	// request bitmap layout (64 bits, LSB first)
 	// | cmdId   | methodIndex | PyActorId |
 	// | 10 bits | 22 bits     |  32 bits  |
-	request := Go2PyCmd_ActorMethodCall | int64(methodIdx)<<cmdBitsLen | actor.pyLocalId<<32
+	request := internal.Go2PyCmd_ActorMethodCall | int64(methodIdx)<<internal.CmdBitsLen | actor.pyLocalId<<32
 	res, retCode := ffi.CallServer(request, argsData)
 	if retCode != 0 {
 		// todo: pass error to ObjectRef
@@ -140,39 +153,42 @@ func handleActorMethodCall(request int64, data []byte) (resData []byte, retCode 
 	methodIndex := request & ((1 << 22) - 1)
 	actorIns := actorInstances[actorGoInstanceIndex]
 	method := actorIns.typ.methods[methodIndex]
-	args := decodeRemoteCallArgs(NewCallableType(method.Type, true), data)
+	args := decodeRemoteCallArgs(newCallableType(method.Type, true), data)
 	receiverVal := reflect.ValueOf(actorIns.receiver)
 	res := funcCall(&receiverVal, method.Func, args)
 	resData = encodeSlice(res)
 	return resData, 0
 }
 
-func (actor *DummyActor) Kill(opts ...*option) error {
-	data, err := JsonEncodeOptions(opts)
+// Kill an actor forcefully.
+// Ray doc: https://docs.ray.io/en/latest/ray-core/api/doc/ray.kill.html#ray.kill
+func (actor *ActorHandle) Kill(opts ...*option) error {
+	data, err := jsonEncodeOptions(opts)
 	if err != nil {
 		return fmt.Errorf("error to json encode ray option: %w", err)
 	}
 
-	request := Go2PyCmd_KillActor | int64(actor.pyLocalId)<<cmdBitsLen
+	request := internal.Go2PyCmd_KillActor | int64(actor.pyLocalId)<<internal.CmdBitsLen
 	res, retCode := ffi.CallServer(request, data)
 
-	if retCode != ErrorCode_Success {
-		return fmt.Errorf("actor.Kill failed, reason: %w, detail: %s", NewError(retCode), res)
+	if retCode != internal.ErrorCode_Success {
+		return fmt.Errorf("actor.Kill failed, reason: %w, detail: %s", newError(retCode), res)
 	}
 	return nil
 }
 
-// GetActor returns the actor instance by name.
-// Noted that the instance name is assigned by passing ray.Option("name", name) to NewActor().
-func GetActor(name string, opts ...*option) (*DummyActor, error) {
-	data, err := JsonEncodeOptions(opts, Option("name", name))
+// GetActor returns the actor handle by actor name.
+// Noted that the actor name is set by passing ray.Option("name", name) to NewActor().
+// Ray doc: https://docs.ray.io/en/latest/ray-core/api/doc/ray.get_actor.html#ray.get_actor
+func GetActor(name string, opts ...*option) (*ActorHandle, error) {
+	data, err := jsonEncodeOptions(opts, Option("name", name))
 	if err != nil {
 		return nil, fmt.Errorf("error to json encode ray option: %w", err)
 	}
-	resData, retCode := ffi.CallServer(Go2PyCmd_GetActor, data)
+	resData, retCode := ffi.CallServer(internal.Go2PyCmd_GetActor, data)
 
-	if retCode != ErrorCode_Success {
-		return nil, fmt.Errorf("actor.Kill failed, reason: %w, detail: %s", NewError(retCode), resData)
+	if retCode != internal.ErrorCode_Success {
+		return nil, fmt.Errorf("actor.Kill failed, reason: %w, detail: %s", newError(retCode), resData)
 	}
 
 	var res map[string]int
@@ -184,7 +200,7 @@ func GetActor(name string, opts ...*option) (*DummyActor, error) {
 	actorIndex := res["actor_index"]
 	actor := actorTypes[actorIndex]
 
-	return &DummyActor{
+	return &ActorHandle{
 		pyLocalId: pyLocalId,
 		typ:       actor,
 	}, nil

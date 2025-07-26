@@ -2,6 +2,7 @@ package ray
 
 import (
 	"github.com/ray4go/go-ray/ray/ffi"
+	"github.com/ray4go/go-ray/ray/internal"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +10,7 @@ import (
 )
 
 // ObjectRef is a reference to an object in Ray's object store.
-// It represents the result of a remote task execution, an actor method call or ray.Put().
+// It serves as a future for the result of a remote task execution, an actor method call or ray.Put().
 type ObjectRef struct {
 	originFunc reflect.Type // used to decode result, nil for ray.Put() ObjectRef
 	id         int64
@@ -19,6 +20,7 @@ type ObjectRef struct {
 // timeout: the maximum amount of time in seconds to wait before returning.
 // Setting timeout=0 will return the object immediately if it’s available.
 // Returns ErrTimeout if the object is not available within the specified timeout.
+// Returns ErrCancelled if the task is cancelled.
 func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
 	if obj.originFunc == nil {
 		return nil, errors.New("cannot call Get on an ObjectRef of ray.Put(), pass it to a remote task or actor method instead")
@@ -28,10 +30,10 @@ func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("GetAll json.Marshal failed: %w", err)
 	}
-	resultData, retCode := ffi.CallServer(Go2PyCmd_GetObject, data)
+	resultData, retCode := ffi.CallServer(internal.Go2PyCmd_GetObject, data)
 
-	if retCode != ErrorCode_Success {
-		return nil, fmt.Errorf("ObjectRef.GetAll failed, reason: %w, detail: %s", NewError(retCode), resultData)
+	if retCode != internal.ErrorCode_Success {
+		return nil, fmt.Errorf("ObjectRef.GetAll failed, reason: %w, detail: %s", newError(retCode), resultData)
 	}
 
 	res := decodeFuncResult(obj.originFunc, resultData)
@@ -46,6 +48,7 @@ func (obj ObjectRef) numReturn() int {
 }
 
 // GetAll returns all return values of the ObjectRefs in []any.
+// Returns ErrCancelled if the task is cancelled.
 func (obj ObjectRef) GetAll() ([]any, error) {
 	return obj.GetAllTimeout(-1)
 }

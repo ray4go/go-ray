@@ -53,7 +53,7 @@ func init() {
 		_, err2 := obj.GetAll()
 		assert.ErrorIs(err2, ray.ErrCancelled)
 
-		ready, notReady, err := ray.Wait([]ray.ObjectRef{obj}, ray.Option("timeout", 0))
+		ready, notReady, err := ray.Wait([]ray.ObjectRef{obj}, 1, ray.Option("timeout", 0))
 		assert.Equal(ready, []ray.ObjectRef{obj})
 		assert.Empty(notReady)
 	})

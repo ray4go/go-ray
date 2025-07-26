@@ -30,7 +30,7 @@ encode result: 2 bytes units
   - first unit is raw args data;
   - second unit is json encoded options and ObjectRef info.
 */
-func encodeRemoteCallArgs(callable *CallableType, argsAndOpts []any) []byte {
+func encodeRemoteCallArgs(callable *callableType, argsAndOpts []any) []byte {
 	args, opts := splitArgsAndOptions(argsAndOpts)
 	buffer := bytes.NewBuffer(nil)
 	args, objRefs := splitArgsAndObjectRefs(args)
@@ -49,7 +49,7 @@ bytes unit format: | length:8byte:int64 | data:${length}byte:[]byte |
 - other units are objectRefs resolved data;
   - resolved data format: | arg_pos:8byte:int64 | data:[]byte |
 */
-func decodeRemoteCallArgs(callable *CallableType, data []byte) []any {
+func decodeRemoteCallArgs(callable *callableType, data []byte) []any {
 	args, ok := decodeBytesUnits(data)
 	if !ok || len(args) == 0 {
 		panic("Error: decode args of remote call failed")
@@ -146,10 +146,10 @@ func encodeOptions(opts []*option, objRefs map[int]ObjectRef) []byte {
 	return data
 }
 
-func encodeArgs(callable *CallableType, args []any, opsArgLen int) []byte {
+func encodeArgs(callable *callableType, args []any, opsArgLen int) []byte {
 	if !(callable.IsValidArgNum(len(args) + opsArgLen)) {
 		panic(fmt.Sprintf(
-			"encodeArgs: func/method args length not match, given %v, expect %v. CallableType: %s",
+			"encodeArgs: func/method args length not match, given %v, expect %v. callableType: %s",
 			len(args)+opsArgLen, callable.NumIn()-1, callable.Type,
 		))
 	}

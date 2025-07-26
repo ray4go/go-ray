@@ -155,7 +155,7 @@ func driver() {
 		obj2.Cancel()
 		_, err := obj2.GetAll()
 		fmt.Println("Workload2 is canceled: ", errors.Is(err, ray.ErrCancelled))
-		ready, notReady, err := ray.Wait([]ray.ObjectRef{obj1, obj2}, ray.Option("timeout", 1.5))
+		ready, notReady, err := ray.Wait([]ray.ObjectRef{obj1, obj2}, 1, ray.Option("timeout", 1.5))
 		fmt.Printf("ready:%#v notReady:%#v err:%v\n", ready, notReady, err)
 	}
 	{

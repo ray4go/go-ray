@@ -9,6 +9,8 @@ type option struct {
 	value any
 }
 
+// Option creates a new ray option with the given name and value.
+// The valid option name and value varies by the ray API being called.
 func Option(name string, value any) *option {
 	return &option{
 		name:  name,
@@ -24,12 +26,12 @@ func (opt *option) Value() any {
 	return opt.value
 }
 
-type KV interface {
+type kv interface {
 	Name() string
 	Value() any
 }
 
-func JsonEncodeOptions[T KV](opts []T, extra ...T) ([]byte, error) {
+func jsonEncodeOptions[T kv](opts []T, extra ...T) ([]byte, error) {
 	kvs := make(map[string]any)
 	for _, opt := range opts {
 		kvs[opt.Name()] = opt.Value()
