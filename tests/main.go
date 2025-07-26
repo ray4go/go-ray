@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/ray4go/go-ray/ray"
+	"fmt"
 	"github.com/bytedance/mockey"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -9,13 +10,16 @@ import (
 	"testing"
 )
 
-var tests = make([]testing.InternalTest, 0)
+var (
+	tests          = make([]testing.InternalTest, 0)
+	actorFactories = make(map[string]any)
+)
 
 // raytasks
 type testTask struct{}
 
 func init() {
-	ray.Init(driver, testTask{}, nil) // 初始化，注册ray driver 和 tasks
+	ray.Init(driver, testTask{}, actorFactories) // 初始化，注册ray driver 和 tasks
 }
 
 func addTestCase(name string, f func(*require.Assertions)) {
@@ -27,6 +31,13 @@ func addTestCase(name string, f func(*require.Assertions)) {
 		Name: name,
 		F:    testFunc,
 	})
+}
+
+// register an actor and return its name
+func registerActor(factory any) string {
+	name := fmt.Sprintf("actor_%d", len(actorFactories))
+	actorFactories[name] = factory
+	return name
 }
 
 func driver() {

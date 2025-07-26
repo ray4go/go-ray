@@ -122,3 +122,48 @@ func init() {
 		assert.Nil(err)
 	})
 }
+
+// ray actor
+type counter struct {
+	num int
+}
+
+func NewActor(n int) *counter {
+	return &counter{num: n}
+}
+
+func (c *counter) Incr(n int) int {
+	c.num += n
+	return c.num
+}
+
+func (c *counter) Decr(n int) int {
+	c.num -= n
+	return c.num
+}
+
+func (c *counter) Busy(n time.Duration) {
+	time.Sleep(n * time.Second)
+}
+
+func init() {
+	name := registerActor(NewActor)
+	addTestCase("TestActor", func(assert *require.Assertions) {
+		actor := ray.NewActor(name, 10)
+		obj1 := actor.RemoteCall("Incr", 1)
+		res1, err1 := obj1.Get1()
+		assert.Equal(nil, err1)
+		assert.Equal(11, res1)
+
+		obj2 := actor.RemoteCall("Decr", 2)    // 9
+		obj3 := actor.RemoteCall("Incr", obj2) // 18
+		res3, err3 := obj3.Get1()
+		assert.Equal(nil, err3)
+		assert.Equal(18, res3)
+
+		obj4 := actor.RemoteCall("Busy", 100)
+		actor.Kill()
+		err4 := obj4.Get0()
+		assert.NotNil(err4)
+	})
+}
