@@ -1,4 +1,4 @@
-package main
+package cases
 
 import (
 	"github.com/ray4go/go-ray/ray"
@@ -61,7 +61,7 @@ func (_ testTask) ProcessMap(data map[string]int) map[string]int {
 }
 
 func init() {
-	addTestCase("TestComplexStruct", func(assert *require.Assertions) {
+	AddTestCase("TestComplexStruct", func(assert *require.Assertions) {
 		input := ComplexStruct{
 			ID:   123,
 			Name: "test",
@@ -100,7 +100,7 @@ func init() {
 		assert.Equal(expected, result)
 	})
 
-	addTestCase("TestSliceOfStructs", func(assert *require.Assertions) {
+	AddTestCase("TestSliceOfStructs", func(assert *require.Assertions) {
 		input := []ComplexStruct{
 			{
 				ID:   1,
@@ -152,7 +152,7 @@ func init() {
 		assert.Equal(int64(2), resultSlice[1].Metadata["original_id"])
 	})
 
-	addTestCase("TestMapProcessing", func(assert *require.Assertions) {
+	AddTestCase("TestMapProcessing", func(assert *require.Assertions) {
 		input := map[string]int{
 			"apple":  5,
 			"banana": 3,

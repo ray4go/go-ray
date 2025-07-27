@@ -1,4 +1,4 @@
-package main
+package cases
 
 import (
 	"github.com/ray4go/go-ray/ray"
@@ -45,7 +45,7 @@ func (_ testTask) MultipleReturnValues(a, b int) (int, int, string, bool) {
 }
 
 func init() {
-	addTestCase("TestPanicHandling", func(assert *require.Assertions) {
+	AddTestCase("TestPanicHandling", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("TaskThatPanics", "test_panic")
 		_, err := objRef.Get1()
 
@@ -54,7 +54,7 @@ func init() {
 		// Note: The exact error handling behavior may depend on implementation
 	})
 
-	addTestCase("TestDivisionByZero", func(assert *require.Assertions) {
+	AddTestCase("TestDivisionByZero", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("DivideByZero", 10, 0)
 		_, err := objRef.Get1()
 
@@ -62,7 +62,7 @@ func init() {
 		assert.NotNil(err)
 	})
 
-	addTestCase("TestTimeoutBehavior", func(assert *require.Assertions) {
+	AddTestCase("TestTimeoutBehavior", func(assert *require.Assertions) {
 		// Create a task that takes longer than our timeout
 		objRef := ray.RemoteCall("TaskWithDelay", 500, "test")
 
@@ -72,7 +72,7 @@ func init() {
 		assert.ErrorIs(err, ray.ErrTimeout)
 	})
 
-	addTestCase("TestCancelAfterCompletion", func(assert *require.Assertions) {
+	AddTestCase("TestCancelAfterCompletion", func(assert *require.Assertions) {
 		// Create a fast task
 		objRef := ray.RemoteCall("TaskWithDelay", 10, "fast")
 
@@ -87,7 +87,7 @@ func init() {
 		_ = cancelErr // Don't assert on this
 	})
 
-	addTestCase("TestLargeDataProcessing", func(assert *require.Assertions) {
+	AddTestCase("TestLargeDataProcessing", func(assert *require.Assertions) {
 		// Test with reasonably large data
 		size := 10000
 		objRef := ray.RemoteCall("ProcessLargeData", size)
@@ -103,7 +103,7 @@ func init() {
 		assert.Equal(9801, dataSlice[99]) // 99*99 = 9801
 	})
 
-	addTestCase("TestEmptyReturnValues", func(assert *require.Assertions) {
+	AddTestCase("TestEmptyReturnValues", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("EmptyReturns")
 
 		// Test Get0 for no return values
@@ -116,7 +116,7 @@ func init() {
 		assert.Empty(results)
 	})
 
-	addTestCase("TestMultipleReturnValues", func(assert *require.Assertions) {
+	AddTestCase("TestMultipleReturnValues", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("MultipleReturnValues", 15, 10)
 
 		// Test getting all values at once
@@ -138,21 +138,21 @@ func init() {
 		assert.Equal(false, val4) // 5 > 8 is false
 	})
 
-	addTestCase("TestInvalidTaskName", func(assert *require.Assertions) {
+	AddTestCase("TestInvalidTaskName", func(assert *require.Assertions) {
 		// This should panic since the task doesn't exist
 		assert.Panics(func() {
 			ray.RemoteCall("NonExistentTask", 1, 2, 3)
 		})
 	})
 
-	addTestCase("TestInvalidArgumentCount", func(assert *require.Assertions) {
+	AddTestCase("TestInvalidArgumentCount", func(assert *require.Assertions) {
 		// This should panic due to wrong number of arguments
 		assert.Panics(func() {
 			ray.RemoteCall("MultipleReturnValues", 1) // needs 2 args, only providing 1
 		})
 	})
 
-	addTestCase("TestWaitWithTimeout", func(assert *require.Assertions) {
+	AddTestCase("TestWaitWithTimeout", func(assert *require.Assertions) {
 		// Create a slow task
 		slowRef := ray.RemoteCall("TaskWithDelay", 1000, "slow") // 1 second delay
 
@@ -167,7 +167,7 @@ func init() {
 		assert.Contains(notReady, slowRef)
 	})
 
-	addTestCase("TestMultipleCancellations", func(assert *require.Assertions) {
+	AddTestCase("TestMultipleCancellations", func(assert *require.Assertions) {
 		// Create multiple slow tasks
 		ref1 := ray.RemoteCall("TaskWithDelay", 2000, "task1")
 		ref2 := ray.RemoteCall("TaskWithDelay", 2000, "task2")

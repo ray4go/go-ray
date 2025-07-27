@@ -1,4 +1,4 @@
-package main
+package cases
 
 import (
 	"github.com/ray4go/go-ray/ray"
@@ -40,7 +40,7 @@ func (_ testTask) ProcessPrimitiveTypes(i int, f float64, s string, b bool) (int
 }
 
 func init() {
-	addTestCase("TestPutBasicTypes", func(assert *require.Assertions) {
+	AddTestCase("TestPutBasicTypes", func(assert *require.Assertions) {
 		// Test putting primitive types
 		intRef, err1 := ray.Put(42)
 		floatRef, err2 := ray.Put(3.14)
@@ -63,7 +63,7 @@ func init() {
 		assert.Equal(false, val4)
 	})
 
-	addTestCase("TestPutComplexStruct", func(assert *require.Assertions) {
+	AddTestCase("TestPutComplexStruct", func(assert *require.Assertions) {
 		// Create and store a complex struct
 		testStruct := StorageTestStruct{
 			ID:    100,
@@ -87,7 +87,7 @@ func init() {
 		assert.Equal(expected, result)
 	})
 
-	addTestCase("TestPutSlice", func(assert *require.Assertions) {
+	AddTestCase("TestPutSlice", func(assert *require.Assertions) {
 		// Store a slice
 		slice := []int{1, 2, 3, 4, 5}
 		sliceRef, err := ray.Put(slice)
@@ -102,7 +102,7 @@ func init() {
 		assert.Equal(15, result) // 1+2+3+4+5 = 15
 	})
 
-	addTestCase("TestPutMap", func(assert *require.Assertions) {
+	AddTestCase("TestPutMap", func(assert *require.Assertions) {
 		// Store a map
 		testMap := map[string]int{
 			"a": 1,
@@ -124,7 +124,7 @@ func init() {
 		assert.Equal(6, resultMap["c_processed"])
 	})
 
-	addTestCase("TestMultiplePutOperations", func(assert *require.Assertions) {
+	AddTestCase("TestMultiplePutOperations", func(assert *require.Assertions) {
 		// Store multiple objects
 		obj1 := StorageTestStruct{
 			ID:    10,
@@ -155,7 +155,7 @@ func init() {
 		assert.Equal(expected, result)
 	})
 
-	addTestCase("TestPutSliceOfStructs", func(assert *require.Assertions) {
+	AddTestCase("TestPutSliceOfStructs", func(assert *require.Assertions) {
 		// Store slice of structs
 		structs := []StorageTestStruct{
 			{ID: 1, Data: []byte("one"), Value: 1.1},
@@ -173,7 +173,7 @@ func init() {
 		assert.Equal(6, result) // 1+2+3 = 6
 	})
 
-	addTestCase("TestPutLargeObject", func(assert *require.Assertions) {
+	AddTestCase("TestPutLargeObject", func(assert *require.Assertions) {
 		// Create a larger object to test storage efficiency
 		largeData := make([]byte, 1024*10) // 10KB
 		for i := range largeData {
@@ -200,7 +200,7 @@ func init() {
 		assert.Len(resultStruct.Data, len(largeData)+10) // original + "_processed"
 	})
 
-	addTestCase("TestMixedPutAndRemoteCall", func(assert *require.Assertions) {
+	AddTestCase("TestMixedPutAndRemoteCall", func(assert *require.Assertions) {
 		// Mix Put operations with RemoteCall operations
 		value1, err1 := ray.Put(5)
 		assert.Nil(err1)
@@ -220,7 +220,7 @@ func init() {
 		assert.Equal(45, result)
 	})
 
-	addTestCase("TestPutNilHandling", func(assert *require.Assertions) {
+	AddTestCase("TestPutNilHandling", func(assert *require.Assertions) {
 		// Test how Put handles nil values (this might not be supported)
 		// Based on the README, nil is not supported due to gob limitations
 		assert.Panics(func() {

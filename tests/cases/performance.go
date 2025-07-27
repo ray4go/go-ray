@@ -1,4 +1,4 @@
-package main
+package cases
 
 import (
 	"github.com/ray4go/go-ray/ray"
@@ -72,7 +72,7 @@ func (_ testTask) AggregateResults(results [][]float64) []float64 {
 }
 
 func init() {
-	addTestCase("TestHighThroughputTasks", func(assert *require.Assertions) {
+	AddTestCase("TestHighThroughputTasks", func(assert *require.Assertions) {
 		start := time.Now()
 
 		// Launch many small tasks
@@ -102,7 +102,7 @@ func init() {
 		assert.Less(elapsed, 10*time.Second)
 	})
 
-	addTestCase("TestMediumScaleTasks", func(assert *require.Assertions) {
+	AddTestCase("TestMediumScaleTasks", func(assert *require.Assertions) {
 		// Create medium-scale tasks with larger data
 		numTasks := 20
 		dataSize := 1000
@@ -130,7 +130,7 @@ func init() {
 		}
 	})
 
-	addTestCase("TestComputeIntensiveTask", func(assert *require.Assertions) {
+	AddTestCase("TestComputeIntensiveTask", func(assert *require.Assertions) {
 		// Test CPU-intensive tasks
 		start := time.Now()
 
@@ -161,7 +161,7 @@ func init() {
 		assert.Less(elapsed, 5*time.Second)
 	})
 
-	addTestCase("TestParallelMatrixComputation", func(assert *require.Assertions) {
+	AddTestCase("TestParallelMatrixComputation", func(assert *require.Assertions) {
 		// Test parallel matrix operations
 		rows := 10
 		cols := 8
@@ -212,7 +212,7 @@ func init() {
 		}
 	})
 
-	addTestCase("TestMemoryScaling", func(assert *require.Assertions) {
+	AddTestCase("TestMemoryScaling", func(assert *require.Assertions) {
 		// Test tasks with increasing memory usage
 		sizes := []int{1000, 5000, 10000, 20000}
 		refs := make([]ray.ObjectRef, len(sizes))
@@ -238,7 +238,7 @@ func init() {
 		}
 	})
 
-	addTestCase("TestTaskChainScaling", func(assert *require.Assertions) {
+	AddTestCase("TestTaskChainScaling", func(assert *require.Assertions) {
 		// Test long chains of dependent tasks
 		chainLength := 10
 
@@ -261,7 +261,7 @@ func init() {
 		assert.Equal(expected, result)
 	})
 
-	addTestCase("TestConcurrentResourceUsage", func(assert *require.Assertions) {
+	AddTestCase("TestConcurrentResourceUsage", func(assert *require.Assertions) {
 		// Test multiple resource-intensive tasks running concurrently
 		start := time.Now()
 
@@ -292,7 +292,7 @@ func init() {
 		}
 	})
 
-	addTestCase("TestRapidFireTasks", func(assert *require.Assertions) {
+	AddTestCase("TestRapidFireTasks", func(assert *require.Assertions) {
 		// Test launching tasks in rapid succession
 		numRounds := 5
 		tasksPerRound := 20

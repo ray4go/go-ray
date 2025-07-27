@@ -2,42 +2,17 @@ package main
 
 import (
 	"github.com/ray4go/go-ray/ray"
+	"github.com/ray4go/go-ray/tests/cases"
 	"fmt"
 	"github.com/bytedance/mockey"
-	"github.com/stretchr/testify/require"
 	"os"
 	"regexp"
 	"testing"
 )
 
-var (
-	tests          = make([]testing.InternalTest, 0)
-	actorFactories = make(map[string]any)
-)
-
-// raytasks
-type testTask struct{}
-
 func init() {
-	ray.Init(driver, testTask{}, actorFactories) // 初始化，注册ray driver 和 tasks
-}
-
-func addTestCase(name string, f func(*require.Assertions)) {
-	testFunc := func(t *testing.T) {
-		assert := require.New(t)
-		f(assert)
-	}
-	tests = append(tests, testing.InternalTest{
-		Name: name,
-		F:    testFunc,
-	})
-}
-
-// register an actor and return its name
-func registerActor(factory any) string {
-	name := fmt.Sprintf("actor_%d", len(actorFactories))
-	actorFactories[name] = factory
-	return name
+	task, actors := cases.RayWorkload()
+	ray.Init(driver, task, actors)
 }
 
 func driver() {
@@ -47,6 +22,9 @@ func driver() {
 	matchAll := func(pat, str string) (bool, error) {
 		return regexp.MatchString(pat, str)
 	}
+
+	tests := cases.GetTestCases()
+	fmt.Printf("%d test cases found\n", len(tests))
 
 	mockey.Mock(os.Exit).Return().Build() // use os.Exit in goray app will cause Segmentation fault
 	// benchmarks 和 examples 在这里我们不需要，传入 nil

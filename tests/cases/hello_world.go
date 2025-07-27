@@ -1,4 +1,4 @@
-package main
+package cases
 
 import (
 	"github.com/ray4go/go-ray/ray"
@@ -12,7 +12,7 @@ func (_ testTask) Divide(a, b int64) (int64, int64) {
 }
 
 func init() {
-	addTestCase("TestDivide", func(assert *require.Assertions) {
+	AddTestCase("TestDivide", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("Divide", 16, 5, ray.Option("num_cpus", 2))
 		res, remainder, err := objRef.Get2()
 		assert.Equal(int64(3), res)
@@ -20,7 +20,7 @@ func init() {
 		assert.Equal(nil, err)
 	})
 
-	addTestCase("TestDivide", func(assert *require.Assertions) {
+	AddTestCase("TestDivide", func(assert *require.Assertions) {
 		assert.Panics(func() {
 			ray.RemoteCall("Divide", 5)
 		})
@@ -32,7 +32,7 @@ func (_ testTask) NoReturnVal(a, b int64) {
 }
 
 func init() {
-	addTestCase("TestNoReturnVal", func(assert *require.Assertions) {
+	AddTestCase("TestNoReturnVal", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("NoReturnVal", 1, 2)
 		err := objRef.Get0()
 		assert.Nil(err)
@@ -45,7 +45,7 @@ func (_ testTask) Busy(name string, duration time.Duration) string {
 }
 
 func init() {
-	addTestCase("TestCancel", func(assert *require.Assertions) {
+	AddTestCase("TestCancel", func(assert *require.Assertions) {
 		obj := ray.RemoteCall("Busy", "Workload1", 100)
 		err := obj.Cancel()
 		assert.Nil(err)
@@ -58,7 +58,7 @@ func init() {
 		assert.Empty(notReady)
 	})
 
-	addTestCase("TestTimeout", func(assert *require.Assertions) {
+	AddTestCase("TestTimeout", func(assert *require.Assertions) {
 		obj := ray.RemoteCall("Busy", "Workload", 4)
 		res, err := obj.GetAllTimeout(1)
 		assert.Empty(res)
@@ -102,7 +102,7 @@ func (_ testTask) AddPointsVar(ps ...Point) Point {
 }
 
 func init() {
-	addTestCase("TestPut", func(assert *require.Assertions) {
+	AddTestCase("TestPut", func(assert *require.Assertions) {
 		obj1, e1 := ray.Put(Point{1, 2})
 		obj2, e2 := ray.Put(Point{3, 4})
 		assert.Nil(e1)
@@ -114,7 +114,7 @@ func init() {
 		assert.Nil(err)
 	})
 
-	addTestCase("TestObjRefArg", func(assert *require.Assertions) {
+	AddTestCase("TestObjRefArg", func(assert *require.Assertions) {
 		obj1 := ray.RemoteCall("AddPointSlice", []Point{{1, 2}, {3, 4}})
 		obj2 := ray.RemoteCall("Add2Points", obj1, Point{5, 6})
 		res, err := obj2.Get1()
@@ -147,8 +147,8 @@ func (c *counter) Busy(n time.Duration) {
 }
 
 func init() {
-	name := registerActor(NewActor)
-	addTestCase("TestActor", func(assert *require.Assertions) {
+	name := RegisterActor(NewActor)
+	AddTestCase("TestActor", func(assert *require.Assertions) {
 		actor := ray.NewActor(name, 10)
 		obj1 := actor.RemoteCall("Incr", 1)
 		res1, err1 := obj1.Get1()

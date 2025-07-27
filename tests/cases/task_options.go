@@ -1,4 +1,4 @@
-package main
+package cases
 
 import (
 	"github.com/ray4go/go-ray/ray"
@@ -42,7 +42,7 @@ func (_ testTask) BatchTask(batchId int, items []string) []string {
 }
 
 func init() {
-	addTestCase("TestTaskWithCpuOption", func(assert *require.Assertions) {
+	AddTestCase("TestTaskWithCpuOption", func(assert *require.Assertions) {
 		// Test task with CPU resource specification
 		objRef := ray.RemoteCall("CpuIntensiveTask", 1000,
 			ray.Option("num_cpus", 2))
@@ -56,7 +56,7 @@ func init() {
 		assert.Greater(result.(int), 0)
 	})
 
-	addTestCase("TestTaskWithMemoryOption", func(assert *require.Assertions) {
+	AddTestCase("TestTaskWithMemoryOption", func(assert *require.Assertions) {
 		// Test task with memory resource specification
 		objRef := ray.RemoteCall("MemoryIntensiveTask", 10000,
 			ray.Option("memory", 100*1024*1024)) // 100MB
@@ -70,7 +70,7 @@ func init() {
 		assert.Equal(9999*9999, resultSlice[9999]) // last element
 	})
 
-	addTestCase("TestTaskWithMultipleOptions", func(assert *require.Assertions) {
+	AddTestCase("TestTaskWithMultipleOptions", func(assert *require.Assertions) {
 		// Test task with multiple resource options
 		objRef := ray.RemoteCall("ResourceTrackingTask", "multi_option", 100,
 			ray.Option("num_cpus", 1),
@@ -82,7 +82,7 @@ func init() {
 		assert.Equal("task_multi_option_completed", result)
 	})
 
-	addTestCase("TestTaskWithRetryOptions", func(assert *require.Assertions) {
+	AddTestCase("TestTaskWithRetryOptions", func(assert *require.Assertions) {
 		// Test task with retry configuration
 		objRef := ray.RemoteCall("ResourceTrackingTask", "retry", 25,
 			ray.Option("max_retries", 3),
@@ -93,7 +93,7 @@ func init() {
 		assert.Equal("task_retry_completed", result)
 	})
 
-	addTestCase("TestBatchTasksWithDifferentOptions", func(assert *require.Assertions) {
+	AddTestCase("TestBatchTasksWithDifferentOptions", func(assert *require.Assertions) {
 		// Create multiple tasks with different resource requirements
 		items1 := []string{"item1", "item2", "item3"}
 		items2 := []string{"item4", "item5", "item6"}
@@ -128,7 +128,7 @@ func init() {
 		assert.Equal([]string{"item7_batch_3", "item8_batch_3", "item9_batch_3"}, result3)
 	})
 
-	addTestCase("TestTaskWithSchedulingOptions", func(assert *require.Assertions) {
+	AddTestCase("TestTaskWithSchedulingOptions", func(assert *require.Assertions) {
 		// Test task with scheduling-related options
 		objRef := ray.RemoteCall("ResourceTrackingTask", "scheduled", 30,
 			ray.Option("scheduling_strategy", "SPREAD"),
@@ -139,7 +139,7 @@ func init() {
 		assert.Equal("task_scheduled_completed", result)
 	})
 
-	addTestCase("TestTaskWithStringOption", func(assert *require.Assertions) {
+	AddTestCase("TestTaskWithStringOption", func(assert *require.Assertions) {
 		// Test task with string-based options
 		objRef := ray.RemoteCall("ResourceTrackingTask", "string_opt", 20,
 			ray.Option("name", "custom_task_name"),
@@ -152,7 +152,7 @@ func init() {
 		assert.Equal("task_string_opt_completed", result)
 	})
 
-	addTestCase("TestInvalidTaskOptions", func(assert *require.Assertions) {
+	AddTestCase("TestInvalidTaskOptions", func(assert *require.Assertions) {
 		// Test with potentially invalid options (should crash)
 		assert.Panicsf(func() {
 			ray.RemoteCall("ResourceTrackingTask", "invalid_opt", 10,
@@ -161,7 +161,7 @@ func init() {
 		}, "Invalid option")
 	})
 
-	addTestCase("TestOptionsWithObjectRefs", func(assert *require.Assertions) {
+	AddTestCase("TestOptionsWithObjectRefs", func(assert *require.Assertions) {
 		// Test using task options with ObjectRef arguments
 		dataRef, err := ray.Put([]string{"ref_item1", "ref_item2"})
 		assert.Nil(err)
