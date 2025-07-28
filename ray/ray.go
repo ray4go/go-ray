@@ -85,6 +85,8 @@ func Put(data any) (ObjectRef, error) {
 }
 
 // Cancel a remote function (Task) or a remote Actor method (Actor Task)
+// Noted, for actor method task, if the specified Task is pending execution, it is cancelled and not executed.
+// If the actor method task is currently executing, the task cannot be canceled because actors have states.
 // See https://docs.ray.io/en/latest/ray-core/api/doc/ray.cancel.html#ray-cancel
 func (obj ObjectRef) Cancel(opts ...*option) error {
 	data, err := jsonEncodeOptions(opts, Option("object_ref_local_id", obj.id))
