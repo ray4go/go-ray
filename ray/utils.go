@@ -170,7 +170,7 @@ func newCallableType(typ reflect.Type, isMethod bool) *callableType {
 
 func (m *callableType) IsValidArgNum(numIn int) bool {
 	if m.Type.IsVariadic() {
-		return numIn >= m.Type.NumIn()-m.argOffset
+		return numIn >= m.Type.NumIn()-m.argOffset-1
 	}
 	return numIn == m.Type.NumIn()-m.argOffset
 }
