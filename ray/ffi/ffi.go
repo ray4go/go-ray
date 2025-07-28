@@ -32,21 +32,24 @@ import (
 var (
 	serverCallback C.ComplexCallbackFunc
 
-	handler func(int64, []byte) ([]byte, int64)
-	// 可能没必要，如果上层在init中RegisterHandler的话
+	handler          func(int64, []byte) ([]byte, int64)
 	setHandlerOnce   sync.Once                           // 确保值只被设置一次
 	handlerReadyChan chan struct{} = make(chan struct{}) // 当值被设置后，向此通道发送信号
+
+	ZeroCopy = true
 )
 
 /*
 硬时序限制：
-- 先 ResigterCallback 后 CallServer
 - 先 RegisterHandler 后 Execute
+- 先 ResigterCallback 后 CallServer
 
 保证：
-由 Python 端保证 Execute 在 ResigterCallback 之后被调用。
-Go 端上层代码需要保证 CallServer 在 ResigterCallback 触发后再调用。否则panic。
-本模块保证 RegisterHandler 在 Execute 之前调用。
+由于要求用户程序在 init() 中调用 ray.Init(), 因而调用 RegisterHandler。而，python端需要再 ctypes.CDLL(golibpath) 后，才调用 Execute
+OS保证 Execute 在 RegisterHandler 之后被调用。，
+
+Go 端上层代码保证 CallServer 在 ResigterCallback 触发后再调用：
+理论上，GO ray app的首次CallServer调用在go ray driver中，go ray driver由python端通过  Execute 触发，此时python端已经完成了 ResigterCallback。
 */
 
 func RegisterHandler(handler_ func(int64, []byte) ([]byte, int64)) {
@@ -62,20 +65,23 @@ func ResigterCallback(callback C.ComplexCallbackFunc) {
 	serverCallback = callback
 }
 
+/*
+GO call Python
+用于 Go2PyCmd_* 类型的请求，如 Go2PyCmd_ExeRemoteTask、Go2PyCmd_GetObject、Go2PyCmd_PutObject
+
+C.invoke_callback:
+- 入参bytes, go分配，go回收，CallServer返回时生命周期结束
+- 返回值bytes, python分配，go回收，数据用完后生命周期结束
+*/
 func CallServer(request int64, data []byte) ([]byte, int64) {
 	log.Debug("[Go:ffi] CallServer cmd: %v, len(data)=%d\n", request, len(data))
-	// 1. 确保回调函数已注册
 	if serverCallback == nil {
 		panic("Callback function not registered")
 	}
+	cInData, dataLen, freeFunc := goBytesToCPointer(data, ZeroCopy)
+	defer freeFunc()
+	cInLen := C.longlong(dataLen)
 
-	// 使用 C.CBytes 将 Go slice 转换为 C 的 void*。
-	// 这会在 C 的堆上分配内存并复制数据。
-	// 我们必须在之后手动释放它。
-	cInData := C.CBytes(data)
-	defer C.free(cInData) // 确保在函数退出时释放内存
-
-	cInLen := C.longlong(len(data))
 	var cOutLen C.longlong
 	var cRetCode C.longlong
 	cOutData := C.invoke_callback(serverCallback, C.longlong(request), cInData, cInLen, &cOutLen, &cRetCode)
@@ -85,25 +91,27 @@ func CallServer(request int64, data []byte) ([]byte, int64) {
 	// 我们必须在使用后手动释放它。
 	defer C.free(unsafe.Pointer(cOutData))
 
-	// 4. 将返回的 C 数据转换回 Go 的 slice
+	// 将返回的 C 数据转换回 Go 的 slice
 	// C.GoBytes 会创建一个新的 Go slice，并把 C 内存中的数据复制过来。
-	// 这样返回的 goReturnData 就是受 Go GC 管理的安全数据了。
+	// 这样返回的 Go slice 就是受 Go GC 管理的安全数据了。
 	return C.GoBytes(cOutData, C.int(cOutLen)), int64(cRetCode)
 }
 
-// C函数签名:
-// void* Execute(long long cmd, void* in_data, long long in_data_len, long long* out_len, long long* ret_code)
-// 返回值是一个指向C堆内存的指针。内存由调用者(python)负责释放。
-//
+/*
+Python call GO
+用于 Py2GoCmd_* 类型的请求，如 Py2GoCmd_RunTask、Py2GoCmd_NewActor、Py2GoCmd_ActorMethodCall
+
+C API: void* Execute(long long request, void* in_data, long long in_data_len, long long* out_len, long long* ret_code)
+- 入参bytes, python分配，python回收，Execute返回时生命周期结束
+- 返回值bytes, go分配，python回收，数据用完后生命周期结束
+*/
 //export Execute
 func Execute(request C.longlong, in_data unsafe.Pointer, data_len C.longlong, out_len *C.longlong, ret_code *C.longlong) unsafe.Pointer {
-	log.Debug("[Go:ffi] Execute cmd: %v\n", request)
 	if handler == nil {
 		<-handlerReadyChan // wait for handler to be set
 	}
-
-	// C.GoBytes 是安全的，因为它处理了指定长度的 void* 数据
-	goInData := C.GoBytes(in_data, C.int(data_len))
+	log.Debug("[Go:ffi] Execute cmd: %v\n", request)
+	goInData := cPointerToGoBytes(in_data, int(data_len), ZeroCopy)
 	resultBytes, errorCode := handler(int64(request), goInData)
 	resultLen := len(resultBytes)
 	log.Debug("[Go:ffi] Execute result: %v, len=%v, errorCode=%v\n", resultBytes, resultLen, errorCode)

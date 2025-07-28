@@ -1,13 +1,11 @@
+from __future__ import annotations
+
 import ctypes
-import time
-import os
-import platform
-from ctypes.util import find_library
-import functools
 import logging
+import typing
+from ctypes.util import find_library
 
 from . import libpath, utils
-
 
 # execute 需要在 register_handler 之后调用
 __all__ = [
@@ -51,30 +49,40 @@ CALLBACK_TYPE = ctypes.CFUNCTYPE(
     ctypes.POINTER(ctypes.c_longlong),  # 参数4: long long* ret_code
 )
 
-# ---  设置 Go 导出函数的原型 ---
 register_callback_func = go_lib.ResigterCallback
 register_callback_func.argtypes = [CALLBACK_TYPE]
 register_callback_func.restype = None
 
-_handle_func = None
+_handle_func: typing.Callable[[int, memoryview], tuple[bytes, int]] = None
 
 
-# --- Python 回调函数 ---
-def _callback_wrapper(cmd, in_data_ptr, in_len, out_len_ptr, ret_code_ptr):
+"""
+GO call Python
+用于 Go2PyCmd_* 类型的请求，如 Go2PyCmd_ExeRemoteTask、Go2PyCmd_GetObject、Go2PyCmd_PutObject
+- 入参bytes, go分配，go回收，CallServer返回时生命周期结束
+- 返回值bytes, python分配，go回收，数据用完后生命周期结束
+"""
+
+
+def _callback_wrapper(
+    cmd: int,
+    in_data_ptr: int,
+    in_len: int,
+    out_len_ptr: ctypes._Pointer[ctypes.c_longlong],
+    ret_code_ptr: ctypes._Pointer[ctypes.c_longlong],
+) -> ctypes.c_void_p:
     """
     这个函数将被 Go 调用。
     它接收数据，处理后，分配新内存返回结果。
     """
-    # 1. 将输入的 C 指针和长度转换为 Python bytes
-    # ctypes.string_at 从内存地址读取指定长度的字节
-    received_data = ctypes.string_at(in_data_ptr, in_len)
+    received_data = c_pointer_to_bytes(in_data_ptr, in_len, zero_copy=True)
 
-    # 2. 处理数据
-    response_bytes, ret_code = _handle_func(cmd, received_data)
+    assert _handle_func, "must register handler first"
+    response_bytes, ret_code = _handle_func(cmd, received_data.tobytes())
     response_len = len(response_bytes)
     ret_code_ptr.contents.value = ret_code
 
-    # 3. 分配内存以存放返回数据
+    # 分配内存以存放返回数据
     # !! 关键: 必须使用 C 的 malloc 分配内存。
     # 这块内存的生命周期将由调用者(Go)管理。
     out_buffer_ptr = libc.malloc(response_len)
@@ -100,7 +108,9 @@ _c_callback = CALLBACK_TYPE(_callback_wrapper)
 _has_register = False
 
 
-def register_handler(handle_func):
+def register_handler(
+    handle_func: typing.Callable[[int, memoryview], tuple[bytes, int]],
+):
     global _handle_func, _has_register
     if _has_register:
         return
@@ -111,19 +121,27 @@ def register_handler(handle_func):
     _has_register = True
 
 
+"""
+Python call GO
+用于 Py2GoCmd_* 类型的请求，如 Py2GoCmd_RunTask、Py2GoCmd_NewActor、Py2GoCmd_ActorMethodCall
+
+C API: void* Execute(long long request, void* in_data, long long in_data_len, long long* out_len, long long* ret_code)
+- 入参bytes, python分配，python回收，Execute返回时生命周期结束
+- 返回值bytes, go分配，python回收，数据用完后生命周期结束
+"""
+
+
 def execute(cmd: int, data: bytes) -> tuple[bytes, int]:
     assert _has_register, "must register handler first"
 
     out_len = ctypes.c_longlong(0)
     ret_code = ctypes.c_longlong(0)
-    # 调用函数
-    # ctypes 会自动将 python bytes 转换为 c_char_p 或 c_void_p
-    # 使用 ctypes.byref() 来传递 out_len 的指针
+
     out_ptr = go_lib.Execute(
         cmd,
-        data,
+        data,  # 直接传入 bytes 对象, 零拷贝
         len(data),
-        ctypes.byref(out_len),
+        ctypes.byref(out_len),  # 使用 ctypes.byref() 来传递地址
         ctypes.byref(ret_code),
     )
     try:
@@ -138,3 +156,18 @@ def execute(cmd: int, data: bytes) -> tuple[bytes, int]:
         # 关键步骤：调用 FreeMemory 释放 Go 中分配的 C 内存
         if out_ptr:
             go_lib.FreeMemory(out_ptr)
+
+
+def c_pointer_to_bytes(c_ptr: int, length: int, zero_copy: bool) -> memoryview:
+    """
+    将 C 指针转换为 Python bytes
+    """
+    if not c_ptr or length <= 0:
+        return memoryview(b"")
+    if not zero_copy:
+        return memoryview(ctypes.string_at(c_ptr, length))
+
+    buffer_type = ctypes.c_char * length
+    buffer_instance = buffer_type.from_address(c_ptr)
+    memview = memoryview(buffer_instance)
+    return memview

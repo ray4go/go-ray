@@ -1,5 +1,4 @@
 import argparse
-import functools
 import io
 import json
 import logging
@@ -88,9 +87,7 @@ def run_task(
     object_positions: list[int],
     *object_refs: list[tuple[bytes, int]],
 ) -> tuple[bytes, int]:
-    data, err = pack_golang_funccall_data(
-        raw_args, object_positions, *object_refs
-    )
+    data, err = pack_golang_funccall_data(raw_args, object_positions, *object_refs)
     if err != 0:
         return data, err
 
@@ -102,14 +99,17 @@ def run_task(
         logger.debug(f"[py] local_run_task {func_id=}, {res=} {code=}")
     except Exception as e:
         logging.exception(f"[py] execute error {e}")
-        return f"[goray error] python ffi.execute() error: {e}".encode("utf-8"), ErrCode.Failed
+        return (
+            f"[goray error] python ffi.execute() error: {e}".encode("utf-8"),
+            ErrCode.Failed,
+        )
     return res, code
 
 
 def pack_golang_funccall_data(
-        raw_args: bytes,
-        object_positions: list[int],
-        *object_refs: list[tuple[bytes, int]],
+    raw_args: bytes,
+    object_positions: list[int],
+    *object_refs: list[tuple[bytes, int]],
 ) -> tuple[bytes, int]:
     """
     data format: multiple bytes units
@@ -130,59 +130,67 @@ def pack_golang_funccall_data(
 
 
 class _Actor:
-    go_instance_index:int
-    go_class_idx:int
+    go_instance_index: int
+    go_class_idx: int
 
     def __init__(
-            self,
-            actor_class_idx: int,
-            raw_args: bytes,
-            object_positions: list[int],
-            *object_refs: list[tuple[bytes, int]],
+        self,
+        actor_class_idx: int,
+        raw_args: bytes,
+        object_positions: list[int],
+        *object_refs: list[tuple[bytes, int]],
     ):
-        data, err = pack_golang_funccall_data(
-            raw_args, object_positions, *object_refs
-        )
+        data, err = pack_golang_funccall_data(raw_args, object_positions, *object_refs)
         if err != 0:
             raise Exception(data.decode("utf-8"))
 
         from . import ffi
+
         cmd = Py2GoCmd.CMD_NEW_ACTOR | actor_class_idx << cmdBitsLen
         res, code = ffi.execute(cmd, data)
         logger.debug(f"[py] CMD_NEW_ACTOR {actor_class_idx=}, {res=} {code=}")
         if code != ErrCode.Success:
-            raise Exception("go ffi.execute failed: "+res.decode("utf-8"))
+            raise Exception("go ffi.execute failed: " + res.decode("utf-8"))
 
         self.go_instance_index = int(res.decode("utf-8"))
         self.go_class_idx = actor_class_idx
 
     def method(
-            self,
-            method_idx: int,
-            raw_args: bytes,
-            object_positions: list[int],
-            *object_refs: list[tuple[bytes, int]],
+        self,
+        method_idx: int,
+        raw_args: bytes,
+        object_positions: list[int],
+        *object_refs: list[tuple[bytes, int]],
     ) -> tuple[bytes, int]:
-        data, err = pack_golang_funccall_data(
-            raw_args, object_positions, *object_refs
-        )
+        data, err = pack_golang_funccall_data(raw_args, object_positions, *object_refs)
         if err != 0:
             return data, err
 
         from . import ffi
 
-        cmd = Py2GoCmd.CMD_ACTOR_METHOD_CALL | method_idx << cmdBitsLen | self.go_instance_index << 32
+        cmd = (
+            Py2GoCmd.CMD_ACTOR_METHOD_CALL
+            | method_idx << cmdBitsLen
+            | self.go_instance_index << 32
+        )
         try:
             res, code = ffi.execute(cmd, data)
-            logger.debug(f"[py] run actor method {method_idx=}, {self.go_instance_index =} {code=}")
+            logger.debug(
+                f"[py] run actor method {method_idx=}, {self.go_instance_index =} {code=}"
+            )
         except Exception as e:
             logging.exception(f"[py] execute actor method error {e}")
-            return f"[goray error] python ffi.execute() error: {e}".encode("utf-8"), ErrCode.Failed
+            return (
+                f"[goray error] python ffi.execute() error: {e}".encode("utf-8"),
+                ErrCode.Failed,
+            )
         return res, code
+
 
 @ray.remote
 class Actor:
     _actor: _Actor
+
     def __init__(self, *args, **kwargs):
         init_ffi_once()
         self._actor = _Actor(*args, **kwargs)
@@ -193,22 +201,25 @@ class Actor:
     def get_go_class_index(self):
         return self._actor.go_class_idx
 
+
 _actors = utils.ThreadSafeLocalStore()
 
-def handle_new_actor(data: bytes, actor_class_idx: int, mock=False) -> tuple[bytes, int]:
+
+def handle_new_actor(
+    data: bytes, actor_class_idx: int, mock=False
+) -> tuple[bytes, int]:
     raw_args, options, object_positions, object_refs = decode_funccall_args(data)
     logger.debug(f"[py] new actor {actor_class_idx}, {options=}, {object_positions=}")
 
     if mock:
-        actor_handle = _Actor(
-            actor_class_idx, raw_args, object_positions, *object_refs
-        )
+        actor_handle = _Actor(actor_class_idx, raw_args, object_positions, *object_refs)
     else:
         actor_handle = Actor.options(**options).remote(
             actor_class_idx, raw_args, object_positions, *object_refs
         )
     actor_local_id = _actors.add(actor_handle)
     return str(actor_local_id).encode(), 0
+
 
 def handle_actor_method_call(
     data: bytes,
@@ -217,7 +228,9 @@ def handle_actor_method_call(
 ) -> tuple[bytes, int]:
     method_idx, actor_local_id = request & ((1 << 22) - 1), request >> 22
     raw_args, options, object_positions, object_refs = decode_funccall_args(data)
-    logger.debug(f"[py] actor method call {actor_local_id=}, {method_idx=}, {options=}, {object_positions=}")
+    logger.debug(
+        f"[py] actor method call {actor_local_id=}, {method_idx=}, {options=}, {object_positions=}"
+    )
 
     if actor_local_id not in _actors:
         return b"actor not found!", ErrCode.Failed
@@ -233,7 +246,9 @@ def handle_actor_method_call(
     return str(fut_local_id).encode(), 0
 
 
-def handle_kill_actor(data: bytes, actor_local_id: int, mock=False) -> tuple[bytes, int]:
+def handle_kill_actor(
+    data: bytes, actor_local_id: int, mock=False
+) -> tuple[bytes, int]:
     if actor_local_id not in _actors:
         return b"actor not found!", ErrCode.Failed
     actor_handle = _actors[actor_local_id]
@@ -241,6 +256,7 @@ def handle_kill_actor(data: bytes, actor_local_id: int, mock=False) -> tuple[byt
     if not mock:
         ray.kill(actor_handle, **options)
     return b"", 0
+
 
 def handle_get_actor(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     options = json.loads(data)
@@ -251,15 +267,19 @@ def handle_get_actor(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     else:
         go_class_idx = actor_handle.go_class_idx
 
-    res = json.dumps({
-        "py_local_id": actor_local_id,
-        "actor_index": go_class_idx,
-    })
+    res = json.dumps(
+        {
+            "py_local_id": actor_local_id,
+            "actor_index": go_class_idx,
+        }
+    )
     return res.encode(), 0
+
 
 # in mock mode, value is actual return value, i.e. (data, code).
 # in other modes, value is ray object ref
 _futures = utils.ThreadSafeLocalStore()
+
 
 def _get_objects(object_pos_to_local_id: dict[int, int]):
     object_positions = []
@@ -278,6 +298,7 @@ def decode_funccall_args(data: bytes):
     object_pos_to_local_id = options.pop("go_ray_object_pos_to_local_id", {})
     object_positions, object_refs = _get_objects(object_pos_to_local_id)
     return raw_args, options, object_positions, object_refs
+
 
 def handle_run_remote_task(data: bytes, func_id: int, mock=False) -> tuple[bytes, int]:
     args_data, options, object_positions, object_refs = decode_funccall_args(data)
@@ -360,13 +381,14 @@ def handle_cancel_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
         ray.cancel(fut, **opts)
     return b"", 0
 
+
 handlers = {
     Go2PyCmd.CMD_INIT: handle_init,
     Go2PyCmd.CMD_EXECUTE_REMOTE_TASK: handle_run_remote_task,
-    Go2PyCmd.CMD_GET_OBJECT:  handle_get_objects,
-    Go2PyCmd.CMD_PUT_OBJECT:  handle_put_object,
-    Go2PyCmd.CMD_WAIT_OBJECT:  handle_wait_object,
-    Go2PyCmd.CMD_CANCEL_OBJECT:  handle_cancel_object,
+    Go2PyCmd.CMD_GET_OBJECT: handle_get_objects,
+    Go2PyCmd.CMD_PUT_OBJECT: handle_put_object,
+    Go2PyCmd.CMD_WAIT_OBJECT: handle_wait_object,
+    Go2PyCmd.CMD_CANCEL_OBJECT: handle_cancel_object,
     Go2PyCmd.CMD_NEW_ACTOR: handle_new_actor,
     Go2PyCmd.CMD_KILL_ACTOR: handle_kill_actor,
     Go2PyCmd.CMD_GET_ACTOR: handle_get_actor,
@@ -375,6 +397,7 @@ handlers = {
 }
 
 _mock_mode = False
+
 
 def handle(cmd: int, data: bytes) -> tuple[bytes, int]:
     cmd, index = cmd & cmdBitsMask, cmd >> cmdBitsLen
@@ -386,11 +409,10 @@ def handle(cmd: int, data: bytes) -> tuple[bytes, int]:
         return func(data, index, mock=_mock_mode)
     except Exception as e:
         error_string = (
-                f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()
+            f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()
         )
         # logger.error(error_string)
         return error_string.encode("utf8"), ErrCode.Failed
-
 
 
 def main():
@@ -447,7 +469,7 @@ def main():
         data, code = ffi.execute(Py2GoCmd.CMD_START_DRIVER, b"")
         if code != 0:
             err_msg = data.decode("utf-8")
-            logger.debug(f"[py] driver error[{code}]: {err_msg}")
+            logger.error(f"[py] driver error[{code}]: {err_msg}")
             exit(1)
     except KeyboardInterrupt:
         logger.debug("Exiting...")

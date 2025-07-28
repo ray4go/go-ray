@@ -36,10 +36,11 @@ def unpack_bytes_units(data: bytes) -> list[bytes]:
         offset += 8
         units.append(data[offset : offset + length])
         offset += length
-    assert offset == len(data), (
-        f"unpack_bytes_units failed, read finish with {offset=} while {len(data)=}"
-    )
+    assert offset == len(
+        data
+    ), f"unpack_bytes_units failed, read finish with {offset=} while {len(data)=}"
     return units
+
 
 class ThreadSafeLocalStore:
     """
@@ -81,5 +82,3 @@ class ThreadSafeLocalStore:
     def pop(self, key: int):
         with self._write_lock:
             return self._store.pop(key, None)
-
-
