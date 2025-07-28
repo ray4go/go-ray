@@ -149,8 +149,8 @@ func encodeOptions(opts []*option, objRefs map[int]ObjectRef) []byte {
 func encodeArgs(callable *callableType, args []any, opsArgLen int) []byte {
 	if !(callable.IsValidArgNum(len(args) + opsArgLen)) {
 		panic(fmt.Sprintf(
-			"encodeArgs: func/method args length not match, given %v, expect %v. callableType: %s",
-			len(args)+opsArgLen, callable.NumIn()-1, callable.Type,
+			"encodeArgs: func/method args length not match, given %v, callableType: %s",
+			len(args)+opsArgLen, callable.Type,
 		))
 	}
 	rawArgs := encodeSlice(args)
