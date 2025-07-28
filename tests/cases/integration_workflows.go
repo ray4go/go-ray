@@ -8,81 +8,163 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Struct definitions for data processing pipeline
+type DataRecord struct {
+	ID        string `json:"id"`
+	Value     int    `json:"value"`
+	Category  string `json:"category"`
+	Timestamp int64  `json:"timestamp"`
+	Cleaned   bool   `json:"cleaned"`
+}
+
+type AggregationResult struct {
+	TotalRecords  int            `json:"total_records"`
+	TotalValue    int            `json:"total_value"`
+	CategoryStats map[string]int `json:"category_stats"`
+	AverageValue  float64        `json:"average_value"`
+}
+
+// Struct definitions for machine learning workflow
+type DatasetSplit struct {
+	TrainData [][]float64 `json:"train_data"`
+	TestData  [][]float64 `json:"test_data"`
+	TrainSize int         `json:"train_size"`
+	TestSize  int         `json:"test_size"`
+}
+
+type ModelResult struct {
+	ModelID      string  `json:"model_id"`
+	TrainSamples int     `json:"train_samples"`
+	Accuracy     float64 `json:"accuracy"`
+	Loss         float64 `json:"loss"`
+}
+
+type EvaluationResult struct {
+	ModelID          string  `json:"model_id"`
+	TestSamples      int     `json:"test_samples"`
+	TestAccuracy     float64 `json:"test_accuracy"`
+	ValidationPassed bool    `json:"validation_passed"`
+}
+
+// Struct definitions for distributed compute workflow
+type ComputeWorkload struct {
+	Operation string    `json:"operation"`
+	Data      []float64 `json:"data"`
+}
+
+type ComputeResult struct {
+	TaskID    int     `json:"task_id"`
+	Operation string  `json:"operation"`
+	Result    float64 `json:"result"`
+	InputSize int     `json:"input_size"`
+}
+
+type AggregatedResults struct {
+	TotalTasks int            `json:"total_tasks"`
+	Operations map[string]int `json:"operations"`
+	Results    []float64      `json:"results"`
+}
+
+// Struct definitions for workflow coordination
+type WorkflowConfig struct {
+	Type       string   `json:"type"`
+	Batches    int      `json:"batches"`
+	Epochs     int      `json:"epochs"`
+	Tasks      int      `json:"tasks"`
+	Components []string `json:"components"`
+}
+
+type WorkflowResults struct {
+	Success bool               `json:"success"`
+	Output  string             `json:"output"`
+	Metrics map[string]float64 `json:"metrics"`
+	Data    AggregationResult  `json:"data"`
+}
+
+type WorkflowStatus struct {
+	Exists    bool            `json:"exists"`
+	Completed bool            `json:"completed"`
+	Config    WorkflowConfig  `json:"config"`
+	Results   WorkflowResults `json:"results"`
+}
+
+// Struct definitions for resource pool
+type ResourceStatus struct {
+	Total     int            `json:"total"`
+	Available int            `json:"available"`
+	InUse     int            `json:"in_use"`
+	Usage     map[string]int `json:"usage"`
+}
+
 // Integration tests that simulate real-world usage patterns
 
 // Simulate a data processing pipeline
-func (_ testTask) DataIngestion(batchId int, records int) []map[string]interface{} {
-	data := make([]map[string]interface{}, records)
+func (_ testTask) DataIngestion(batchId int, records int) []DataRecord {
+	data := make([]DataRecord, records)
 	for i := 0; i < records; i++ {
-		data[i] = map[string]interface{}{
-			"id":        fmt.Sprintf("batch_%d_record_%d", batchId, i),
-			"value":     i * 10,
-			"category":  []string{"A", "B", "C"}[i%3],
-			"timestamp": time.Now().Unix(),
+		data[i] = DataRecord{
+			ID:        fmt.Sprintf("batch_%d_record_%d", batchId, i),
+			Value:     i * 10,
+			Category:  []string{"A", "B", "C"}[i%3],
+			Timestamp: time.Now().Unix(),
+			Cleaned:   false,
 		}
 	}
 	return data
 }
 
-func (_ testTask) DataCleaning(records []map[string]interface{}) []map[string]interface{} {
-	cleaned := make([]map[string]interface{}, 0, len(records))
+func (_ testTask) DataCleaning(records []DataRecord) []DataRecord {
+	cleaned := make([]DataRecord, 0, len(records))
 	for _, record := range records {
 		// Simulate data cleaning: filter out invalid records
-		if record["value"].(int) >= 0 {
-			record["cleaned"] = true
-			record["value"] = record["value"].(int) * 2 // Double the value
+		if record.Value >= 0 {
+			record.Cleaned = true
+			record.Value = record.Value * 2 // Double the value
 			cleaned = append(cleaned, record)
 		}
 	}
 	return cleaned
 }
 
-func (_ testTask) DataAggregation(cleanedData []map[string]interface{}) map[string]interface{} {
+func (_ testTask) DataAggregation(cleanedData []DataRecord) AggregationResult {
 	categoryStats := make(map[string]int)
 	totalValue := 0
 	recordCount := len(cleanedData)
 
 	for _, record := range cleanedData {
-		category := record["category"].(string)
-		value := record["value"].(int)
-
-		categoryStats[category] += value
-		totalValue += value
+		categoryStats[record.Category] += record.Value
+		totalValue += record.Value
 	}
 
-	return map[string]interface{}{
-		"total_records":  recordCount,
-		"total_value":    totalValue,
-		"category_stats": categoryStats,
-		"average_value":  float64(totalValue) / float64(recordCount),
+	return AggregationResult{
+		TotalRecords:  recordCount,
+		TotalValue:    totalValue,
+		CategoryStats: categoryStats,
+		AverageValue:  float64(totalValue) / float64(recordCount),
 	}
 }
 
-func (_ testTask) ReportGeneration(aggregatedData map[string]interface{}) string {
-	totalRecords := aggregatedData["total_records"].(int)
-	totalValue := aggregatedData["total_value"].(int)
-	averageValue := aggregatedData["average_value"].(float64)
-
+func (_ testTask) ReportGeneration(aggregatedData AggregationResult) string {
 	return fmt.Sprintf("REPORT: Processed %d records, Total Value: %d, Average: %.2f",
-		totalRecords, totalValue, averageValue)
+		aggregatedData.TotalRecords, aggregatedData.TotalValue, aggregatedData.AverageValue)
 }
 
 // Simulate a machine learning workflow
-func (_ testTask) DatasetSplit(data [][]float64, trainRatio float64) map[string]interface{} {
+func (_ testTask) DatasetSplit(data [][]float64, trainRatio float64) DatasetSplit {
 	trainSize := int(float64(len(data)) * trainRatio)
 
 	trainData := data[:trainSize]
 	testData := data[trainSize:]
 
-	return map[string]interface{}{
-		"train_data": trainData,
-		"test_data":  testData,
-		"train_size": len(trainData),
-		"test_size":  len(testData),
+	return DatasetSplit{
+		TrainData: trainData,
+		TestData:  testData,
+		TrainSize: len(trainData),
+		TestSize:  len(testData),
 	}
 }
 
-func (_ testTask) ModelTraining(trainData [][]float64, epochs int) map[string]interface{} {
+func (_ testTask) ModelTraining(trainData [][]float64, epochs int) ModelResult {
 	// Simulate model training with multiple epochs
 	for epoch := 0; epoch < epochs; epoch++ {
 		// Simulate training computation
@@ -94,125 +176,128 @@ func (_ testTask) ModelTraining(trainData [][]float64, epochs int) map[string]in
 		}
 	}
 
-	return map[string]interface{}{
-		"model_id":      fmt.Sprintf("model_%d_epochs", epochs),
-		"train_samples": len(trainData),
-		"accuracy":      0.95 + float64(epochs)*0.01, // Simulate improving accuracy
-		"loss":          1.0 - float64(epochs)*0.05,  // Simulate decreasing loss
+	return ModelResult{
+		ModelID:      fmt.Sprintf("model_%d_epochs", epochs),
+		TrainSamples: len(trainData),
+		Accuracy:     0.95 + float64(epochs)*0.01, // Simulate improving accuracy
+		Loss:         1.0 - float64(epochs)*0.05,  // Simulate decreasing loss
 	}
 }
 
-func (_ testTask) ModelEvaluation(model map[string]interface{}, testData [][]float64) map[string]interface{} {
-	modelId := model["model_id"].(string)
-	baseAccuracy := model["accuracy"].(float64)
-
+func (_ testTask) ModelEvaluation(model ModelResult, testData [][]float64) EvaluationResult {
 	// Simulate evaluation on test data
-	testAccuracy := baseAccuracy * 0.98 // Slightly lower on test data
+	testAccuracy := model.Accuracy * 0.98 // Slightly lower on test data
 
-	return map[string]interface{}{
-		"model_id":          modelId,
-		"test_samples":      len(testData),
-		"test_accuracy":     testAccuracy,
-		"validation_passed": testAccuracy > 0.9,
+	return EvaluationResult{
+		ModelID:          model.ModelID,
+		TestSamples:      len(testData),
+		TestAccuracy:     testAccuracy,
+		ValidationPassed: testAccuracy > 0.9,
 	}
 }
 
 // Simulate a distributed compute workflow
-func (_ testTask) ComputeTask(taskId int, workload map[string]interface{}) map[string]interface{} {
-	operation := workload["operation"].(string)
-	data := workload["data"].([]interface{})
+func (_ testTask) ComputeTask(taskId int, workload ComputeWorkload) ComputeResult {
+	var result float64
 
-	var result interface{}
-
-	switch operation {
+	switch workload.Operation {
 	case "sum":
 		sum := 0.0
-		for _, item := range data {
-			sum += item.(float64)
+		for _, item := range workload.Data {
+			sum += item
 		}
 		result = sum
 
 	case "product":
 		product := 1.0
-		for _, item := range data {
-			product *= item.(float64)
+		for _, item := range workload.Data {
+			product *= item
 		}
 		result = product
 
 	case "max":
-		max := data[0].(float64)
-		for _, item := range data {
-			if val := item.(float64); val > max {
-				max = val
+		max := workload.Data[0]
+		for _, item := range workload.Data {
+			if item > max {
+				max = item
 			}
 		}
 		result = max
 
 	default:
-		result = float64(len(data))
+		result = float64(len(workload.Data))
 	}
 
-	return map[string]interface{}{
-		"task_id":    taskId,
-		"operation":  operation,
-		"result":     result,
-		"input_size": len(data),
+	return ComputeResult{
+		TaskID:    taskId,
+		Operation: workload.Operation,
+		Result:    result,
+		InputSize: len(workload.Data),
 	}
 }
 
-func (_ testTask) ResultAggregator(results []map[string]interface{}) map[string]interface{} {
-	summary := map[string]interface{}{
-		"total_tasks": len(results),
-		"operations":  make(map[string]int),
-		"results":     make([]interface{}, 0, len(results)),
-	}
-
-	operations := summary["operations"].(map[string]int)
-	resultList := summary["results"].([]interface{})
+func (_ testTask) ResultAggregator(results []ComputeResult) AggregatedResults {
+	operations := make(map[string]int)
+	resultList := make([]float64, 0, len(results))
 
 	for _, result := range results {
-		operation := result["operation"].(string)
-		operations[operation]++
-		resultList = append(resultList, result["result"])
+		operations[result.Operation]++
+		resultList = append(resultList, result.Result)
 	}
 
-	summary["results"] = resultList
-	return summary
+	return AggregatedResults{
+		TotalTasks: len(results),
+		Operations: operations,
+		Results:    resultList,
+	}
 }
 
 // Actor for coordinating distributed workflows
 type WorkflowCoordinator struct {
-	workflows map[string]map[string]interface{}
+	workflows map[string]WorkflowConfig
 	completed map[string]bool
+	results   map[string]WorkflowResults
 }
 
 func NewWorkflowCoordinator() *WorkflowCoordinator {
 	return &WorkflowCoordinator{
-		workflows: make(map[string]map[string]interface{}),
+		workflows: make(map[string]WorkflowConfig),
 		completed: make(map[string]bool),
+		results:   make(map[string]WorkflowResults),
 	}
 }
 
-func (w *WorkflowCoordinator) StartWorkflow(workflowId string, config map[string]interface{}) string {
+func (w *WorkflowCoordinator) StartWorkflow(workflowId string, config WorkflowConfig) string {
 	w.workflows[workflowId] = config
 	w.completed[workflowId] = false
 	return fmt.Sprintf("Started workflow: %s", workflowId)
 }
 
-func (w *WorkflowCoordinator) CompleteWorkflow(workflowId string, results map[string]interface{}) string {
-	if workflow, exists := w.workflows[workflowId]; exists {
-		workflow["results"] = results
+func (w *WorkflowCoordinator) CompleteWorkflow(workflowId string, results WorkflowResults) string {
+	if _, exists := w.workflows[workflowId]; exists {
+		w.results[workflowId] = results
 		w.completed[workflowId] = true
 		return fmt.Sprintf("Completed workflow: %s", workflowId)
 	}
 	return fmt.Sprintf("Workflow not found: %s", workflowId)
 }
 
-func (w *WorkflowCoordinator) GetWorkflowStatus(workflowId string) map[string]interface{} {
-	return map[string]interface{}{
-		"exists":    w.workflows[workflowId] != nil,
-		"completed": w.completed[workflowId],
-		"config":    w.workflows[workflowId],
+func (w *WorkflowCoordinator) GetWorkflowStatus(workflowId string) WorkflowStatus {
+	config, configExists := w.workflows[workflowId]
+	if !configExists {
+		config = WorkflowConfig{} // Return empty config if not found
+	}
+
+	results, resultsExist := w.results[workflowId]
+	if !resultsExist {
+		results = WorkflowResults{} // Return empty results if not found
+	}
+
+	return WorkflowStatus{
+		Exists:    configExists,
+		Completed: w.completed[workflowId],
+		Config:    config,
+		Results:   results,
 	}
 }
 
@@ -263,7 +348,7 @@ func (r *ResourcePool) ReleaseResource(name string) bool {
 	return false
 }
 
-func (r *ResourcePool) GetStatus() map[string]interface{} {
+func (r *ResourcePool) GetStatus() ResourceStatus {
 	available := 0
 	inUse := 0
 
@@ -275,16 +360,15 @@ func (r *ResourcePool) GetStatus() map[string]interface{} {
 		}
 	}
 
-	return map[string]interface{}{
-		"total":     len(r.resources),
-		"available": available,
-		"in_use":    inUse,
-		"usage":     r.usage,
+	return ResourceStatus{
+		Total:     len(r.resources),
+		Available: available,
+		InUse:     inUse,
+		Usage:     r.usage,
 	}
 }
 
-// todo
-func init_() {
+func init() {
 	coordinatorName := RegisterActor(NewWorkflowCoordinator)
 	resourcePoolName := RegisterActor(NewResourcePool)
 
@@ -349,14 +433,14 @@ func init_() {
 		splitResult, err := splitRef.Get1()
 		assert.Nil(err)
 
-		splitMap := splitResult.(map[string]interface{})
-		assert.Equal(800, splitMap["train_size"])
-		assert.Equal(200, splitMap["test_size"])
+		splitData := splitResult.(DatasetSplit)
+		assert.Equal(800, splitData.TrainSize)
+		assert.Equal(200, splitData.TestSize)
 
 		// Store split data for reuse
-		trainDataRef, err := ray.Put(splitMap["train_data"])
+		trainDataRef, err := ray.Put(splitData.TrainData)
 		assert.Nil(err)
-		testDataRef, err := ray.Put(splitMap["test_data"])
+		testDataRef, err := ray.Put(splitData.TestData)
 		assert.Nil(err)
 
 		// Train multiple models with different epochs
@@ -376,28 +460,28 @@ func init_() {
 		}
 
 		// Collect evaluation results
-		var evaluations []map[string]interface{}
+		var evaluations []EvaluationResult
 		for _, evalRef := range evalRefs {
 			eval, err := evalRef.Get1()
 			assert.Nil(err)
-			evaluations = append(evaluations, eval.(map[string]interface{}))
+			evaluations = append(evaluations, eval.(EvaluationResult))
 		}
 
 		// Verify all models passed validation
 		assert.Len(evaluations, 3)
 		for _, eval := range evaluations {
-			assert.True(eval["validation_passed"].(bool))
-			assert.Greater(eval["test_accuracy"].(float64), 0.9)
+			assert.True(eval.ValidationPassed)
+			assert.Greater(eval.TestAccuracy, 0.9)
 		}
 	})
 
 	AddTestCase("TestDistributedComputeWorkflow", func(assert *require.Assertions) {
 		// Create multiple compute workloads
-		workloads := []map[string]interface{}{
-			{"operation": "sum", "data": []interface{}{1.0, 2.0, 3.0, 4.0, 5.0}},
-			{"operation": "product", "data": []interface{}{2.0, 3.0, 4.0}},
-			{"operation": "max", "data": []interface{}{10.0, 5.0, 15.0, 8.0}},
-			{"operation": "sum", "data": []interface{}{100.0, 200.0, 300.0}},
+		workloads := []ComputeWorkload{
+			{Operation: "sum", Data: []float64{1.0, 2.0, 3.0, 4.0, 5.0}},
+			{Operation: "product", Data: []float64{2.0, 3.0, 4.0}},
+			{Operation: "max", Data: []float64{10.0, 5.0, 15.0, 8.0}},
+			{Operation: "sum", Data: []float64{100.0, 200.0, 300.0}},
 		}
 
 		// Distribute compute tasks
@@ -414,11 +498,11 @@ func init_() {
 		assert.Empty(notReady)
 
 		// Collect results
-		var results []map[string]interface{}
+		var results []ComputeResult
 		for _, taskRef := range ready {
 			result, err := taskRef.Get1()
 			assert.Nil(err)
-			results = append(results, result.(map[string]interface{}))
+			results = append(results, result.(ComputeResult))
 		}
 
 		// Aggregate results
@@ -426,23 +510,21 @@ func init_() {
 		aggregate, err := aggregateRef.Get1()
 		assert.Nil(err)
 
-		aggregateMap := aggregate.(map[string]interface{})
-		assert.Equal(4, aggregateMap["total_tasks"])
-
-		operations := aggregateMap["operations"].(map[string]int)
-		assert.Equal(2, operations["sum"])     // 2 sum operations
-		assert.Equal(1, operations["product"]) // 1 product operation
-		assert.Equal(1, operations["max"])     // 1 max operation
+		aggregatedResults := aggregate.(AggregatedResults)
+		assert.Equal(4, aggregatedResults.TotalTasks)
+		assert.Equal(2, aggregatedResults.Operations["sum"])     // 2 sum operations
+		assert.Equal(1, aggregatedResults.Operations["product"]) // 1 product operation
+		assert.Equal(1, aggregatedResults.Operations["max"])     // 1 max operation
 	})
 
 	AddTestCase("TestWorkflowCoordination", func(assert *require.Assertions) {
 		coordinator := ray.NewActor(coordinatorName)
 
 		// Start multiple workflows
-		workflowConfigs := []map[string]interface{}{
-			{"type": "data_processing", "batches": 5},
-			{"type": "ml_training", "epochs": 10},
-			{"type": "compute_intensive", "tasks": 20},
+		workflowConfigs := []WorkflowConfig{
+			{Type: "data_processing", Batches: 5},
+			{Type: "ml_training", Epochs: 10},
+			{Type: "compute_intensive", Tasks: 20},
 		}
 
 		workflowIds := []string{"workflow_1", "workflow_2", "workflow_3"}
@@ -460,17 +542,17 @@ func init_() {
 			status, err := statusRef.Get1()
 			assert.Nil(err)
 
-			statusMap := status.(map[string]interface{})
-			assert.True(statusMap["exists"].(bool))
-			assert.False(statusMap["completed"].(bool))
+			statusData := status.(WorkflowStatus)
+			assert.True(statusData.Exists)
+			assert.False(statusData.Completed)
 		}
 
 		// Complete some workflows
 		for i, workflowId := range workflowIds[:2] {
-			results := map[string]interface{}{
-				"success": true,
-				"output":  fmt.Sprintf("Result for %s", workflowId),
-				"metrics": map[string]float64{"duration": float64(i+1) * 1.5},
+			results := WorkflowResults{
+				Success: true,
+				Output:  fmt.Sprintf("Result for %s", workflowId),
+				Metrics: map[string]float64{"duration": float64(i+1) * 1.5},
 			}
 
 			completeRef := coordinator.RemoteCall("CompleteWorkflow", workflowId, results)
@@ -500,10 +582,10 @@ func init_() {
 		status, err := statusRef.Get1()
 		assert.Nil(err)
 
-		statusMap := status.(map[string]interface{})
-		assert.Equal(5, statusMap["total"])
-		assert.Equal(5, statusMap["available"])
-		assert.Equal(0, statusMap["in_use"])
+		statusData := status.(ResourceStatus)
+		assert.Equal(5, statusData.Total)
+		assert.Equal(5, statusData.Available)
+		assert.Equal(0, statusData.InUse)
 
 		// Acquire some resources
 		var acquiredResources []string
@@ -520,10 +602,10 @@ func init_() {
 		status2, err := statusRef2.Get1()
 		assert.Nil(err)
 
-		statusMap2 := status2.(map[string]interface{})
-		assert.Equal(5, statusMap2["total"])
-		assert.Equal(2, statusMap2["available"])
-		assert.Equal(3, statusMap2["in_use"])
+		statusData2 := status2.(ResourceStatus)
+		assert.Equal(5, statusData2.Total)
+		assert.Equal(2, statusData2.Available)
+		assert.Equal(3, statusData2.InUse)
 
 		// Release resources
 		for _, resource := range acquiredResources {
@@ -538,10 +620,10 @@ func init_() {
 		status3, err := statusRef3.Get1()
 		assert.Nil(err)
 
-		statusMap3 := status3.(map[string]interface{})
-		assert.Equal(5, statusMap3["total"])
-		assert.Equal(5, statusMap3["available"])
-		assert.Equal(0, statusMap3["in_use"])
+		statusData3 := status3.(ResourceStatus)
+		assert.Equal(5, statusData3.Total)
+		assert.Equal(5, statusData3.Available)
+		assert.Equal(0, statusData3.InUse)
 	})
 
 	AddTestCase("TestMixedTaskActorWorkflow", func(assert *require.Assertions) {
@@ -549,9 +631,9 @@ func init_() {
 		coordinator := ray.NewActor(coordinatorName)
 
 		// Start a workflow through coordinator
-		config := map[string]interface{}{
-			"type":       "mixed_workflow",
-			"components": []string{"data_processing", "ml_model", "resource_allocation"},
+		config := WorkflowConfig{
+			Type:       "mixed_workflow",
+			Components: []string{"data_processing", "ml_model", "resource_allocation"},
 		}
 
 		startRef := coordinator.RemoteCall("StartWorkflow", "mixed_workflow", config)
@@ -568,8 +650,16 @@ func init_() {
 		aggResult, err := aggRef.Get1()
 		assert.Nil(err)
 
+		// Create workflow results with the aggregation data
+		workflowResults := WorkflowResults{
+			Success: true,
+			Output:  "Mixed workflow completed successfully",
+			Metrics: map[string]float64{"duration": 2.5, "throughput": 100.0},
+			Data:    aggResult.(AggregationResult),
+		}
+
 		// Complete the workflow through coordinator
-		completeRef := coordinator.RemoteCall("CompleteWorkflow", "mixed_workflow", aggResult.(map[string]interface{}))
+		completeRef := coordinator.RemoteCall("CompleteWorkflow", "mixed_workflow", workflowResults)
 		completeResult, err := completeRef.Get1()
 		assert.Nil(err)
 		assert.Contains(completeResult.(string), "Completed workflow")
@@ -579,9 +669,10 @@ func init_() {
 		status, err := statusRef.Get1()
 		assert.Nil(err)
 
-		statusMap := status.(map[string]interface{})
-		assert.True(statusMap["exists"].(bool))
-		assert.True(statusMap["completed"].(bool))
-		assert.NotNil(statusMap["config"])
+		statusData := status.(WorkflowStatus)
+		assert.True(statusData.Exists)
+		assert.True(statusData.Completed)
+		assert.Equal("mixed_workflow", statusData.Config.Type)
+		assert.True(statusData.Results.Success)
 	})
 }
