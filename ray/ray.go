@@ -1,9 +1,7 @@
 package ray
 
 import (
-	"bytes"
 	"github.com/ray4go/go-ray/ray/internal"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -64,15 +62,13 @@ func handleStartDriver(_ int64, _ []byte) ([]byte, int64) {
 // Put stores an object in the object store.
 // Noted the returned ObjectRef can only be passed to a remote function (Task) or a remote Actor method (Actor Task).
 // It cannot be used for ObjectRef.GetXXX().
-func Put(data any) (ObjectRef, error) {
-	log.Debug("[Go] Put %#v\n", data)
-	var buffer bytes.Buffer
-	enc := gob.NewEncoder(&buffer)
-	err := enc.Encode(data)
+func Put(value any) (ObjectRef, error) {
+	log.Debug("[Go] Put %#v\n", value)
+	data, err := encodeValue(value)
 	if err != nil {
-		return ObjectRef{nil, -1}, fmt.Errorf("gob encode type %v error: %v", reflect.TypeOf(data), err)
+		return ObjectRef{nil, -1}, fmt.Errorf("gob encode type %v error: %v", reflect.TypeOf(value), err)
 	}
-	res, retCode := ffi.CallServer(internal.Go2PyCmd_PutObject, buffer.Bytes()) // todo: pass error to ObjectRef
+	res, retCode := ffi.CallServer(internal.Go2PyCmd_PutObject, data) // todo: pass error to ObjectRef
 	if retCode != 0 {
 		return ObjectRef{nil, -1}, fmt.Errorf("error: ray.Put() failed: retCode=%v, message=%s", retCode, res)
 	}

@@ -12,9 +12,9 @@ package ray
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"github.com/ugorji/go/codec"
 	"reflect"
 
 	"github.com/ray4go/go-ray/ray/utils/log"
@@ -31,10 +31,17 @@ encode result: 2 bytes units
   - second unit is json encoded options and ObjectRef info.
 */
 func encodeRemoteCallArgs(callable *callableType, argsAndOpts []any) []byte {
-	args, opts := splitArgsAndOptions(argsAndOpts)
+	argsAndObjs, opts := splitArgsAndOptions(argsAndOpts)
+	args, objRefs := splitArgsAndObjectRefs(argsAndObjs)
+	if !(callable.IsValidArgNum(len(args) + len(objRefs))) {
+		panic(fmt.Sprintf(
+			"encodeArgs: func/method args length not match, given %v, callableType: %s",
+			len(args)+len(objRefs), callable.Type,
+		))
+	}
+
+	argData := encodeSlice(args)
 	buffer := bytes.NewBuffer(nil)
-	args, objRefs := splitArgsAndObjectRefs(args)
-	argData := encodeArgs(callable, args, len(objRefs))
 	appendBytesUnit(buffer, argData)
 	optData := encodeOptions(opts, objRefs)
 	appendBytesUnit(buffer, optData)
@@ -146,24 +153,25 @@ func encodeOptions(opts []*option, objRefs map[int]ObjectRef) []byte {
 	return data
 }
 
-func encodeArgs(callable *callableType, args []any, opsArgLen int) []byte {
-	if !(callable.IsValidArgNum(len(args) + opsArgLen)) {
-		panic(fmt.Sprintf(
-			"encodeArgs: func/method args length not match, given %v, callableType: %s",
-			len(args)+opsArgLen, callable.Type,
-		))
+var msgpackHandle codec.MsgpackHandle
+
+func encodeValue(v any) ([]byte, error) {
+	var buffer bytes.Buffer
+	enc := codec.NewEncoder(&buffer, &msgpackHandle)
+	err := enc.Encode(v)
+	if err != nil {
+		return nil, err
 	}
-	rawArgs := encodeSlice(args)
-	return rawArgs
+	return buffer.Bytes(), nil
 }
 
 func encodeSlice(items []any) []byte {
 	var buffer bytes.Buffer
-	enc := gob.NewEncoder(&buffer)
+	enc := codec.NewEncoder(&buffer, &msgpackHandle)
 	for _, item := range items {
 		err := enc.Encode(item)
 		if err != nil {
-			log.Panicf("gob encode type %v error: %v", reflect.TypeOf(item), err)
+			log.Panicf("Serialize type %v error: %v", reflect.TypeOf(item), err)
 		}
 	}
 	return buffer.Bytes()
@@ -171,14 +179,14 @@ func encodeSlice(items []any) []byte {
 
 func decodeWithType(args []byte, posArgs map[int][]byte, typeGetter func(int) reflect.Type) []any {
 	buf := bytes.NewBuffer(args)
-	argsDec := gob.NewDecoder(buf)
+	argsDec := codec.NewDecoder(buf, &msgpackHandle)
 	outs := make([]any, 0)
 	posArgs = copyMap(posArgs)
 	for idx := 0; buf.Len() > 0 || len(posArgs) > 0; idx++ {
 		argData, ok := posArgs[idx]
-		var dec *gob.Decoder
+		var dec *codec.Decoder
 		if ok {
-			dec = gob.NewDecoder(bytes.NewBuffer(argData))
+			dec = codec.NewDecoderBytes(argData, &msgpackHandle)
 			delete(posArgs, idx) // remove the processed pos arg
 		} else {
 			dec = argsDec
@@ -187,8 +195,7 @@ func decodeWithType(args []byte, posArgs map[int][]byte, typeGetter func(int) re
 		item := reflect.New(typ)
 		err := dec.Decode(item.Interface())
 		if err != nil {
-			log.Printf("decodeWithTypes: %#v \n", item.Interface())
-			log.Panicf("gob decode type `%v` error: %v", typ, err)
+			log.Panicf("decode type `%v` error: %v", typ, err)
 		}
 		outs = append(outs, item.Elem().Interface())
 	}

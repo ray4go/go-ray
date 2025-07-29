@@ -221,9 +221,7 @@ func init() {
 	})
 
 	AddTestCase("TestPutNilHandling", func(assert *require.Assertions) {
-		// Test how Put handles nil values (this might not be supported)
-		// Based on the README, nil is not supported due to gob limitations
-		assert.Panics(func() {
+		assert.NotPanics(func() {
 			var nilPtr *StorageTestStruct
 			ray.Put(nilPtr)
 		})

@@ -352,7 +352,7 @@ def handle_wait_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     fut_local_ids = opts.pop("object_ref_local_ids")
 
     if mock:
-        return json.dumps([list(range(fut_local_ids)), []]).encode(), 0
+        return json.dumps([list(range(len(fut_local_ids))), []]).encode(), 0
 
     futs = []
     fut_hex2idx = {}

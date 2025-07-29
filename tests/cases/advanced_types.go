@@ -320,7 +320,7 @@ func init() {
 		objRef := ray.RemoteCall("ProcessVariadic", 10)
 		result, err := objRef.Get1()
 		assert.Nil(err)
-		assert.Equal([]int(nil), result) // Empty slice is fine
+		assert.Equal([]int{}, result) // Empty slice is fine
 	})
 
 	// Test empty variadic call
@@ -328,6 +328,6 @@ func init() {
 		objRef := ray.RemoteCall("ProcessVariadic", 100) // Only base parameter
 		result, err := objRef.Get1()
 		assert.Nil(err)
-		assert.Equal([]int(nil), result)
+		assert.Equal([]int{}, result)
 	})
 }

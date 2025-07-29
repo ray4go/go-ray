@@ -284,6 +284,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorBatchOperations", func(assert *require.Assertions) {
+		// todo: msgpack
 		actor := ray.NewActor(complexActorName, "batch_test")
 
 		operations := []map[string]interface{}{
