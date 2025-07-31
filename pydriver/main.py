@@ -12,6 +12,11 @@ import ray
 from . import consts
 from . import libpath
 from . import utils
+from . import funccall
+from . import state
+from . import api
+from . import app  # noqa: F401
+
 from .consts import *
 
 cmdBitsLen = 10
@@ -85,9 +90,11 @@ def run_task(
     func_id: int,
     raw_args: bytes,
     object_positions: list[int],
-    *object_refs: list[tuple[bytes, int]],
+    *object_refs: tuple[bytes, int],
 ) -> tuple[bytes, int]:
-    data, err = pack_golang_funccall_data(raw_args, object_positions, *object_refs)
+    data, err = funccall.pack_golang_funccall_data(
+        raw_args, object_positions, *object_refs
+    )
     if err != 0:
         return data, err
 
@@ -106,29 +113,6 @@ def run_task(
     return res, code
 
 
-def pack_golang_funccall_data(
-    raw_args: bytes,
-    object_positions: list[int],
-    *object_refs: list[tuple[bytes, int]],
-) -> tuple[bytes, int]:
-    """
-    data format: multiple bytes units
-    - first unit is raw args data;
-    - other units are objectRefs resolved data;
-        - resolved data format: | arg_pos:8byte:int64 | data:[]byte |
-    """
-    data = [raw_args]
-    for pos, (raw_res, code) in zip(object_positions, object_refs):
-        if code != 0:  # ray task for this object failed
-            origin_err_msg = raw_res.decode("utf-8")
-            err_msg = (
-                f"ray task for the object in {pos}th argument error: {origin_err_msg}"
-            )
-            return err_msg.encode("utf-8"), code
-        data.append(pos.to_bytes(8, byteorder="little") + raw_res)
-    return utils.pack_bytes_units(data), 0
-
-
 class _Actor:
     go_instance_index: int
     go_class_idx: int
@@ -138,9 +122,11 @@ class _Actor:
         actor_class_idx: int,
         raw_args: bytes,
         object_positions: list[int],
-        *object_refs: list[tuple[bytes, int]],
+        *object_refs: tuple[bytes, int],
     ):
-        data, err = pack_golang_funccall_data(raw_args, object_positions, *object_refs)
+        data, err = funccall.pack_golang_funccall_data(
+            raw_args, object_positions, *object_refs
+        )
         if err != 0:
             raise Exception(data.decode("utf-8"))
 
@@ -160,9 +146,11 @@ class _Actor:
         method_idx: int,
         raw_args: bytes,
         object_positions: list[int],
-        *object_refs: list[tuple[bytes, int]],
+        *object_refs: tuple[bytes, int],
     ) -> tuple[bytes, int]:
-        data, err = pack_golang_funccall_data(raw_args, object_positions, *object_refs)
+        data, err = funccall.pack_golang_funccall_data(
+            raw_args, object_positions, *object_refs
+        )
         if err != 0:
             return data, err
 
@@ -202,13 +190,12 @@ class Actor:
         return self._actor.go_class_idx
 
 
-_actors = utils.ThreadSafeLocalStore()
-
-
 def handle_new_actor(
     data: bytes, actor_class_idx: int, mock=False
 ) -> tuple[bytes, int]:
-    raw_args, options, object_positions, object_refs = decode_funccall_args(data)
+    raw_args, options, object_positions, object_refs = funccall.decode_funccall_args(
+        data
+    )
     logger.debug(f"[py] new actor {actor_class_idx}, {options=}, {object_positions=}")
 
     if mock:
@@ -217,7 +204,7 @@ def handle_new_actor(
         actor_handle = Actor.options(**options).remote(
             actor_class_idx, raw_args, object_positions, *object_refs
         )
-    actor_local_id = _actors.add(actor_handle)
+    actor_local_id = state.actors.add(actor_handle)
     return str(actor_local_id).encode(), 0
 
 
@@ -227,31 +214,33 @@ def handle_actor_method_call(
     mock=False,
 ) -> tuple[bytes, int]:
     method_idx, actor_local_id = request & ((1 << 22) - 1), request >> 22
-    raw_args, options, object_positions, object_refs = decode_funccall_args(data)
+    raw_args, options, object_positions, object_refs = funccall.decode_funccall_args(
+        data
+    )
     logger.debug(
         f"[py] actor method call {actor_local_id=}, {method_idx=}, {options=}, {object_positions=}"
     )
 
-    if actor_local_id not in _actors:
+    if actor_local_id not in state.actors:
         return b"actor not found!", ErrCode.Failed
 
-    actor_handle = _actors[actor_local_id]
+    actor_handle = state.actors[actor_local_id]
     if mock:
         fut = actor_handle.method(method_idx, raw_args, object_positions, *object_refs)
     else:
         fut = actor_handle.method.options(**options).remote(
             method_idx, raw_args, object_positions, *object_refs
         )
-    fut_local_id = _futures.add(fut)
+    fut_local_id = state.futures.add(fut)
     return str(fut_local_id).encode(), 0
 
 
 def handle_kill_actor(
     data: bytes, actor_local_id: int, mock=False
 ) -> tuple[bytes, int]:
-    if actor_local_id not in _actors:
+    if actor_local_id not in state.actors:
         return b"actor not found!", ErrCode.Failed
-    actor_handle = _actors[actor_local_id]
+    actor_handle = state.actors[actor_local_id]
     options = json.loads(data)
     if not mock:
         ray.kill(actor_handle, **options)
@@ -261,7 +250,7 @@ def handle_kill_actor(
 def handle_get_actor(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     options = json.loads(data)
     actor_handle = ray.get_actor(**options)
-    actor_local_id = _actors.add(actor_handle)
+    actor_local_id = state.actors.add(actor_handle)
     if not mock:
         go_class_idx = ray.get(actor_handle.get_go_class_index.remote())
     else:
@@ -276,32 +265,10 @@ def handle_get_actor(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     return res.encode(), 0
 
 
-# in mock mode, value is actual return value, i.e. (data, code).
-# in other modes, value is ray object ref
-_futures = utils.ThreadSafeLocalStore()
-
-
-def _get_objects(object_pos_to_local_id: dict[int, int]):
-    object_positions = []
-    object_refs = []
-    for pos, local_id in sorted(object_pos_to_local_id.items()):
-        object_positions.append(int(pos))
-        if local_id not in _futures:
-            return b"object_ref not found!", 1
-        object_refs.append(_futures[local_id])
-    return object_positions, object_refs
-
-
-def decode_funccall_args(data: bytes):
-    raw_args, opts_data = utils.unpack_bytes_units(data)
-    options = json.loads(opts_data)
-    object_pos_to_local_id = options.pop("go_ray_object_pos_to_local_id", {})
-    object_positions, object_refs = _get_objects(object_pos_to_local_id)
-    return raw_args, options, object_positions, object_refs
-
-
 def handle_run_remote_task(data: bytes, func_id: int, mock=False) -> tuple[bytes, int]:
-    args_data, options, object_positions, object_refs = decode_funccall_args(data)
+    args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
+        data
+    )
     logger.debug(f"[py] run remote task {func_id}, {options=}, {object_positions=}")
     if mock:
         fut = run_task(func_id, args_data, object_positions, *object_refs)
@@ -309,20 +276,20 @@ def handle_run_remote_task(data: bytes, func_id: int, mock=False) -> tuple[bytes
         fut = ray_run_task.options(**options).remote(
             func_id, args_data, object_positions, *object_refs
         )
-    fut_local_id = _futures.add(fut)
+    fut_local_id = state.futures.add(fut)
     # show.remote(fut)
     return str(fut_local_id).encode(), 0
 
 
 def handle_get_objects(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     fut_local_id, timeout = json.loads(data)
-    if fut_local_id not in _futures:
+    if fut_local_id not in state.futures:
         return b"object_ref not found!", 1
 
     if mock:
-        return _futures[fut_local_id]
+        return state.futures[fut_local_id]
     else:
-        obj_ref = _futures[
+        obj_ref = state.futures[
             fut_local_id
         ]  # todo: consider to pop it to avoid memory leak
         logger.debug(f"[Py] get obj {obj_ref.hex()}")
@@ -343,7 +310,7 @@ def handle_put_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     else:
         fut = ray.put([data, 0])
     # side effect: make future outlive this function (on purpose)
-    fut_local_id = _futures.add(fut)
+    fut_local_id = state.futures.add(fut)
     return str(fut_local_id).encode(), 0
 
 
@@ -357,9 +324,9 @@ def handle_wait_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     futs = []
     fut_hex2idx = {}
     for idx, fut_local_id in enumerate(fut_local_ids):
-        if fut_local_id not in _futures:
+        if fut_local_id not in state.futures:
             return b"object_ref not found!", 1
-        fut = _futures[fut_local_id]
+        fut = state.futures[fut_local_id]
         futs.append(fut)
         fut_hex2idx[fut.hex()] = idx
 
@@ -374,9 +341,9 @@ def handle_wait_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
 def handle_cancel_object(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     opts = json.loads(data)
     fut_local_id = opts.pop("object_ref_local_id")
-    if fut_local_id not in _futures:
+    if fut_local_id not in state.futures:
         return b"object_ref not found!", 1
-    fut = _futures[fut_local_id]
+    fut = state.futures[fut_local_id]
     if not mock:
         ray.cancel(fut, **opts)
     return b"", 0
@@ -393,6 +360,7 @@ handlers = {
     Go2PyCmd.CMD_KILL_ACTOR: handle_kill_actor,
     Go2PyCmd.CMD_GET_ACTOR: handle_get_actor,
     Go2PyCmd.CMD_ACTOR_METHOD_CALL: handle_actor_method_call,
+    Go2PyCmd.CMD_EXECUTE_PY_REMOTE_TASK: api.handle_run_py_task,
     Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
 }
 

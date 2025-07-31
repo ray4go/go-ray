@@ -112,7 +112,7 @@ func handleCreateActor(actorTypeIndex int64, data []byte) (resData []byte, retCo
 // RemoteCall calls a remote actor method by method name with the given arguments.
 // The usage is same as RemoteCall for tasks except the available options.
 // The complete options for actor method call can be found in
-// https://docs.ray.io/en/latest/ray-core/api/doc/ray.actor.ActorClass.options.html#ray.actor.ActorClass.options
+// https://docs.ray.io/en/latest/ray-core/api/doc/ray.method.html#ray.method
 func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) ObjectRef {
 	methodIdx, ok := actor.typ.methodName2Idx[methodName]
 	if !ok {

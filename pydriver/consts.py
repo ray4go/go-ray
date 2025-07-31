@@ -25,6 +25,8 @@ class Go2PyCmd(enum.IntEnum):
     CMD_KILL_ACTOR = enum.auto()
     CMD_GET_ACTOR = enum.auto()
 
+    CMD_EXECUTE_PY_REMOTE_TASK = enum.auto()
+
     CMD_EXECUTE_PYTHON_CODE = enum.auto()
 
 

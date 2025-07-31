@@ -33,7 +33,7 @@ encode result: 2 bytes units
 func encodeRemoteCallArgs(callable *callableType, argsAndOpts []any) []byte {
 	argsAndObjs, opts := splitArgsAndOptions(argsAndOpts)
 	args, objRefs := splitArgsAndObjectRefs(argsAndObjs)
-	if !(callable.IsValidArgNum(len(args) + len(objRefs))) {
+	if callable != nil && !(callable.IsValidArgNum(len(args) + len(objRefs))) {
 		panic(fmt.Sprintf(
 			"encodeArgs: func/method args length not match, given %v, callableType: %s",
 			len(args)+len(objRefs), callable.Type,
@@ -153,7 +153,7 @@ func encodeOptions(opts []*option, objRefs map[int]ObjectRef) []byte {
 	return data
 }
 
-var msgpackHandle codec.MsgpackHandle
+var msgpackHandle = codec.MsgpackHandle{WriteExt: true}
 
 func encodeValue(v any) ([]byte, error) {
 	var buffer bytes.Buffer
@@ -200,4 +200,19 @@ func decodeWithType(args []byte, posArgs map[int][]byte, typeGetter func(int) re
 		outs = append(outs, item.Elem().Interface())
 	}
 	return outs
+}
+
+func decodeAny(data []byte) []any {
+	buf := bytes.NewBuffer(data)
+	dec := codec.NewDecoder(buf, &msgpackHandle)
+	res := make([]any, 0)
+	for buf.Len() > 0 {
+		var item any
+		err := dec.Decode(&item)
+		if err != nil {
+			log.Panicf("decode type `%v` error: %v", reflect.TypeOf(item), err)
+		}
+		res = append(res, item)
+	}
+	return res
 }

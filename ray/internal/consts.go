@@ -23,6 +23,8 @@ const (
 	Go2PyCmd_KillActor       = iota
 	Go2PyCmd_GetActor        = iota
 
+	Go2PyCmd_ExePythonRemoteTask = iota
+
 	Go2PyCmd_ExePyCode = iota
 )
 

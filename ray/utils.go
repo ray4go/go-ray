@@ -6,8 +6,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"go/token"
+	"os"
+	"os/signal"
 	"reflect"
 	"sort"
+	"syscall"
 )
 
 // decodeBytesUnits decodes byte units from a single bytes.
@@ -146,6 +149,18 @@ func mapOrderedIterate[V any](m map[string]V, f func(key string, value V)) {
 	for _, k := range keys {
 		f(k, m[k])
 	}
+}
+
+func exitWhenCtrlC() {
+	c := make(chan os.Signal)
+	signal.Notify(c, syscall.SIGINT)
+	go func() {
+		<-c
+		fmt.Println("Received SIGINT, exit...")
+		os.Exit(0)
+	}()
+	// restore the original handling
+	//signal.Reset(syscall.SIGINT)
 }
 
 // callableType represents a method type or function type.
