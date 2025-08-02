@@ -4,33 +4,35 @@ const CmdBitsLen = 10
 const CmdBitsMask = (1 << CmdBitsLen) - 1
 
 const (
-	ErrorCode_Success   = 0
-	ErrorCode_Failed    = iota
-	ErrorCode_Timeout   = iota
-	ErrorCode_Cancelled = iota
+	ErrorCode_Success = iota
+	ErrorCode_Failed
+	ErrorCode_Timeout
+	ErrorCode_Cancelled
 )
 
 const (
-	Go2PyCmd_Init          = 0
-	Go2PyCmd_ExeRemoteTask = iota
-	Go2PyCmd_GetObject     = iota
-	Go2PyCmd_PutObject     = iota
-	Go2PyCmd_WaitObject    = iota
-	Go2PyCmd_CancelObject  = iota
+	Go2PyCmd_Init = iota
+	Go2PyCmd_ExeRemoteTask
+	Go2PyCmd_GetObject
+	Go2PyCmd_PutObject
+	Go2PyCmd_WaitObject
+	Go2PyCmd_CancelObject
 
-	Go2PyCmd_NewActor        = iota
-	Go2PyCmd_ActorMethodCall = iota
-	Go2PyCmd_KillActor       = iota
-	Go2PyCmd_GetActor        = iota
+	Go2PyCmd_NewActor
+	Go2PyCmd_ActorMethodCall
+	Go2PyCmd_KillActor
+	Go2PyCmd_GetActor
 
-	Go2PyCmd_ExePythonRemoteTask = iota
+	Go2PyCmd_ExePythonRemoteTask
+	Go2PyCmd_ExePythonLocalTask
 
-	Go2PyCmd_ExePyCode = iota
+	Go2PyCmd_ExePyCode
 )
 
 const (
-	Py2GoCmd_StartDriver     = 0
-	Py2GoCmd_RunTask         = iota
-	Py2GoCmd_NewActor        = iota
-	Py2GoCmd_ActorMethodCall = iota
+	Py2GoCmd_StartDriver = iota
+	Py2GoCmd_GetInfo
+	Py2GoCmd_RunTask
+	Py2GoCmd_NewActor
+	Py2GoCmd_ActorMethodCall
 )

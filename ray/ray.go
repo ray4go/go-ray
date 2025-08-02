@@ -18,6 +18,7 @@ var (
 
 var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 	internal.Py2GoCmd_StartDriver:     handleStartDriver,
+	internal.Py2GoCmd_GetInfo:         handleGetInfo,
 	internal.Py2GoCmd_RunTask:         handleRunTask,
 	internal.Py2GoCmd_NewActor:        handleCreateActor,
 	internal.Py2GoCmd_ActorMethodCall: handleActorMethodCall,

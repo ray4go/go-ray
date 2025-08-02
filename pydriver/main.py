@@ -361,6 +361,7 @@ handlers = {
     Go2PyCmd.CMD_GET_ACTOR: handle_get_actor,
     Go2PyCmd.CMD_ACTOR_METHOD_CALL: handle_actor_method_call,
     Go2PyCmd.CMD_EXECUTE_PY_REMOTE_TASK: api.handle_run_py_task,
+    Go2PyCmd.CMD_EXECUTE_PY_LOCAL_TASK: api.handle_run_py_local_task,
     Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
 }
 

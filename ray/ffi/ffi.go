@@ -49,7 +49,7 @@ var (
 OS保证 Execute 在 RegisterHandler 之后被调用。，
 
 Go 端上层代码保证 CallServer 在 ResigterCallback 触发后再调用：
-理论上，GO ray app的首次CallServer调用在go ray driver中，go ray driver由python端通过  Execute 触发，此时python端已经完成了 ResigterCallback。
+理论上，GO ray app的首次CallServer调用在go ray driver中，go ray driver由python端通过 Execute 触发，此时python端已经完成了 ResigterCallback。
 */
 
 func RegisterHandler(handler_ func(int64, []byte) ([]byte, int64)) {
