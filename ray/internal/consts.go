@@ -19,6 +19,7 @@ const (
 	Go2PyCmd_CancelObject
 
 	Go2PyCmd_NewActor
+	Go2PyCmd_NewPythonActor
 	Go2PyCmd_ActorMethodCall
 	Go2PyCmd_KillActor
 	Go2PyCmd_GetActor

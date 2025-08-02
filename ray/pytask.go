@@ -44,3 +44,22 @@ func LocalCallPyTask(name string, args ...any) ([]any, error) {
 	res := decodeFuncResult(dummyPyFunc, resData)
 	return res, nil
 }
+
+func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
+	log.Debug("[Go] NewPyActor %s %#v\n", className, argsAndOpts)
+	argsAndOpts = append(argsAndOpts, Option("actor_class_name", className))
+	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
+
+	res, retCode := ffi.CallServer(internal.Go2PyCmd_NewPythonActor, argsData)
+	if retCode != 0 {
+		panic(fmt.Sprintf("Error: NewActor failed: retCode=%v, message=%s", retCode, res))
+	}
+	id, err := strconv.ParseInt(string(res), 10, 64)
+	if err != nil {
+		panic(fmt.Sprintf("Error: NewActor invald return: %s, expect a number", res))
+	}
+	return &ActorHandle{
+		pyLocalId: id,
+		typ:       nil,
+	}
+}

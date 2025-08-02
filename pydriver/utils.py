@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+import traceback
 
 GORAY_DEBUG_LOGGING = "GORAY_DEBUG_LOGGING"
 
@@ -82,3 +83,45 @@ class ThreadSafeLocalStore:
     def pop(self, key: int):
         with self._write_lock:
             return self._store.pop(key, None)
+
+
+def _get_caller_info(frame_index):
+    """
+    获取当前调用栈中上方第 frame_index 个调用的模块名和行号。
+
+    frame_index=0: 当前函数本身
+    frame_index=1: 调用当前函数的函数
+    frame_index=2: 调用调用当前函数的函数
+    以此类推...
+    Returns:
+        tuple: (module_fname, line_number) 或 ("", -1) 如果索引超出范围。
+    """
+    try:
+        stack_frames = traceback.extract_stack()
+
+        # stack_frames[-1] 是 get_caller_info 函数调用本身
+        # stack_frames[-2] 是调用 get_caller_info 的函数
+
+        if -(frame_index + 2) >= -len(stack_frames):
+            frame_info = stack_frames[-(frame_index + 2)]
+            # frame_info 是一个 ExtractStack 命名元组 (filename, lineno, name, line)
+            filename = frame_info.filename
+            lineno = frame_info.lineno
+            # 从文件名中提取模块名
+            return os.path.basename(filename), lineno
+        else:
+            return "", -1
+    except Exception as e:
+        return "", -1
+
+
+def error_msg(msg: str, frame_index: int = 0) -> bytes:
+    """
+    Get error message with caller info.
+    :param frame_index:
+        frame_index=0: 当前函数本身
+        frame_index=1: 调用当前函数的函数
+        frame_index=2: 调用调用当前函数的函数
+    """
+    fname, lineno = _get_caller_info(frame_index + 1)
+    return f"[ERROR]@{fname}:{lineno} {msg} ".encode("utf-8")

@@ -210,26 +210,30 @@ def handle_new_actor(
 
 def handle_actor_method_call(
     data: bytes,
-    request: int,  # methodIndex: 22bits, PyActorId:32:bits
+    request: int,  # methodIndex: 22bits, PyActorInstanceId:32:bits
     mock=False,
 ) -> tuple[bytes, int]:
-    method_idx, actor_local_id = request & ((1 << 22) - 1), request >> 22
+    method_id, actor_local_id = request & ((1 << 22) - 1), request >> 22
     raw_args, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
     )
+    if "__py_actor_method_name__" in options:
+        method_id = options.pop("__py_actor_method_name__")
+
     logger.debug(
-        f"[py] actor method call {actor_local_id=}, {method_idx=}, {options=}, {object_positions=}"
+        f"[py] actor method call {actor_local_id=}, {method_id=}, {options=}, {object_positions=}"
     )
 
     if actor_local_id not in state.actors:
-        return b"actor not found!", ErrCode.Failed
+        print(f"{actor_local_id=} {state.actors=}")
+        return utils.error_msg("actor not found!"), ErrCode.Failed
 
     actor_handle = state.actors[actor_local_id]
     if mock:
-        fut = actor_handle.method(method_idx, raw_args, object_positions, *object_refs)
+        fut = actor_handle.method(method_id, raw_args, object_positions, *object_refs)
     else:
         fut = actor_handle.method.options(**options).remote(
-            method_idx, raw_args, object_positions, *object_refs
+            method_id, raw_args, object_positions, *object_refs
         )
     fut_local_id = state.futures.add(fut)
     return str(fut_local_id).encode(), 0
@@ -357,6 +361,7 @@ handlers = {
     Go2PyCmd.CMD_WAIT_OBJECT: handle_wait_object,
     Go2PyCmd.CMD_CANCEL_OBJECT: handle_cancel_object,
     Go2PyCmd.CMD_NEW_ACTOR: handle_new_actor,
+    Go2PyCmd.CMD_NEW_PY_ACTOR: api.handle_new_py_actor,
     Go2PyCmd.CMD_KILL_ACTOR: handle_kill_actor,
     Go2PyCmd.CMD_GET_ACTOR: handle_get_actor,
     Go2PyCmd.CMD_ACTOR_METHOD_CALL: handle_actor_method_call,

@@ -27,8 +27,8 @@ type actorInstance struct {
 // Workaround: create a named actor via NewActor(typeName, ray.Option("name", name))
 // and use GetActor(name) to get the actor handle in other tasks.
 type ActorHandle struct {
-	pyLocalId int64
-	typ       *actorType
+	pyLocalId int64      // actor instance id in py side
+	typ       *actorType // nil if the actor is a Python actor
 }
 
 var (
@@ -109,27 +109,43 @@ func handleCreateActor(actorTypeIndex int64, data []byte) (resData []byte, retCo
 	return []byte(instanceId), 0
 }
 
+func (actor *ActorHandle) isGoActor() bool {
+	// If actor.typ is nil, it is a Python actor.
+	return actor.typ != nil
+}
+
 // RemoteCall calls a remote actor method by method name with the given arguments.
 // The usage is same as RemoteCall for tasks except the available options.
 // The complete options for actor method call can be found in
 // https://docs.ray.io/en/latest/ray-core/api/doc/ray.method.html#ray.method
 func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) ObjectRef {
-	methodIdx, ok := actor.typ.methodName2Idx[methodName]
-	if !ok {
-		panic(fmt.Sprintf(
-			"Error: RemoteCall failed: no method %s not found in actor %s",
-			methodName, actor.typ.name,
-		))
+	var callable *callableType
+	var methodIdx int
+	var originFunc reflect.Type
+	if actor.isGoActor() {
+		var ok bool
+		methodIdx, ok = actor.typ.methodName2Idx[methodName]
+		if !ok {
+			panic(fmt.Sprintf(
+				"Error: RemoteCall failed: no method %s not found in actor %s",
+				methodName, actor.typ.name,
+			))
+		}
+		log.Debug("[Go] RemoteCall %s.%s() %#v\n", actor.typ.name, methodName)
+		method := actor.typ.methods[methodIdx]
+		callable = newCallableType(method.Type, true)
+		originFunc = method.Type
+	} else {
+		argsAndOpts = append(argsAndOpts, Option("__py_actor_method_name__", methodName))
+		log.Debug("[Go] RemoteCallPyActor %s() %#v\n", methodName, argsAndOpts)
+		methodIdx = 0 // negative is not allowed, the bit shift operation is not trivial
+		originFunc = dummyPyFunc
 	}
-	log.Debug("[Go] RemoteCall %s.%s() %#v\n", actor.typ.name, methodName)
-
-	method := actor.typ.methods[methodIdx]
-	callable := newCallableType(method.Type, true)
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
 	// request bitmap layout (64 bits, LSB first)
-	// | cmdId   | methodIndex | PyActorId |
-	// | 10 bits | 22 bits     |  32 bits  |
+	// | cmdId   | methodIndex | PyActorInstanceId |
+	// | 10 bits | 22 bits     |  32 bits          |
 	request := internal.Go2PyCmd_ActorMethodCall | int64(methodIdx)<<internal.CmdBitsLen | actor.pyLocalId<<32
 	res, retCode := ffi.CallServer(request, argsData)
 	if retCode != 0 {
@@ -143,7 +159,7 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 
 	return ObjectRef{
 		id:         id,
-		originFunc: method.Type,
+		originFunc: originFunc,
 	}
 }
 
@@ -198,10 +214,13 @@ func GetActor(name string, opts ...*option) (*ActorHandle, error) {
 	}
 	pyLocalId := int64(res["py_local_id"])
 	actorIndex := res["actor_index"]
-	actor := actorTypes[actorIndex]
 
+	var actorTyp *actorType
+	if actorIndex != -1 {
+		actorTyp = actorTypes[actorIndex]
+	}
 	return &ActorHandle{
 		pyLocalId: pyLocalId,
-		typ:       actor,
+		typ:       actorTyp,
 	}, nil
 }

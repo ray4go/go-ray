@@ -34,6 +34,7 @@ func Init(driverFunc func(), taskReceiver any, actorFactories map[string]any) {
 	registerActors(actorFactories)
 	log.Debug("[Go] Init %v %v\n", driverFunc, tasksName2Idx)
 	ffi.RegisterHandler(handlePythonCmd)
+	go exitWhenCtrlC()
 }
 
 func handlePythonCmd(request int64, data []byte) (resData []byte, retCode int64) {
@@ -58,6 +59,14 @@ func handlePythonCmd(request int64, data []byte) (resData []byte, retCode int64)
 func handleStartDriver(_ int64, _ []byte) ([]byte, int64) {
 	driverFunction()
 	return []byte{}, 0
+}
+
+func handleGetInfo(_ int64, _ []byte) ([]byte, int64) {
+	data, err := json.Marshal([]any{tasksName2Idx, actorsName2Idx})
+	if err != nil {
+		return []byte(fmt.Sprintf("Error: handleGetInfo json.Marshal failed: %v", err)), internal.ErrorCode_Failed
+	}
+	return data, 0
 }
 
 // Put stores an object in the object store.

@@ -21,6 +21,7 @@ class Go2PyCmd(enum.IntEnum):
     CMD_CANCEL_OBJECT = enum.auto()
 
     CMD_NEW_ACTOR = enum.auto()
+    CMD_NEW_PY_ACTOR = enum.auto()
     CMD_ACTOR_METHOD_CALL = enum.auto()
     CMD_KILL_ACTOR = enum.auto()
     CMD_GET_ACTOR = enum.auto()
