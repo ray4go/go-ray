@@ -186,48 +186,26 @@ def handle_new_py_actor(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     return str(actor_local_id).encode(), 0
 
 
-class GolangActor:
-    def __getattr__(self, name) -> "GolangRemoteFunc":
-        return GolangRemoteFunc()
-
-
-class GolangActorClass:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def options(self, **kwargs) -> "GolangActorClass":
-        pass
-
-    def remote(self, *args, **kwargs) -> GolangActor:
-        pass
-
-
-class GolangRemoteFunc:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def options(self, **kwargs) -> "GolangRemoteFunc":
-        pass
-
-    def remote(self, *args, **kwargs):
-        pass
-
-
-def golang_actor_class(name: str) -> GolangActorClass:
-    pass
-
-
 @functools.cache
 def get_golang_tasks_info() -> tuple[dict[str, int], dict[str, int]]:
     from . import ffi
 
-    data, err = ffi.execute(Py2GoCmd.CMD_GET_INFO, b"")
+    data, err = ffi.execute(Py2GoCmd.CMD_GET_TASK_ACTOR_LIST, b"")
     if err != 0:
         raise Exception(data.decode("utf-8"))
-    tasks_name2idx, actors_name2idx = json.loads(data)
-    # print(f"{tasks_name2idx=}\n{actors_name2idx=}")
-    _golang_tasks_info = (tasks_name2idx, actors_name2idx)
-    return _golang_tasks_info
+    return json.loads(data)
+
+
+@functools.cache
+def get_golang_actor_methods(actor_class_idx: int) -> dict[str, int]:
+    from . import ffi
+
+    cmdBitsLen = 10  # todo
+    request = Py2GoCmd.CMD_GET_ACTOR_METHODS | actor_class_idx << cmdBitsLen
+    data, err = ffi.execute(request, b"")
+    if err != 0:
+        raise Exception(data.decode("utf-8"))
+    return json.loads(data)
 
 
 def _golang_local_task(func_id: int, args: tuple):
@@ -237,15 +215,15 @@ def _golang_local_task(func_id: int, args: tuple):
     data, code = funccall.pack_golang_funccall_data(raw_args, [], {})
     assert code == 0
 
-    cmdBitsLen = 10
+    cmdBitsLen = 10  # todo
     cmd = Py2GoCmd.CMD_RUN_TASK | func_id << cmdBitsLen
     res, code = ffi.execute(cmd, data)
     if code != 0:
         raise Exception(f"golang task {func_id} error: {res.decode('utf-8')}")
-
-    reader = io.BytesIO(res)
-    unpacker = msgpack.Unpacker(reader)
-    return list(unpacker)
+    returns = list(msgpack.Unpacker(io.BytesIO(res)))
+    if len(returns) == 1:
+        return returns[0]
+    return returns
 
 
 def golang_local_task(name: str, *args):
@@ -262,7 +240,125 @@ def _golang_remote_task(func_id: int, *args):
     return _golang_local_task(func_id, args)
 
 
-def golang_remote_task(name: str, args: list, options: dict):
+def golang_task(name: str) -> 'GolangRemoteFunc':
     tasks_name2idx, actors_name2idx = get_golang_tasks_info()
     func_id = tasks_name2idx[name]
-    return _golang_remote_task.options(**options).remote(func_id, *args)
+    return GolangRemoteFunc(_golang_remote_task, func_id)
+
+
+class GolangRemoteFunc:
+    def __init__(self, remote_callable_handle, bind_arg, **options):
+        self._remote_handle = remote_callable_handle
+        self._bind_arg = bind_arg
+        self._options = options
+
+    def options(self, **kwargs) -> "GolangRemoteFunc":
+        options = dict(self._options)
+        options.update(kwargs)
+        return GolangRemoteFunc(self._remote_handle, self._bind_arg, **options)
+
+    def remote(self, *args):
+        return self._remote_handle.options(**self._options).remote(
+            self._bind_arg, *args
+        )
+
+
+@ray.remote
+class _RemoteActor:
+    def __init__(self, actor_class_name: str, *args):
+        self._actor = GolangLocalActor(actor_class_name, *args)
+
+    def call_method(self, method_name: str, *args):
+        return self._actor._call_method(method_name, *args)
+
+
+class GolangLocalActor:
+    def __init__(self, actor_class_name: str, *args):
+        from . import main
+
+        main.init_ffi_once()
+
+        tasks_name2idx, actors_name2idx = get_golang_tasks_info()
+        actor_class_idx = actors_name2idx[actor_class_name]
+        self._actor_class_name = actor_class_name
+        self._method_name2index = get_golang_actor_methods(actor_class_idx)
+        raw_args = b"".join(msgpack.packb(arg, use_bin_type=True) for arg in args)
+        self._actor = main._Actor(
+            actor_class_idx,
+            raw_args=raw_args,
+            object_positions=[],
+        )
+
+    def _call_method(self, method_name: str, *args):
+        method_idx = self._method_name2index[method_name]
+        raw_args = b"".join(msgpack.packb(arg, use_bin_type=True) for arg in args)
+        res, code = self._actor.method(
+            method_idx,
+            raw_args=raw_args,
+            object_positions=[],
+        )
+        if code != ErrCode.Success:
+            raise Exception(
+                f"golang actor method {method_name} error: {res.decode('utf-8')}"
+            )
+        returns = list(msgpack.Unpacker(io.BytesIO(res)))
+        if len(returns) == 1:
+            return returns[0]
+        return returns
+
+    def __getattr__(self, name):
+        if name not in self._method_name2index:
+            raise AttributeError(
+                f"golang actor type {self._actor_class_name!r} has no method {name!r}"
+            )
+        return functools.partial(self._call_method, name)
+
+    def __repr__(self):
+        return f"<GolangLocalActor {self._actor_class_name} id={self._actor.go_instance_index}>"
+
+    def __del__(self):
+        from . import ffi
+
+        request = Py2GoCmd.CMD_CLOSE_ACTOR | self._actor.go_instance_index << 10
+        res, code = ffi.execute(request, b"")
+        if code != 0:
+            logging.error(
+                f"close actor {self._actor_class_name} error: {res.decode('utf-8')}"
+            )
+
+
+class GolangRemoteActorHandle:
+    def __init__(self, actor_handle: _RemoteActor):
+        self._actor = actor_handle
+
+    def __getattr__(self, method_name: str) -> "GolangRemoteFunc":
+        return GolangRemoteFunc(self._actor.call_method, method_name)
+
+
+class GolangActorClass:
+    def __init__(self, class_name: str, **options):
+        self._class_name = class_name
+        self._options = options
+
+    def options(self, **kwargs) -> "GolangActorClass":
+        options = dict(self._options)
+        options.update(kwargs)
+        return GolangActorClass(self._class_name, **options)
+
+    def remote(self, *args, **kwargs) -> "GolangRemoteActorHandle":
+        from . import main
+
+        main.init_ffi_once()
+
+        tasks_name2idx, actors_name2idx = get_golang_tasks_info()
+        if self._class_name not in actors_name2idx:
+            raise Exception(f"golang actor {self._class_name} not found")
+
+        actor_handle = _RemoteActor.options(**self._options).remote(
+            self._class_name, *args
+        )
+        return GolangRemoteActorHandle(actor_handle)
+
+
+def golang_actor_class(name: str, **options) -> GolangActorClass:
+    return GolangActorClass(name, **options)

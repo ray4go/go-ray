@@ -34,7 +34,10 @@ class Go2PyCmd(enum.IntEnum):
 
 class Py2GoCmd(enum.IntEnum):
     CMD_START_DRIVER = 0
-    CMD_GET_INFO = enum.auto()
+    CMD_GET_TASK_ACTOR_LIST = enum.auto()
+    CMD_GET_ACTOR_METHODS = enum.auto()
+
     CMD_RUN_TASK = enum.auto()
     CMD_NEW_ACTOR = enum.auto()
     CMD_ACTOR_METHOD_CALL = enum.auto()
+    CMD_CLOSE_ACTOR = enum.auto()

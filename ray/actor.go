@@ -104,7 +104,10 @@ func handleCreateActor(actorTypeIndex int64, data []byte) (resData []byte, retCo
 		receiver: res[0],
 		typ:      actor,
 	}
+	// instanceId should always be 0 when created from ray.NewActor(),
+	// because one actor will occupy one worker process exclusively.
 	instanceId := fmt.Sprintf("%d", len(actorInstances))
+	//log.Printf("create actor %v, instanceId %v\n", actor.name, instanceId)
 	actorInstances = append(actorInstances, instance)
 	return []byte(instanceId), 0
 }
@@ -165,15 +168,29 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 
 func handleActorMethodCall(request int64, data []byte) (resData []byte, retCode int64) {
 	// methodIndex:22bits, actorGoInstanceIndex:32bits
-	actorGoInstanceIndex := request >> 32
+	actorGoInstanceIndex := request >> 22
 	methodIndex := request & ((1 << 22) - 1)
 	actorIns := actorInstances[actorGoInstanceIndex]
+
+	if actorIns == nil {
+		return []byte("the actor is died"), internal.ErrorCode_Failed
+	}
 	method := actorIns.typ.methods[methodIndex]
 	args := decodeRemoteCallArgs(newCallableType(method.Type, true), data)
 	receiverVal := reflect.ValueOf(actorIns.receiver)
 	res := funcCall(&receiverVal, method.Func, args)
 	resData = encodeSlice(res)
-	return resData, 0
+	return resData, internal.ErrorCode_Success
+}
+
+func handleCloseActor(actorGoInstanceIndex int64, data []byte) (resData []byte, retCode int64) {
+	log.Debug("handleCloseActor %d\n", actorGoInstanceIndex)
+	actorIns := actorInstances[actorGoInstanceIndex]
+	if actorIns == nil {
+		return []byte("the actor is already closed"), internal.ErrorCode_Failed
+	}
+	actorInstances[actorGoInstanceIndex] = nil
+	return []byte(""), internal.ErrorCode_Success
 }
 
 // Kill an actor forcefully.

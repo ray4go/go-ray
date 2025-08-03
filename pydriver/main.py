@@ -161,6 +161,7 @@ class _Actor:
             | method_idx << cmdBitsLen
             | self.go_instance_index << 32
         )
+        print(f"{method_idx=} {self.go_instance_index=}")
         try:
             res, code = ffi.execute(cmd, data)
             logger.debug(
@@ -246,8 +247,10 @@ def handle_kill_actor(
         return b"actor not found!", ErrCode.Failed
     actor_handle = state.actors[actor_local_id]
     options = json.loads(data)
-    if not mock:
-        ray.kill(actor_handle, **options)
+    if mock:
+        return b"", 0
+
+    ray.kill(actor_handle, **options)
     return b"", 0
 
 
@@ -255,7 +258,10 @@ def handle_get_actor(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     options = json.loads(data)
     actor_handle = ray.get_actor(**options)
     actor_local_id = state.actors.add(actor_handle)
+
+    # todo: use a separate actor to store the mapping of actor name to go_class_idx
     if not mock:
+        # this will block the caller, not good
         go_class_idx = ray.get(actor_handle.get_go_class_index.remote())
     else:
         go_class_idx = actor_handle.go_class_idx

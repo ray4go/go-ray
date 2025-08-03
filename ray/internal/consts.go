@@ -32,8 +32,11 @@ const (
 
 const (
 	Py2GoCmd_StartDriver = iota
-	Py2GoCmd_GetInfo
+	Py2GoCmd_GetTaskActorList
+	Py2GoCmd_GetActorMethods
+
 	Py2GoCmd_RunTask
 	Py2GoCmd_NewActor
 	Py2GoCmd_ActorMethodCall
+	Py2GoCmd_CloseActor
 )

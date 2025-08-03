@@ -17,11 +17,13 @@ var (
 )
 
 var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
-	internal.Py2GoCmd_StartDriver:     handleStartDriver,
-	internal.Py2GoCmd_GetInfo:         handleGetInfo,
-	internal.Py2GoCmd_RunTask:         handleRunTask,
-	internal.Py2GoCmd_NewActor:        handleCreateActor,
-	internal.Py2GoCmd_ActorMethodCall: handleActorMethodCall,
+	internal.Py2GoCmd_StartDriver:      handleStartDriver,
+	internal.Py2GoCmd_GetTaskActorList: handleGetInfo,
+	internal.Py2GoCmd_GetActorMethods:  handleGetActorMethods,
+	internal.Py2GoCmd_RunTask:          handleRunTask,
+	internal.Py2GoCmd_NewActor:         handleCreateActor,
+	internal.Py2GoCmd_ActorMethodCall:  handleActorMethodCall,
+	internal.Py2GoCmd_CloseActor:       handleCloseActor,
 }
 
 // Init goray environment and register the ray driver and tasks.
@@ -65,6 +67,14 @@ func handleGetInfo(_ int64, _ []byte) ([]byte, int64) {
 	data, err := json.Marshal([]any{tasksName2Idx, actorsName2Idx})
 	if err != nil {
 		return []byte(fmt.Sprintf("Error: handleGetInfo json.Marshal failed: %v", err)), internal.ErrorCode_Failed
+	}
+	return data, 0
+}
+
+func handleGetActorMethods(actorTypeIdx int64, _ []byte) ([]byte, int64) {
+	data, err := json.Marshal(actorTypes[actorTypeIdx].methodName2Idx)
+	if err != nil {
+		return []byte(fmt.Sprintf("Error: handleGetActorMethods json.Marshal failed: %v", err)), internal.ErrorCode_Failed
 	}
 	return data, 0
 }
