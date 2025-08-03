@@ -40,7 +40,13 @@ def ray_run_task_from_go(
     global _user_tasks_actors  # make ray pickle them
     common.load_go_lib()
     # wired, run_task can't access global _user_tasks_actors, so we pass it as an argument
-    return run_task(func_name, raw_args, object_positions, *object_refs, user_tasks_actors=_user_tasks_actors)
+    return run_task(
+        func_name,
+        raw_args,
+        object_positions,
+        *object_refs,
+        user_tasks_actors=_user_tasks_actors,
+    )
 
 
 def decode_args(

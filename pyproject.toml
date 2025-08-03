@@ -13,11 +13,11 @@ ray = [
 ]
 
 [tool.setuptools]
-packages = ["pydriver"] 
+packages = ["goray"]
 
 [build-system]
 requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
-goray = "pydriver.main:main"
+goray = "goray.cli:main"

@@ -178,8 +178,7 @@ func (_ demo) RemoteCallPython() {
 }
 
 func init() {
-	// raylog.Init(true)  // enable debug log
-	ray.Init(driver, demo{}, map[string]any{"Counter": NewActor})
+	ray.Init(demo{}, map[string]any{"Counter": NewActor}, driver)
 }
 
 const pycode = `
@@ -191,7 +190,6 @@ print(f"Thread name: {current_thread.name}")
 func driver() {
 	host, _ := os.Hostname()
 	fmt.Printf("driver host: %s\n", host)
-
 	{
 		a := ray.NewActor("Counter", 1)
 		fmt.Printf("a: %#v\n", a)

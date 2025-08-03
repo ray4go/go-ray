@@ -1,0 +1,65 @@
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/ray4go/go-ray/ray"
+)
+
+type counter struct {
+	num int
+}
+
+func NewCounter(n int) *counter {
+	return &counter{num: n}
+}
+
+func (c *counter) Incr(n int) int {
+	fmt.Printf("Incr %d -> %d\n", c.num, c.num+n)
+	c.num += n
+	return c.num
+}
+
+func (c *counter) Decr(n int) int {
+	fmt.Printf("Decr %d -> %d\n", c.num, c.num-n)
+	c.num -= n
+	return c.num
+}
+
+type export struct{}
+
+func (_ export) Echo(args ...any) []any {
+	return args
+}
+
+func (_ export) Hello(name string) string {
+	return fmt.Sprintf("Hello %s", name)
+}
+
+func (_ export) Busy(name string, duration time.Duration) string {
+	fmt.Println("BusyTask", name, "started at", time.Now())
+	time.Sleep(duration * time.Second)
+	fmt.Println("BusyTask", name, "finished at", time.Now())
+	return fmt.Sprintf("BusyTask %s success", name)
+}
+
+func (_ export) NoReturnVal(a, b int64) {
+	return
+}
+
+func (_ export) CallPython() {
+	res, err := ray.LocalCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3})
+	fmt.Println("go call python: echo", res, err)
+	res, err = ray.LocalCallPyTask("hello", "from go")
+	fmt.Println("go call python: hello", res, err)
+	res, err = ray.LocalCallPyTask("no_return", "")
+	fmt.Println("go call python: no_return", res, err)
+}
+
+func init() {
+	ray.Init(export{}, map[string]any{"Counter": NewCounter}, nil)
+}
+
+// main 函数不会被调用，但不可省略
+func main() {}
