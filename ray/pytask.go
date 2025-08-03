@@ -31,7 +31,7 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
 	}
 }
 
-func LocalCallPyTask(name string, args ...any) ([]any, error) {
+func LocalCallPyTask(name string, args ...any) (any, error) {
 	log.Debug("[Go] LocalCallPyTask %s %#v\n", name, args)
 	// todo: check no objref and option in args
 	argsAndOpts := append(args, Option("task_name", name))
@@ -42,7 +42,7 @@ func LocalCallPyTask(name string, args ...any) ([]any, error) {
 		return nil, fmt.Errorf("Error: LocalCallPyTask failed: retCode=%v, message=%s", retCode, resData)
 	}
 	res := decodeFuncResult(dummyPyFunc, resData)
-	return res, nil
+	return res[0], nil
 }
 
 func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {

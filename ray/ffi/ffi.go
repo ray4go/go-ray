@@ -16,7 +16,6 @@ static void* invoke_callback(
     long long* out_len,
     long long* ret_code)
 {
-    // 执行回调并返回结果
     return cb(request, in_data, in_len, out_len, ret_code);
 }
 */
@@ -41,8 +40,8 @@ var (
 
 /*
 硬时序限制：
-- 先 RegisterHandler 后 Execute
-- 先 ResigterCallback 后 CallServer
+- 先 go:RegisterHandler 后 py:Execute
+- 先 py:ResigterCallback 后 go:CallServer
 
 保证：
 由于要求用户程序在 init() 中调用 ray.Init(), 因而调用 RegisterHandler。而，python端需要再 ctypes.CDLL(golibpath) 后，才调用 Execute
@@ -137,7 +136,6 @@ func Execute(request C.longlong, in_data unsafe.Pointer, data_len C.longlong, ou
 	// 通过出参指针设置返回数据的长度
 	*out_len = C.longlong(resultLen)
 	*ret_code = C.longlong(errorCode)
-	// 返回指向 C 堆内存的指针
 	return c_out_buf
 }
 

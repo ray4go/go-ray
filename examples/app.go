@@ -13,21 +13,22 @@ type Point struct {
 	X, Y int
 }
 
-type actor struct {
+type cnt struct {
 	num int
 }
 
-func NewActor(n int) *actor {
-	return &actor{num: n}
+func NewActor(n int) *cnt {
+	fmt.Println("New actor, pid", os.Getpid())
+	return &cnt{num: n}
 }
 
-func (actor *actor) Incr(n int) int {
+func (actor *cnt) Incr(n int) int {
 	fmt.Printf("Incr %d -> %d\n", actor.num, actor.num+n)
 	actor.num += n
 	return actor.num
 }
 
-func (actor *actor) Decr(n int) int {
+func (actor *cnt) Decr(n int) int {
 	fmt.Printf("Decr %d -> %d\n", actor.num, actor.num-n)
 	actor.num -= n
 	return actor.num
@@ -42,6 +43,11 @@ func (_ demo) BatchTask(batchId int, items []string) []string {
 		result[i] = item + "_batch_" + string(rune(batchId+'0'))
 	}
 	return result
+}
+
+func (_ demo) Echo(args ...any) []any {
+	fmt.Println("Echo", args)
+	return args
 }
 
 func (_ demo) Hello(name string) string {
@@ -103,9 +109,77 @@ func (_ demo) MultiReturn(i int, s string) (int, string) {
 	return i, s
 }
 
+func (_ demo) CallPython() {
+	{
+		res, err := ray.LocalCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3})
+		fmt.Println("go call python: echo", res, err)
+	}
+
+	{
+		res, err := ray.LocalCallPyTask("hello", "from go")
+		fmt.Println("go call python: hello", res, err)
+	}
+	{
+		res, err := ray.LocalCallPyTask("no_return", "")
+		fmt.Println("go call python: no_return", res, err)
+	}
+}
+
+func (_ demo) RemoteCallPython() {
+	{
+		obj := ray.RemoteCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3})
+		res, err := obj.Get1()
+		fmt.Println("go remote call python: echo", res, err)
+	}
+	{
+		obj := ray.RemoteCallPyTask("hello", "from remote go")
+		res, err := obj.Get1()
+		fmt.Println("go remote call python: hello", res, err)
+
+		obj2 := ray.RemoteCallPyTask("echo", 1, obj)
+		res, err = obj2.Get1()
+		fmt.Println("go remote call python: echo [obj as arg]", res, err)
+	}
+	{
+		obj := ray.RemoteCallPyTask("no_return", "")
+		err := obj.Get0()
+		fmt.Println("go remote call python: no_return", err)
+	}
+
+	{
+		ref := ray.RemoteCall("Hello", "hello from ref")
+		a := ray.NewPyActor("PyActor", ref, 12, []byte("bytes"), []int{1, 2, 3}, ray.Option("num_cpus", 1), ray.Option("name", "named"))
+		fmt.Printf("PyActor %#v\n", a)
+
+		obj0 := a.RemoteCall("hello", "hello from pyactor")
+		res, err := obj0.Get1()
+		fmt.Printf("PyActor hello %#v %#v\n", res, err)
+
+		obj1 := a.RemoteCall("get_args")
+		res, err = obj1.Get1()
+		fmt.Printf("PyActor get_args %#v %#v\n", res, err)
+		obj2 := a.RemoteCall("echo", 2.13, ref, "str", []byte("bytes"), []int{1, 2, 3})
+		res, err = obj2.Get1()
+		fmt.Printf("PyActor echo %#v %#v\n", res, err)
+
+		a2, err := ray.GetActor("named")
+		fmt.Printf("GetActor %#v\n err%v\n", a2, err)
+
+		obj3 := a2.RemoteCall("echo", []int{1, 2, 3})
+		res, err = obj3.Get1()
+		fmt.Printf("PyActor echo %#v %#v\n", res, err)
+
+		a2.Kill()
+		obj4 := a2.RemoteCall("busy", 1)
+		res, err = obj4.Get1()
+		fmt.Printf("PyActor busy %#v %#v\n", res, err != nil)
+	}
+
+}
+
 func init() {
 	// raylog.Init(true)  // enable debug log
-	ray.Init(driver, demo{}, map[string]any{"actor": NewActor})
+	ray.Init(driver, demo{}, map[string]any{"Counter": NewActor})
 }
 
 const pycode = `
@@ -117,8 +191,9 @@ print(f"Thread name: {current_thread.name}")
 func driver() {
 	host, _ := os.Hostname()
 	fmt.Printf("driver host: %s\n", host)
+
 	{
-		a := ray.NewActor("actor", 1)
+		a := ray.NewActor("Counter", 1)
 		fmt.Printf("a: %#v\n", a)
 		obj := a.RemoteCall("Incr", 1)
 		fmt.Println("obj ", obj)
@@ -140,14 +215,6 @@ func driver() {
 			ray.CallPythonCode(pycode)
 		}()
 		time.Sleep(1 * time.Second) // wait for Python thread to start
-	}
-	{
-		dataRef, _ := ray.Put([]string{"ref_item1", "ref_item2"})
-		fmt.Println(dataRef)
-		objRef := ray.RemoteCall("BatchTask", 99, dataRef,
-			ray.Option("num_cpus", 1),
-			ray.Option("memory", 50*1024*1024))
-		fmt.Println(objRef.Get1())
 	}
 	{
 		obj1 := ray.RemoteCall("Busy", "Workload1", 4, ray.Option("num_cpus", 1))

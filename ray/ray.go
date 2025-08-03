@@ -29,6 +29,7 @@ var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 // Init goray environment and register the ray driver and tasks.
 // All public methods of the given taskReceiver will be registered as ray tasks.
 // This function should be called in the init() function of your ray application.
+// All other APIs MUST be called after this function.
 func Init(driverFunc func(), taskReceiver any, actorFactories map[string]any) {
 	driverFunction = driverFunc
 

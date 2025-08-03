@@ -5,7 +5,7 @@ version = "0.1.0"
 authors = [
     { name = "WeiminWang", email = "wang0.618@qq.com" }
 ]
-dependencies = []
+dependencies = ["msgpack"]
 
 [project.optional-dependencies]
 ray = [
