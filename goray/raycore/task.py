@@ -55,6 +55,7 @@ def handle_run_remote_task(data: bytes, func_id: int, mock=False) -> tuple[bytes
         data
     )
     logger.debug(f"[py] run remote task {func_id}, {options=}, {object_positions=}")
+    common.inject_runtime_env(options)
     if mock:
         fut = run_task(func_id, args_data, object_positions, *object_refs)
     else:

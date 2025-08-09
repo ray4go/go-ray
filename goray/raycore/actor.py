@@ -90,6 +90,7 @@ def handle_new_actor(
         data
     )
     logger.debug(f"[py] new actor {actor_class_idx}, {options=}, {object_positions=}")
+    common.inject_runtime_env(options)
 
     if mock:
         actor_handle = _Actor(actor_class_idx, raw_args, object_positions, *object_refs)

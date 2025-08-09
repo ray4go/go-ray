@@ -1,6 +1,7 @@
 """global state"""
 
 from . import utils
+from . import consts
 import os
 
 
@@ -10,7 +11,6 @@ actors = utils.ThreadSafeLocalStore()
 # in other modes, value is ray object ref
 futures = utils.ThreadSafeLocalStore()
 
-# 临时方式传递so filepath， ugly
-golibpath: str = os.environ.get("GORAY_BIN_PATH", "")
+golibpath: str = os.environ.get(consts.GORAY_BIN_PATH_ENV, "")
 
 debug = False

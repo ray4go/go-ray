@@ -231,7 +231,7 @@ func GetActor(name string, opts ...*option) (*ActorHandle, error) {
 	resData, retCode := ffi.CallServer(internal.Go2PyCmd_GetActor, data)
 
 	if retCode != internal.ErrorCode_Success {
-		return nil, fmt.Errorf("actor.Kill failed, reason: %w, detail: %s", newError(retCode), resData)
+		return nil, fmt.Errorf("GetActor failed, reason: %w, detail: %s", newError(retCode), resData)
 	}
 
 	var res map[string]int

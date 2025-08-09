@@ -107,6 +107,7 @@ def handle_run_py_task(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     _, opts = task_and_opts
     opts = dict(opts)
     opts.update(options)
+    common.inject_runtime_env(options)
     if mock:
         fut = run_task(func_name, args_data, object_positions, *object_refs)
     else:
@@ -172,6 +173,7 @@ def handle_new_py_actor(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     if not inspect.isclass(cls):
         return f"python actor {class_name} not found".encode("utf-8"), ErrCode.Failed
 
+    common.inject_runtime_env(options)
     actor_handle = PyActorWrapper.options(**options).remote(
         class_name, args_data, object_positions, *object_refs
     )

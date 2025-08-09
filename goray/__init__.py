@@ -6,6 +6,7 @@ import ray
 from . import x
 from . import state
 from . import utils
+from . import consts
 from .raycore import common
 from .raycore import go2py, py2go, common
 
@@ -18,7 +19,7 @@ def init(libpath: str, ray_init_args: dict = None, debug=False):
 
     ray_init_args.setdefault("runtime_env", {})
     ray_init_args["runtime_env"].setdefault("env_vars", {})
-    ray_init_args["runtime_env"]["env_vars"]["GORAY_BIN_PATH"] = libpath
+    ray_init_args["runtime_env"]["env_vars"][consts.GORAY_BIN_PATH_ENV] = libpath
     if debug:
         ray_init_args["runtime_env"]["env_vars"]["GORAY_DEBUG_LOGGING"] = "1"
 

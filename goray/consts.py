@@ -41,3 +41,6 @@ class Py2GoCmd(enum.IntEnum):
     CMD_NEW_ACTOR = enum.auto()
     CMD_ACTOR_METHOD_CALL = enum.auto()
     CMD_CLOSE_ACTOR = enum.auto()
+
+
+GORAY_BIN_PATH_ENV = "GORAY_BIN_PATH"

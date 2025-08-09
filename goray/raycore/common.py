@@ -1,4 +1,5 @@
 from .. import state
+from .. import consts
 from ..x import ffi
 
 
@@ -16,3 +17,9 @@ def load_go_lib():
     lib = ffi.load_go_lib(state.golibpath, handle)
     _loaded_libs = lib
     return lib
+
+
+def inject_runtime_env(options: dict):
+    options.setdefault("runtime_env", {})
+    options["runtime_env"].setdefault("env_vars", {})
+    options["runtime_env"]["env_vars"][consts.GORAY_BIN_PATH_ENV] = state.golibpath
