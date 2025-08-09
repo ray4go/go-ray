@@ -292,8 +292,8 @@ write("Third line")
 		assert.InDelta(9.8596, resultMap["float_squared"], 0.0001)
 		assert.Equal("PROCESSED_test", resultMap["string_upper"])
 		assert.Equal(false, resultMap["bool_negated"])
-		assert.Equal(3, resultMap["slice_length"])
-		assert.Equal(6, resultMap["map_sum"]) // 1+2+3 = 6
+		assert.EqualValues(3, resultMap["slice_length"])
+		assert.EqualValues(6, resultMap["map_sum"]) // 1+2+3 = 6
 	})
 
 	AddTestCase("TestTaskWithAllOptionTypes", func(assert *require.Assertions) {

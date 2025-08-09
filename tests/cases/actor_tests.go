@@ -301,11 +301,11 @@ func init() {
 
 		resultSlice := results.([]interface{})
 		assert.Len(resultSlice, 5)
-		assert.Equal(5, resultSlice[0]) // First increment result
-		assert.Equal(1, resultSlice[1]) // First item count
-		assert.Equal(8, resultSlice[2]) // Second increment result
-		assert.Equal(2, resultSlice[3]) // Second item count
-		assert.Equal(8, resultSlice[4]) // Final counter value
+		assert.EqualValues(5, resultSlice[0]) // First increment result
+		assert.EqualValues(1, resultSlice[1]) // First item count
+		assert.EqualValues(8, resultSlice[2]) // Second increment result
+		assert.EqualValues(2, resultSlice[3]) // Second item count
+		assert.EqualValues(8, resultSlice[4]) // Final counter value
 	})
 
 	AddTestCase("TestMultipleActorInstances", func(assert *require.Assertions) {

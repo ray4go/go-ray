@@ -343,12 +343,12 @@ func init() {
 		assert.Equal(map[string]int{"default": 100}, results[3])
 	})
 
-	// Test panic cases - nil pointer
 	AddTestCase("TestNilPointerPanic", func(assert *require.Assertions) {
-		// This should cause a panic when the task tries to dereference nil pointer
-		assert.Panics(func() {
+		assert.NotPanics(func() {
 			objRef := ray.RemoteCall("TaskExpectingNonNilPointer", (*int)(nil))
-			objRef.Get1() // This should panic when the remote task executes
+			res, err := objRef.Get1() // This should panic when the remote task executes
+			assert.NotNil(err, "Expected an error due to nil pointer dereference")
+			assert.Nil(res, "Expected nil result due to panic")
 		})
 	})
 
@@ -391,11 +391,12 @@ func init() {
 		})
 	})
 
-	// Test passing nil as single parameter
 	AddTestCase("TestSingleNilParam", func(assert *require.Assertions) {
-		// Passing single nil should cause panic during gob encoding
-		assert.Panics(func() {
-			ray.RemoteCall("TaskExpectingNonNilPointer", nil)
+		assert.NotPanics(func() {
+			obj := ray.RemoteCall("TaskExpectingNonNilPointer", nil)
+			res, err := obj.Get1()
+			assert.NotNil(err, "Expected an error due to nil pointer dereference")
+			assert.Nil(res, "Expected nil result due to panic")
 		})
 	})
 
