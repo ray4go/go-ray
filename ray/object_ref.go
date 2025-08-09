@@ -64,16 +64,8 @@ func (obj ObjectRef) GetAll() ([]any, error) {
 }
 
 // GetInto is used to decode the result of remote task / actor method into the given pointer.
-// Used to retrieve the result of **python** task / actor method.
 // Pass a float to the last argument to set the timeout in seconds.
 func (obj ObjectRef) GetInto(ptrs ...any) error {
-	if obj.originFunc != dummyPyFunc {
-		return errors.New("ObjectRef.GetInto: only support to get from python task / actor method result")
-	}
-	if len(ptrs) == 0 {
-		return errors.New("ObjectRef.GetInto: no pointer given")
-	}
-
 	timeout := -1.0
 	switch val := ptrs[len(ptrs)-1].(type) {
 	case float32:
@@ -87,6 +79,9 @@ func (obj ObjectRef) GetInto(ptrs ...any) error {
 	resultData, err := obj.getRaw(timeout)
 	if err != nil {
 		return err
+	}
+	if len(ptrs) == 0 {
+		return nil
 	}
 	return decodeInto(resultData, ptrs)
 }

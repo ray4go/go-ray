@@ -190,6 +190,7 @@ func (m *callableType) IsValidArgNum(numIn int) bool {
 	return numIn == m.Type.NumIn()-m.argOffset
 }
 
+// InType returns the type of the i'th input argument. (0-based, not including receiver for methods)
 func (m *callableType) InType(idx int) reflect.Type {
 	if m.Type.IsVariadic() {
 		// The index of the variadic argument (from the user's perspective) is NumIn() - 1 - m.argOffset.

@@ -35,6 +35,7 @@ class GolangRemoteFunc:
         return GolangRemoteFunc(self._remote_handle, self._bind_arg, **options)
 
     def remote(self, *args):
+        common.inject_runtime_env(self._options)
         return self._remote_handle.options(**self._options).remote(
             self._bind_arg, *args
         )
@@ -69,11 +70,10 @@ class GolangActorClass:
         return GolangActorClass(self._class_name, **options)
 
     def remote(self, *args) -> "GolangRemoteActorHandle":
-
         tasks_name2idx, actors_name2idx = common.load_go_lib().get_golang_tasks_info()
         if self._class_name not in actors_name2idx:
             raise Exception(f"golang actor {self._class_name} not found")
-
+        common.inject_runtime_env(self._options)
         actor_handle = _RemoteActor.options(**self._options).remote(
             self._class_name, *args
         )

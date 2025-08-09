@@ -2,6 +2,7 @@ import functools
 import logging
 import sys
 import ray
+import typing
 
 from . import x
 from . import state
@@ -53,8 +54,8 @@ def golang_actor_class(name: str, **options) -> py2go.GolangActorClass:
     return py2go.GolangActorClass(name, **options)
 
 
-def get_golang_actor(name: str):
-    return py2go.GolangRemoteActorHandle(ray.get_actor(name))
+def get_golang_actor(name: str, namespace: typing.Optional[str] = None):
+    return py2go.GolangRemoteActorHandle(ray.get_actor(name, namespace=namespace))
 
 
 def golang_task(name: str) -> py2go.GolangRemoteFunc:

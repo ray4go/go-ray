@@ -111,17 +111,18 @@ func (_ demo) MultiReturn(i int, s string) (int, string) {
 
 func (_ demo) CallPython() {
 	{
-		res, err := ray.LocalCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3})
+		var res []any
+		err := ray.LocalCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3}).GetInto(&res)
 		fmt.Println("go call python: echo", res, err)
 	}
-
 	{
-		res, err := ray.LocalCallPyTask("hello", "from go")
+		var res string
+		err := ray.LocalCallPyTask("hello", "from go").GetInto(&res)
 		fmt.Println("go call python: hello", res, err)
 	}
 	{
-		res, err := ray.LocalCallPyTask("no_return", "")
-		fmt.Println("go call python: no_return", res, err)
+		err := ray.LocalCallPyTask("no_return", "").GetInto()
+		fmt.Println("go call python: no_return", err)
 	}
 }
 
@@ -181,12 +182,6 @@ func init() {
 	ray.Init(demo{}, map[string]any{"Counter": NewActor}, driver)
 }
 
-const pycode = `
-import threading
-current_thread = threading.current_thread()
-print(f"Thread name: {current_thread.name}")
-`
-
 func driver() int {
 	host, _ := os.Hostname()
 	fmt.Printf("driver host: %s\n", host)
@@ -207,12 +202,6 @@ func driver() int {
 		obj := ray.RemoteCall("Nest", "nest", 2)
 		res, err := obj.Get1()
 		fmt.Println("res ", res, err)
-	}
-	{
-		go func() {
-			ray.CallPythonCode(pycode)
-		}()
-		time.Sleep(1 * time.Second) // wait for Python thread to start
 	}
 	{
 		obj1 := ray.RemoteCall("Busy", "Workload1", 4, ray.Option("num_cpus", 1))

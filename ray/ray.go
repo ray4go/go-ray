@@ -163,16 +163,3 @@ func Wait(objRefs []ObjectRef, requestNum int, opts ...*option) ([]ObjectRef, []
 	}
 	return ready, notReady, nil
 }
-
-// CallPythonCode executes python code in current process.
-// You can use `write(str)` function in python to write result as the return value.
-// The `write` function can be used multiple times.
-func CallPythonCode(code string) (string, error) {
-	log.Debug("[Go] RunPythonCode %s\n", code)
-	data, retCode := ffi.CallServer(internal.Go2PyCmd_ExePyCode, []byte(code))
-	log.Debug("[Go] RunPythonCode res: %v\n", string(data))
-	if retCode != 0 {
-		return "", fmt.Errorf("RunPythonCode failed: retCode=%v, message=%s", retCode, data)
-	}
-	return string(data), nil
-}

@@ -33,22 +33,6 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
 	}
 }
 
-// LocalCallPyTask executes a Python task locally (in current process) by name with the provided arguments.
-// Noted: [ObjectRef] is not supported as arguments.
-func LocalCallPyTask(name string, args ...any) (any, error) {
-	log.Debug("[Go] LocalCallPyTask %s %#v\n", name, args)
-	// todo: check no objref and option in args
-	argsAndOpts := append(args, Option("task_name", name))
-	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
-	request := internal.Go2PyCmd_ExePythonLocalTask
-	resData, retCode := ffi.CallServer(int64(request), argsData) // todo: pass error to ObjectRef
-	if retCode != 0 {
-		return nil, fmt.Errorf("Error: LocalCallPyTask failed: retCode=%v, message=%s", retCode, resData)
-	}
-	res := decodeFuncResult(dummyPyFunc, resData)
-	return res[0], nil
-}
-
 // NewPyActor creates a remote Python actor instance of the given class name with the provided arguments.
 // [ObjectRef] can be passed as arguments.
 func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
@@ -67,5 +51,47 @@ func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
 	return &ActorHandle{
 		pyLocalId: id,
 		typ:       nil,
+	}
+}
+
+type PyLocalCallResult struct {
+	data []byte
+	code int64
+}
+
+func (r PyLocalCallResult) GetInto(ptrs ...any) error {
+	if r.code != internal.ErrorCode_Success {
+		return fmt.Errorf("Error: Local Call Python failed: retCode=%v, message=%s", r.code, r.data)
+	}
+	if len(ptrs) == 0 {
+		return nil
+	}
+	return decodeInto(r.data, ptrs)
+}
+
+// LocalCallPyTask executes a Python task locally (in current process) by name with the provided arguments.
+// Noted: [ObjectRef] is not supported as arguments.
+func LocalCallPyTask(name string, args ...any) PyLocalCallResult {
+	log.Debug("[Go] LocalCallPyTask %s %#v\n", name, args)
+	// todo: check no objref and option in args
+	argsAndOpts := append(args, Option("task_name", name))
+	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
+	request := internal.Go2PyCmd_ExePythonLocalTask
+	resData, retCode := ffi.CallServer(int64(request), argsData)
+	return PyLocalCallResult{
+		data: resData,
+		code: retCode,
+	}
+}
+
+// CallPythonCode executes python function code in current process.
+func CallPythonCode(funcCode string, args ...any) PyLocalCallResult {
+	argsAndOpts := append(args, Option("func_code", funcCode))
+	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
+	request := internal.Go2PyCmd_ExePyCode
+	resData, retCode := ffi.CallServer(int64(request), argsData)
+	return PyLocalCallResult{
+		data: resData,
+		code: retCode,
 	}
 }

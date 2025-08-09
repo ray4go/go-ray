@@ -12,27 +12,15 @@ import (
 
 // Task for testing CallPythonCode
 func (_ testTask) GetPythonEnvironment() string {
-	result, err := ray.CallPythonCode(`
+	var result string
+	err := ray.CallPythonCode(`
 import sys
 import os
-result = f"Python {sys.version_info.major}.{sys.version_info.minor} on {sys.platform}"
-write(result)
-`)
+def foo():
+	return f"Python {sys.version_info.major}.{sys.version_info.minor} on {sys.platform}"
+`).GetInto(&result)
 	if err != nil {
 		panic(fmt.Sprintf("CallPythonCode failed: %v", err))
-	}
-	return result
-}
-
-func (_ testTask) UsePythonLibrary() string {
-	result, err := ray.CallPythonCode(`
-import math
-import json
-data = {"pi": math.pi, "e": math.e}
-write(json.dumps(data))
-`)
-	if err != nil {
-		panic(fmt.Sprintf("Python library call failed: %v", err))
 	}
 	return result
 }
@@ -159,44 +147,6 @@ func (a *AdvancedOptionsActor) MemoryIntensiveOperation(size int) int {
 
 func init() {
 	advancedActorName := RegisterActor(NewAdvancedOptionsActor)
-
-	AddTestCase("TestCallPythonCode", func(assert *require.Assertions) {
-		// Test basic Python code execution
-		result, err := ray.CallPythonCode(`
-x = 5
-y = 10
-result = x + y
-write(str(result))
-`)
-		assert.Nil(err)
-		assert.Equal("15", result)
-	})
-
-	AddTestCase("TestCallPythonCodeWithLibraries", func(assert *require.Assertions) {
-		// Test Python code with standard libraries
-		result, err := ray.CallPythonCode(`
-import math
-import json
-data = {"sqrt_2": math.sqrt(2), "pi": math.pi}
-write(json.dumps(data))
-`)
-		assert.Nil(err)
-		assert.Contains(result, "sqrt_2")
-		assert.Contains(result, "pi")
-	})
-
-	AddTestCase("TestCallPythonCodeMultipleWrites", func(assert *require.Assertions) {
-		// Test multiple write calls
-		result, err := ray.CallPythonCode(`
-write("First line")
-write("Second line")
-write("Third line")
-`)
-		assert.Nil(err)
-		assert.Contains(result, "First line")
-		assert.Contains(result, "Second line")
-		assert.Contains(result, "Third line")
-	})
 
 	AddTestCase("TestCallPythonCodeInTask", func(assert *require.Assertions) {
 		// Test calling Python code from within a task

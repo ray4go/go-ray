@@ -16,25 +16,6 @@ def add_python_export_func(func):
     _python_export_funcs[func.__name__] = func
 
 
-def handle_run_python_code(code: bytes, _: int) -> tuple[bytes, int]:
-    stream = io.StringIO()
-    injects = {
-        "write": lambda x: stream.write(str(x)),
-    }
-    try:
-        """
-        Remember that at module level, globals and locals are the same dictionary.
-        If exec gets two separate objects as globals and locals,
-        the code will be executed as if it were embedded in a class definition.
-        https://docs.python.org/3/library/functions.html#exec
-        """
-        exec(code.decode("utf-8"), injects)
-    except Exception as e:
-        return f"[goray error] python exec() error: {e}".encode("utf-8"), 1
-
-    return stream.getvalue().encode("utf-8"), 0
-
-
 def decode_args(
     raw_args: bytes, object_positions: list[int], object_refs: list[tuple[bytes, int]]
 ) -> list:
@@ -87,9 +68,39 @@ def handle_run_py_local_task(data: bytes, _: int) -> tuple[bytes, int]:
     return run_task(func_name, args_data, object_positions, *object_refs)
 
 
+def handle_run_python_func_code(data: bytes, _: int) -> tuple[bytes, int]:
+    args_data, options, _, _ = funccall.decode_funccall_args(data)
+    func_code = options.pop("func_code")
+    try:
+        # todo: use ast to get function name
+        func_name = func_code.split("def ", 1)[1].split("(", 1)[0].strip()
+    except Exception as e:
+        return b"Invalid python function code: can't get function name", ErrCode.Failed
+
+    args = decode_args(args_data, [], [])
+    args_list = ",".join(f"arg{i}" for i in range(len(args)))
+    func_call_code = f"__res__ = {func_name}({args_list})"
+    args = {f"arg{i}": arg for i, arg in enumerate(args)}
+    code = f"{func_code}\n{func_call_code}"
+    try:
+        """
+        Remember that at module level, globals and locals are the same dictionary.
+        If exec gets two separate objects as globals and locals,
+        the code will be executed as if it were embedded in a class definition.
+        https://docs.python.org/3/library/functions.html#exec
+        """
+        exec(code, args)
+    except Exception as e:
+        error_string = f"Call python function error: {e}\n" + traceback.format_exc()
+        return error_string.encode("utf-8"), ErrCode.Failed
+
+    res = args["__res__"]
+    return msgpack.packb(res, use_bin_type=True), ErrCode.Success
+
+
 handlers = {
     Go2PyCmd.CMD_EXECUTE_PY_LOCAL_TASK: handle_run_py_local_task,
-    Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_code,
+    Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_func_code,
 }
 
 

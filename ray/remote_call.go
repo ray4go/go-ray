@@ -80,6 +80,12 @@ func funcCall(receiverVal *reflect.Value, funcVal reflect.Value, args []any) []a
 		argVals = append(argVals, *receiverVal)
 	}
 	for _, arg := range args {
+		if arg == nil {
+			// funcVal.Call requires the argument type to be non-nil,
+			// so we use a zero value of the type.
+			// todo: use a zero value of the type.
+			//arg = reflect.New(reflect.TypeOf(anyNil)).Elem()
+		}
 		argVals = append(argVals, reflect.ValueOf(arg))
 	}
 	returnValues := funcVal.Call(argVals)

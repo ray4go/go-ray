@@ -20,6 +20,9 @@ def load_go_lib():
 
 
 def inject_runtime_env(options: dict):
+    if options.get("num_returns", 1) > 1:
+        raise Exception("num_returns is not supported in goray")
+
     options.setdefault("runtime_env", {})
     options["runtime_env"].setdefault("env_vars", {})
     options["runtime_env"]["env_vars"][consts.GORAY_BIN_PATH_ENV] = state.golibpath

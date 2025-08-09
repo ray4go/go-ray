@@ -167,3 +167,64 @@ func init() {
 		assert.NotNil(err4)
 	})
 }
+
+func (_ testTask) MultipleReturns(arg1 any, arg2 any) (any, any) {
+	return arg1, arg2
+}
+
+func (_ testTask) SingleReturns(arg any) any {
+	return arg
+}
+
+func init() {
+	AddTestCase("GetInto", func(assert *require.Assertions) {
+		obj1 := ray.RemoteCall("MultipleReturns", 1, "hello")
+		var (
+			res1 int
+			res2 string
+		)
+		err1 := obj1.GetInto(&res1, &res2)
+		assert.Nil(err1)
+		assert.EqualValues(1, res1)
+		assert.Equal("hello", res2)
+
+		type T1 struct {
+			A int
+			B string
+			C []byte
+			D *string
+			E map[int]string
+			F *T1
+		}
+
+		s := "str"
+		t1 := T1{
+			A: 1,
+			B: "hello",
+			C: []byte("world"),
+			D: nil,
+			E: map[int]string{
+				1: "hello",
+				2: "world",
+			},
+			F: &T1{
+				A: 2,
+				B: "hello",
+				C: []byte("world"),
+				D: &s,
+			},
+		}
+		obj2 := ray.RemoteCall("MultipleReturns", t1, 1)
+		_, err := obj2.GetAll()
+		assert.Nil(err)
+
+		var (
+			res3 T1
+			res4 any
+		)
+		err2 := obj2.GetInto(&res3, &res4)
+		assert.Nil(err2)
+		assert.Equal(t1, res3)
+		assert.EqualValues(1, res4)
+	})
+}
