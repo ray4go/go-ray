@@ -26,10 +26,13 @@ func registerTasks(taskReceiver any) {
 }
 
 // RemoteCall calls the remote task by its name with the given arguments.
-// The ray task options can be passed in the last with Option(key, value).
+// The ray task options can be passed in the last with [Option](key, value).
 // This call is asynchronous, returning an ObjectRef that resolves to the task's result.
 // The returned ObjectRef can be used to retrieve the result or passed as an argument to other remote tasks or actor methods.
-// For complete ray options, see https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote_function.RemoteFunction.options.html#ray.remote_function.RemoteFunction.options
+//
+// For complete ray options, see [Ray Core API doc].
+//
+// [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote_function.RemoteFunction.options.html#ray.remote_function.RemoteFunction.options
 func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	log.Debug("[Go] RemoteCall %s %#v\n", name, argsAndOpts)
 

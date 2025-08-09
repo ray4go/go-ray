@@ -10,32 +10,42 @@ import (
 )
 
 // ObjectRef is a reference to an object in Ray's object store.
-// It serves as a future for the result of a remote task execution, an actor method call or ray.Put().
+// It serves as a future for the result of a remote task execution, an actor method call or [ray.Put]().
 type ObjectRef struct {
 	originFunc reflect.Type // used to decode result, nil for ray.Put() ObjectRef
 	id         int64
 }
 
-// GetAllTimeout returns all return values of the ObjectRefs in []any.
-// timeout: the maximum amount of time in seconds to wait before returning.
-// Setting timeout=0 will return the object immediately if it’s available.
-// Returns ErrTimeout if the object is not available within the specified timeout.
-// Returns ErrCancelled if the task is cancelled.
-func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
+// getRaw is used to get the raw result in bytes of the ObjectRef.
+// timeout: -1 means wait indefinitely, 0 means return immediately if the object is available.
+func (obj ObjectRef) getRaw(timeout float64) ([]byte, error) {
 	if obj.originFunc == nil {
 		return nil, errors.New("cannot call Get on an ObjectRef of ray.Put(), pass it to a remote task or actor method instead")
 	}
 
 	data, err := json.Marshal([]any{obj.id, timeout})
 	if err != nil {
-		return nil, fmt.Errorf("GetAll json.Marshal failed: %w", err)
+		return nil, fmt.Errorf("ObjectRef.Get json.Marshal failed: %w", err)
 	}
 	resultData, retCode := ffi.CallServer(internal.Go2PyCmd_GetObject, data)
 
 	if retCode != internal.ErrorCode_Success {
-		return nil, fmt.Errorf("ObjectRef.GetAll failed, reason: %w, detail: %s", newError(retCode), resultData)
+		return nil, fmt.Errorf("ObjectRef.Get failed, reason: %w, detail: %s", newError(retCode), resultData)
 	}
+	return resultData, nil
+}
 
+// GetAllTimeout returns all return values of the ObjectRefs in []any.
+//
+// Parameter timeout set the maximum amount of time in seconds to wait before returning.
+// Setting timeout=0 will return the object immediately if it’s available.
+// Returns [ErrTimeout] if the object is not available within the specified timeout.
+// Returns [ErrCancelled] if the task is cancelled.
+func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
+	resultData, err := obj.getRaw(timeout)
+	if err != nil {
+		return nil, err
+	}
 	res := decodeFuncResult(obj.originFunc, resultData)
 	return res, nil
 }
@@ -48,9 +58,37 @@ func (obj ObjectRef) numReturn() int {
 }
 
 // GetAll returns all return values of the ObjectRefs in []any.
-// Returns ErrCancelled if the task is cancelled.
+// Returns [ErrCancelled] if the task is cancelled.
 func (obj ObjectRef) GetAll() ([]any, error) {
 	return obj.GetAllTimeout(-1)
+}
+
+// GetInto is used to decode the result of remote task / actor method into the given pointer.
+// Used to retrieve the result of **python** task / actor method.
+// Pass a float to the last argument to set the timeout in seconds.
+func (obj ObjectRef) GetInto(ptrs ...any) error {
+	if obj.originFunc != dummyPyFunc {
+		return errors.New("ObjectRef.GetInto: only support to get from python task / actor method result")
+	}
+	if len(ptrs) == 0 {
+		return errors.New("ObjectRef.GetInto: no pointer given")
+	}
+
+	timeout := -1.0
+	switch val := ptrs[len(ptrs)-1].(type) {
+	case float32:
+		timeout = float64(val)
+		ptrs = ptrs[:len(ptrs)-1]
+	case float64:
+		timeout = val
+		ptrs = ptrs[:len(ptrs)-1]
+	}
+
+	resultData, err := obj.getRaw(timeout)
+	if err != nil {
+		return err
+	}
+	return decodeInto(resultData, ptrs)
 }
 
 // Get0 is used to wait remote task / actor method execution finish.

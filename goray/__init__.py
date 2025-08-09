@@ -1,6 +1,6 @@
 import functools
 import logging
-
+import sys
 import ray
 
 from . import x
@@ -30,7 +30,9 @@ def init(libpath: str, ray_init_args: dict = None, debug=False):
         msg, code = lib.start_driver()
         if code != 0:
             logging.error(f"[py] driver error[{code}]: {msg}")
-            exit(1)
+            sys.exit(1)
+        else:
+            sys.exit(int(msg))
     except KeyboardInterrupt:
         print("Exiting...")
 

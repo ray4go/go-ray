@@ -21,10 +21,13 @@ func init() {
 	ray.Init(task, actors, driver)
 }
 
-func getTestCases() []testing.InternalTest {
+func getTestCases(filter func(string) bool) []testing.InternalTest {
 	res := make([]testing.InternalTest, 0)
 	for _, test := range cases.GetTestCases() {
 		test_ := test
+		if filter != nil && !filter(test_.Name) {
+			continue
+		}
 		res = append(res, testing.InternalTest{
 			Name: test_.Name,
 			F: func(t *testing.T) {
@@ -38,15 +41,18 @@ func getTestCases() []testing.InternalTest {
 	return res
 }
 
-func driver() {
+func driver() int {
 	// override os.Args
 	os.Args = []string{"go", "-test.v"}
+	patten := os.Getenv("TEST_PATTERN")
 	//os.Args = []string{"go", "-test.coverprofile", "/tmp/out.cov"}
 	matchAll := func(pat, str string) (bool, error) {
-		return regexp.MatchString(pat, str)
+		return true, nil
 	}
-
-	tests := getTestCases()
+	tests := getTestCases(func(name string) bool {
+		match, _ := regexp.MatchString(patten, name)
+		return match
+	})
 	fmt.Printf("%d test cases found\n", len(tests))
 
 	mockey.Mock(os.Exit).Return().Build() // use os.Exit in goray app will cause Segmentation fault
@@ -57,6 +63,11 @@ func driver() {
 
 	fmt.Printf("Tests finished in %s\n", time.Since(startTime))
 	fmt.Printf("Passed: %d, Failed: %d\n", passedNum, int64(len(tests))-passedNum)
+
+	if int64(len(tests))-passedNum != 0 {
+		return 1
+	}
+	return 0
 }
 
 // main 函数不会被调用，但不可省略

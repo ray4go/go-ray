@@ -11,6 +11,8 @@ import (
 
 var dummyPyFunc = reflect.TypeOf(func() any { return nil })
 
+// RemoteCallPyTask executes a remote Python ray task by name with the provided arguments and options.
+// Like in [RemoteCall], [ObjectRef] instances can be passed as arguments.
 func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
 	log.Debug("[Go] RemoteCallPyTask %s %#v\n", name, argsAndOpts)
 	argsAndOpts = append(argsAndOpts, Option("task_name", name))
@@ -31,6 +33,8 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
 	}
 }
 
+// LocalCallPyTask executes a Python task locally (in current process) by name with the provided arguments.
+// Noted: [ObjectRef] is not supported as arguments.
 func LocalCallPyTask(name string, args ...any) (any, error) {
 	log.Debug("[Go] LocalCallPyTask %s %#v\n", name, args)
 	// todo: check no objref and option in args
@@ -45,6 +49,8 @@ func LocalCallPyTask(name string, args ...any) (any, error) {
 	return res[0], nil
 }
 
+// NewPyActor creates a remote Python actor instance of the given class name with the provided arguments.
+// [ObjectRef] can be passed as arguments.
 func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
 	log.Debug("[Go] NewPyActor %s %#v\n", className, argsAndOpts)
 	argsAndOpts = append(argsAndOpts, Option("actor_class_name", className))

@@ -2,7 +2,6 @@ module github.com/ray4go/go-ray/tests
 
 go 1.21
 
-toolchain go1.21.13
 
 replace github.com/ray4go/go-ray/ray => ../ray
 

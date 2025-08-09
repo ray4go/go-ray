@@ -187,7 +187,7 @@ current_thread = threading.current_thread()
 print(f"Thread name: {current_thread.name}")
 `
 
-func driver() {
+func driver() int {
 	host, _ := os.Hostname()
 	fmt.Printf("driver host: %s\n", host)
 	{
@@ -249,6 +249,7 @@ func driver() {
 		res, err := obj2.Get1()
 		fmt.Println("Add2Points: ", res, err)
 	}
+	return 0
 }
 
 // main 函数不会被调用，但不可省略

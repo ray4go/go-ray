@@ -6,6 +6,7 @@ import (
 	"fmt"
 )
 
+// Errors may be returned by goray APIs.
 var (
 	ErrTimeout   = errors.New("timeout to get object")
 	ErrCancelled = errors.New("task cancelled")

@@ -1,3 +1,8 @@
+/*
+GoRay provides Golang support for the [Ray Core API] within the Ray distributed framework.
+
+[Ray Core API]: https://docs.ray.io/en/latest/ray-core/walkthrough.html
+*/
 package ray
 
 import (
@@ -13,7 +18,7 @@ import (
 )
 
 var (
-	driverFunction func()
+	driverFunction func() int
 )
 
 var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
@@ -27,15 +32,17 @@ var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 }
 
 // Init goray environment and register the ray tasks, actors and driver.
-// All public methods of the given taskReceiver will be registered as ray tasks.
+//   - All public methods of the given taskReceiver will be registered as ray tasks.
+//   - actorFactories is a map of actor type name to the actor constructor function. The constructor function can have parameters and must only one return value (the actor instance).
+//   - driverFunc is the function to be called when the ray driver starts. The driverFunc should return an integer value as the exit code.
+//
 // This function should be called in the init() function of your ray application.
-// All other APIs MUST be called after this function.f
-func Init(taskReceiver any, actorFactories map[string]any, driverFunc func()) {
+// All other goray APIs MUST be called after this function.
+func Init(taskReceiver any, actorFactories map[string]any, driverFunc func() int) {
 	driverFunction = driverFunc
 
 	registerTasks(taskReceiver)
 	registerActors(actorFactories)
-	log.Debug("[Go] Init %v %v\n", driverFunc, tasksName2Idx)
 	ffi.RegisterHandler(handlePythonCmd)
 	go exitWhenCtrlC()
 }
@@ -63,8 +70,8 @@ func handleStartDriver(_ int64, _ []byte) ([]byte, int64) {
 	if driverFunction == nil {
 		return []byte("Error: driver function not set"), internal.ErrorCode_Failed
 	}
-	driverFunction()
-	return []byte{}, 0
+	ret := driverFunction()
+	return []byte(fmt.Sprint(ret)), internal.ErrorCode_Success
 }
 
 func handleGetInfo(_ int64, _ []byte) ([]byte, int64) {
@@ -107,7 +114,9 @@ func Put(value any) (ObjectRef, error) {
 // Cancel a remote function (Task) or a remote Actor method (Actor Task)
 // Noted, for actor method task, if the specified Task is pending execution, it is cancelled and not executed.
 // If the actor method task is currently executing, the task cannot be canceled because actors have states.
-// See https://docs.ray.io/en/latest/ray-core/api/doc/ray.cancel.html#ray-cancel
+// See [Ray Core API doc] for more info.
+//
+// [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.cancel.html#ray-cancel
 func (obj ObjectRef) Cancel(opts ...*option) error {
 	data, err := jsonEncodeOptions(opts, Option("object_ref_local_id", obj.id))
 	if err != nil {
@@ -122,7 +131,10 @@ func (obj ObjectRef) Cancel(opts ...*option) error {
 
 // Wait the requested number of ObjectRefs are ready.
 // Returns a list of IDs that are ready and a list of IDs that are not.
-// See https://docs.ray.io/en/latest/ray-core/api/doc/ray.wait.html#ray.wait
+//
+// See [Ray Core API doc].
+//
+// [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.wait.html#ray.wait
 func Wait(objRefs []ObjectRef, requestNum int, opts ...*option) ([]ObjectRef, []ObjectRef, error) {
 	objIds := make([]int64, 0, len(objRefs))
 	for _, obj := range objRefs {
@@ -152,7 +164,7 @@ func Wait(objRefs []ObjectRef, requestNum int, opts ...*option) ([]ObjectRef, []
 	return ready, notReady, nil
 }
 
-// CallPythonCode executes python code in current ray worker.
+// CallPythonCode executes python code in current process.
 // You can use `write(str)` function in python to write result as the return value.
 // The `write` function can be used multiple times.
 func CallPythonCode(code string) (string, error) {

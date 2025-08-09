@@ -23,9 +23,10 @@ type actorInstance struct {
 }
 
 // A handle to an actor.
-// Noted, currtently, you cann't pass an actor handle into a task.
-// Workaround: create a named actor via NewActor(typeName, ray.Option("name", name))
-// and use GetActor(name) to get the actor handle in other tasks.
+//
+// Noted, currently, you can't pass an actor handle into a task.
+// Workaround: create a named actor via [NewActor](typeName, [ray.Option]("name", name))
+// and use [GetActor](name) to get the actor handle in other tasks.
 type ActorHandle struct {
 	pyLocalId int64      // actor instance id in py side
 	typ       *actorType // nil if the actor is a Python actor
@@ -62,9 +63,11 @@ func registerActors(actorFactories map[string]any) {
 }
 
 // NewActor creates a remote actor instance of the given type with the provided arguments.
-// Ray actor instantiation parameters can be passed in the last with Option(key, value).
-// For complete options for actor creation, see
-// https://docs.ray.io/en/latest/ray-core/api/doc/ray.actor.ActorClass.options.html#ray.actor.ActorClass.options
+// Ray actor configurations can be passed in the last with [Option](key, value).
+//
+// For complete options for actor creation, see [Ray Core API doc].
+//
+// [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.actor.ActorClass.options.html#ray.actor.ActorClass.options
 func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 	log.Debug("[Go] NewActor %s %#v\n", typeName, argsAndOpts)
 
@@ -118,9 +121,10 @@ func (actor *ActorHandle) isGoActor() bool {
 }
 
 // RemoteCall calls a remote actor method by method name with the given arguments.
-// The usage is same as RemoteCall for tasks except the available options.
-// The complete options for actor method call can be found in
-// https://docs.ray.io/en/latest/ray-core/api/doc/ray.method.html#ray.method
+// The usage is same as [ray.RemoteCall] except the available options.
+// The complete options for actor method call can be found in [Ray Core API doc].
+//
+// [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.method.html#ray.method
 func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) ObjectRef {
 	var callable *callableType
 	var methodIdx int
@@ -134,7 +138,7 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 				methodName, actor.typ.name,
 			))
 		}
-		log.Debug("[Go] RemoteCall %s.%s() %#v\n", actor.typ.name, methodName)
+		log.Debug("[Go] RemoteCall %s.%s()\n", actor.typ.name, methodName)
 		method := actor.typ.methods[methodIdx]
 		callable = newCallableType(method.Type, true)
 		originFunc = method.Type
@@ -194,7 +198,10 @@ func handleCloseActor(actorGoInstanceIndex int64, data []byte) (resData []byte, 
 }
 
 // Kill an actor forcefully.
-// Ray doc: https://docs.ray.io/en/latest/ray-core/api/doc/ray.kill.html#ray.kill
+//
+// See [Ray doc] for more details.
+//
+// [Ray doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.kill.html#ray.kill
 func (actor *ActorHandle) Kill(opts ...*option) error {
 	data, err := jsonEncodeOptions(opts)
 	if err != nil {
@@ -211,8 +218,11 @@ func (actor *ActorHandle) Kill(opts ...*option) error {
 }
 
 // GetActor returns the actor handle by actor name.
-// Noted that the actor name is set by passing ray.Option("name", name) to NewActor().
-// Ray doc: https://docs.ray.io/en/latest/ray-core/api/doc/ray.get_actor.html#ray.get_actor
+// Noted that the actor name is set by passing [ray.Option]("name", name) to [NewActor]().
+//
+// More supported options can be found in [Ray doc].
+//
+// [Ray doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.get_actor.html#ray.get_actor
 func GetActor(name string, opts ...*option) (*ActorHandle, error) {
 	data, err := jsonEncodeOptions(opts, Option("name", name))
 	if err != nil {

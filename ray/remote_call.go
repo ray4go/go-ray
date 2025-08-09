@@ -202,17 +202,20 @@ func decodeWithType(args []byte, posArgs map[int][]byte, typeGetter func(int) re
 	return outs
 }
 
-func decodeAny(data []byte) []any {
-	buf := bytes.NewBuffer(data)
-	dec := codec.NewDecoder(buf, &msgpackHandle)
-	res := make([]any, 0)
-	for buf.Len() > 0 {
-		var item any
-		err := dec.Decode(&item)
-		if err != nil {
-			log.Panicf("decode type `%v` error: %v", reflect.TypeOf(item), err)
+func decodeInto(data []byte, ptrs []any) error {
+	vals := make([]reflect.Value, len(ptrs))
+	for i, ptr := range ptrs {
+		val := reflect.ValueOf(ptr)
+		if val.Kind() != reflect.Ptr {
+			return fmt.Errorf("input is not a pointer, got %s", val.Kind())
 		}
-		res = append(res, item)
+		vals[i] = val
 	}
-	return res
+	res := decodeWithType(data, nil, func(i int) reflect.Type {
+		return reflect.TypeOf(ptrs[i]).Elem()
+	})
+	for i, val := range vals {
+		val.Elem().Set(reflect.ValueOf(res[i]))
+	}
+	return nil
 }

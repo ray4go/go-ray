@@ -1,4 +1,3 @@
-import os
 import string
 
 max_returns_len = 8
