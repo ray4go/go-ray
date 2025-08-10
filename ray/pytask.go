@@ -60,6 +60,19 @@ type LocalPyCallResult struct {
 	code int64
 }
 
+// Get returns the result of the local Python call.
+func (r LocalPyCallResult) Get() (any, error) {
+	if r.code != internal.ErrorCode_Success {
+		return nil, fmt.Errorf("Error: Local Call Python failed: retCode=%v, message=%s", r.code, r.data)
+	}
+	res := decodeFuncResult(dummyPyFunc, r.data)
+	if len(res) == 0 {
+		return nil, nil
+	} else {
+		return res[0], nil
+	}
+}
+
 // GetInto decodes the result into the provided pointers.
 // The number of pointers must match the number of return values of the Python function.
 // If the Python function has no return values, no arguments should be provided.
@@ -69,6 +82,9 @@ func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 	}
 	if len(ptrs) == 0 {
 		return nil
+	}
+	if len(ptrs) > 1 {
+		return fmt.Errorf("GetInto error: the max number of pointer for local Python call is 1, got %v", len(ptrs))
 	}
 	return decodeInto(r.data, ptrs)
 }

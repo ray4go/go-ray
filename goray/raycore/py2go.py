@@ -17,10 +17,10 @@ def _golang_remote_task(func_id: int, *args):
     return common.load_go_lib().call_golang_func(func_id, args)
 
 
-def golang_task(name: str) -> "GolangRemoteFunc":
+def golang_task(name: str, options:dict) -> "GolangRemoteFunc":
     tasks_name2idx, actors_name2idx = common.load_go_lib().get_golang_tasks_info()
     func_id = tasks_name2idx[name]
-    return GolangRemoteFunc(_golang_remote_task, func_id)
+    return GolangRemoteFunc(_golang_remote_task, func_id, **options)
 
 
 class GolangRemoteFunc:

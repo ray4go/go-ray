@@ -49,11 +49,11 @@ func (_ export) NoReturnVal(a, b int64) {
 }
 
 func (_ export) CallPython() {
-	res, err := ray.LocalCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3})
+	res, err := ray.LocalCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3}).Get()
 	fmt.Println("go call python: echo", res, err)
-	res, err = ray.LocalCallPyTask("hello", "from go")
+	res, err = ray.LocalCallPyTask("hello", "from go").Get()
 	fmt.Println("go call python: hello", res, err)
-	res, err = ray.LocalCallPyTask("no_return", "")
+	res, err = ray.LocalCallPyTask("no_return", "").Get()
 	fmt.Println("go call python: no_return", res, err)
 }
 

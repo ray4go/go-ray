@@ -101,14 +101,15 @@ import (
     "github.com/ray4go/go-ray/ray"
 )
 
-res, err := ray.LocalCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3})
+res, err := ray.LocalCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3}).Get()
 fmt.Println("go call python: echo", res, err)
 
-res, err = ray.LocalCallPyTask("hello", "from go")
-fmt.Println("go call python: hello", res, err)
+var msg string
+err = ray.LocalCallPyTask("hello", "from go").GetInto(&msg)
+fmt.Println("go call python: hello", msg, err)
 
-res, err = ray.LocalCallPyTask("no_return", "")
-fmt.Println("go call python: no_return", res, err)
+_, err = ray.LocalCallPyTask("no_return", "").Get()
+fmt.Println("go call python: no_return", err)
 ```
 
 Noted that the `ray.Init()` must be called before `ray.LocalCallPyTask()`.
