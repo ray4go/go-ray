@@ -21,7 +21,7 @@ def handle_get_objects(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
             fut_local_id
         ]  # todo: consider to pop it to avoid memory leak
         logger.debug(f"[Py] get obj {obj_ref.hex()}")
-        if timeout == -1:
+        if timeout < 0:
             timeout = None
         try:
             res, code = ray.get(obj_ref, timeout=timeout)

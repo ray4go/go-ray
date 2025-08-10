@@ -35,21 +35,6 @@ func (obj ObjectRef) getRaw(timeout float64) ([]byte, error) {
 	return resultData, nil
 }
 
-// GetAllTimeout returns all return values of the ObjectRefs in []any.
-//
-// Parameter timeout set the maximum amount of time in seconds to wait before returning.
-// Setting timeout=0 will return the object immediately if it’s available.
-// Returns [ErrTimeout] if the object is not available within the specified timeout.
-// Returns [ErrCancelled] if the task is cancelled.
-func (obj ObjectRef) GetAllTimeout(timeout float64) ([]any, error) {
-	resultData, err := obj.getRaw(timeout)
-	if err != nil {
-		return nil, err
-	}
-	res := decodeFuncResult(obj.originFunc, resultData)
-	return res, nil
-}
-
 func (obj ObjectRef) numReturn() int {
 	if obj.originFunc == nil {
 		return 1 // ray.Put() ObjectRef
@@ -57,10 +42,28 @@ func (obj ObjectRef) numReturn() int {
 	return obj.originFunc.NumOut()
 }
 
-// GetAll returns all return values of the ObjectRefs in []any.
+// GetAll returns all return values of the ObjectRefs in []any, with optional timeout.
 // Returns [ErrCancelled] if the task is cancelled.
-func (obj ObjectRef) GetAll() ([]any, error) {
-	return obj.GetAllTimeout(-1)
+//
+// Parameter timeout set the maximum amount of time in seconds to wait before returning.
+// Setting timeout=0 will return the object immediately if it’s available.
+// Returns [ErrTimeout] if the object is not available within the specified timeout.
+// Returns [ErrCancelled] if the task is cancelled.
+func (obj ObjectRef) GetAll(timeout ...float64) ([]any, error) {
+	timeoutVal := float64(-1)
+	if len(timeout) > 0 {
+		if len(timeout) != 1 {
+			panic(fmt.Sprintf("ObjectRef GetAll: at most 1 timeout value is allowed, got %v", len(timeout)))
+		}
+		timeoutVal = timeout[0]
+	}
+
+	resultData, err := obj.getRaw(timeoutVal)
+	if err != nil {
+		return nil, err
+	}
+	res := decodeFuncResult(obj.originFunc, resultData)
+	return res, nil
 }
 
 // GetInto is used to decode the result of remote task / actor method into the given pointer.
@@ -86,6 +89,58 @@ func (obj ObjectRef) GetInto(ptrs ...any) error {
 		return nil
 	}
 	return decodeInto(resultData, ptrs)
+}
+
+// get the result of ObjectRef with n return value, with optional timeout.
+func getN(obj ObjectRef, n int, timeout ...float64) ([]any, error) {
+	timeoutVal := float64(-1)
+	if len(timeout) > 0 {
+		if len(timeout) != 1 {
+			panic(fmt.Sprintf("ObjectRef Get%d: at most 1 timeout value is allowed, got %v", n, len(timeout)))
+		}
+		timeoutVal = timeout[0]
+	}
+	res, err := obj.GetAll(timeoutVal)
+	if len(res) != n {
+		panic(fmt.Sprintf("ObjectRef Get%d: the number of return values error, expect %d but got %v", n, n, len(res)))
+	}
+	return res, err
+}
+
+// Get0 is used to wait remote task / actor method execution finish, with optional timeout.
+func Get0(obj ObjectRef, timeout ...float64) error {
+	_, err := getN(obj, 0, timeout...)
+	return err
+}
+
+// Get1 is used to get the result of remote task / actor method with 1 return value, with optional timeout.
+func Get1[T0 any](obj ObjectRef, timeout ...float64) (T0, error) {
+	r, err := getN(obj, 1, timeout...)
+	return r[0].(T0), err
+}
+
+// Get2 is used to get the result of remote task / actor method with 2 return value, with optional timeout.
+func Get2[T0 any, T1 any](obj ObjectRef, timeout ...float64) (T0, T1, error) {
+	r, err := getN(obj, 2, timeout...)
+	return r[0].(T0), r[1].(T1), err
+}
+
+// Get3 is used to get the result of remote task / actor method with 3 return value, with optional timeout.
+func Get3[T0 any, T1 any, T2 any](obj ObjectRef, timeout ...float64) (T0, T1, T2, error) {
+	r, err := getN(obj, 3, timeout...)
+	return r[0].(T0), r[1].(T1), r[2].(T2), err
+}
+
+// Get4 is used to get the result of remote task / actor method with 4 return value, with optional timeout.
+func Get4[T0 any, T1 any, T2 any, T3 any](obj ObjectRef, timeout ...float64) (T0, T1, T2, T3, error) {
+	r, err := getN(obj, 4, timeout...)
+	return r[0].(T0), r[1].(T1), r[2].(T2), r[3].(T3), err
+}
+
+// Get5 is used to get the result of remote task / actor method with 5 return value, with optional timeout.
+func Get5[T0 any, T1 any, T2 any, T3 any, T4 any](obj ObjectRef, timeout ...float64) (T0, T1, T2, T3, T4, error) {
+	r, err := getN(obj, 5, timeout...)
+	return r[0].(T0), r[1].(T1), r[2].(T2), r[3].(T3), r[4].(T4), err
 }
 
 // Get0 is used to wait remote task / actor method execution finish.

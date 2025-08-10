@@ -420,11 +420,11 @@ func init() {
 		ref := ray.RemoteCall("SlowIncrementerTask", 0, 10, 100) // 1 second total
 
 		// Try with short timeout first
-		_, err1 := ref.GetAllTimeout(0.1)
+		_, err1 := ref.GetAll(0.1)
 		assert.ErrorIs(err1, ray.ErrTimeout)
 
 		// The ObjectRef should still be valid and we can wait longer
-		result, err2 := ref.GetAllTimeout(2.0)
+		result, err2 := ref.GetAll(2.0)
 		assert.Nil(err2)
 		assert.Equal([]interface{}{10}, result)
 	})

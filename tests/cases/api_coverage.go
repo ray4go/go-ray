@@ -298,11 +298,11 @@ func init() {
 		ref := ray.RemoteCall("LongRunningTask", 2, "timeout_test") // 2 seconds
 
 		// Short timeout should fail
-		_, err1 := ref.GetAllTimeout(0.5) // 500ms
+		_, err1 := ref.GetAll(0.5) // 500ms
 		assert.ErrorIs(err1, ray.ErrTimeout)
 
 		// Longer timeout should succeed
-		result, err2 := ref.GetAllTimeout(3.0) // 3 seconds
+		result, err2 := ref.GetAll(3.0) // 3 seconds
 		assert.Nil(err2)
 		assert.Equal([]interface{}{"long_task_timeout_test_completed"}, result)
 	})

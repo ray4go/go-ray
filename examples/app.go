@@ -63,9 +63,9 @@ func (_ demo) Busy(name string, duration time.Duration) string {
 
 func (_ demo) Nest(name string, duration time.Duration) string {
 	obj := ray.RemoteCall("Busy", name, duration)
-	res, err := obj.Get1()
+	res, err := ray.Get1[string](obj)
 	fmt.Println("Nest: ", res, err)
-	return res.(string)
+	return res
 }
 
 // 传递自定义类型的slice
@@ -221,14 +221,14 @@ func driver() int {
 		fmt.Println("Add2Points: ", res, err)
 	}
 	{
-		// obj.GetAllTimeout()
+		// obj.GetAll()
 		obj := ray.RemoteCall("Busy", "Workload", 4)
-		fmt.Println(obj.GetAllTimeout(1))
+		fmt.Println(obj.GetAll(1))
 	}
 	{
 		// MultiReturn
 		obj := ray.RemoteCall("MultiReturn", 1, "hello")
-		res1, res2, err := obj.Get2()
+		res1, res2, err := ray.Get2[int, string](obj)
 		fmt.Println(res1, res2, err)
 	}
 	{
