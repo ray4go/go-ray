@@ -48,7 +48,7 @@ func init() {
 			ray.Option("num_cpus", 2))
 
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.IsType(0, result) // Should return an integer
 
 		// The actual computation result depends on the algorithm
@@ -62,7 +62,7 @@ func init() {
 			ray.Option("memory", 100*1024*1024)) // 100MB
 
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultSlice := result.([]int)
 		assert.Len(resultSlice, 10000)
@@ -78,7 +78,7 @@ func init() {
 		)
 
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal("task_multi_option_completed", result)
 	})
 
@@ -89,7 +89,7 @@ func init() {
 			ray.Option("retry_exceptions", true))
 
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal("task_retry_completed", result)
 	})
 
@@ -135,7 +135,7 @@ func init() {
 			ray.Option("placement_group", nil))
 
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal("task_scheduled_completed", result)
 	})
 
@@ -148,7 +148,7 @@ func init() {
 			}))
 
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal("task_string_opt_completed", result)
 	})
 
@@ -164,14 +164,14 @@ func init() {
 	AddTestCase("TestOptionsWithObjectRefs", func(assert *require.Assertions) {
 		// Test using task options with ObjectRef arguments
 		dataRef, err := ray.Put([]string{"ref_item1", "ref_item2"})
-		assert.Nil(err)
+		assert.NoError(err)
 
 		objRef := ray.RemoteCall("BatchTask", 99, dataRef,
 			ray.Option("num_cpus", 1),
 			ray.Option("memory", 50*1024*1024))
 
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal([]string{"ref_item1_batch_99", "ref_item2_batch_99"}, result)
 	})
 }

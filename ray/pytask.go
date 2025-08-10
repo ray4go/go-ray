@@ -54,12 +54,16 @@ func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
 	}
 }
 
-type PyLocalCallResult struct {
+// LocalPyCallResult represents the result of a local Python call.
+type LocalPyCallResult struct {
 	data []byte
 	code int64
 }
 
-func (r PyLocalCallResult) GetInto(ptrs ...any) error {
+// GetInto decodes the result into the provided pointers.
+// The number of pointers must match the number of return values of the Python function.
+// If the Python function has no return values, no arguments should be provided.
+func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 	if r.code != internal.ErrorCode_Success {
 		return fmt.Errorf("Error: Local Call Python failed: retCode=%v, message=%s", r.code, r.data)
 	}
@@ -71,26 +75,35 @@ func (r PyLocalCallResult) GetInto(ptrs ...any) error {
 
 // LocalCallPyTask executes a Python task locally (in current process) by name with the provided arguments.
 // Noted: [ObjectRef] is not supported as arguments.
-func LocalCallPyTask(name string, args ...any) PyLocalCallResult {
+func LocalCallPyTask(name string, args ...any) LocalPyCallResult {
 	log.Debug("[Go] LocalCallPyTask %s %#v\n", name, args)
 	// todo: check no objref and option in args
 	argsAndOpts := append(args, Option("task_name", name))
 	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
 	request := internal.Go2PyCmd_ExePythonLocalTask
 	resData, retCode := ffi.CallServer(int64(request), argsData)
-	return PyLocalCallResult{
+	return LocalPyCallResult{
 		data: resData,
 		code: retCode,
 	}
 }
 
 // CallPythonCode executes python function code in current process.
-func CallPythonCode(funcCode string, args ...any) PyLocalCallResult {
+// Example:
+//
+//	code := `
+//	import math
+//	def circle_perimeter(r):
+//	    return 2 * math.pi * r
+//	`
+//	var perimeter float64
+//	err := ray.CallPythonCode(code, 3.8).GetInto(&perimeter)
+func CallPythonCode(funcCode string, args ...any) LocalPyCallResult {
 	argsAndOpts := append(args, Option("func_code", funcCode))
 	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
 	request := internal.Go2PyCmd_ExePyCode
 	resData, retCode := ffi.CallServer(int64(request), argsData)
-	return PyLocalCallResult{
+	return LocalPyCallResult{
 		data: resData,
 		code: retCode,
 	}

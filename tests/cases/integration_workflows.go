@@ -409,7 +409,7 @@ func init() {
 		var reports []string
 		for _, reportRef := range reportRefs {
 			report, err := reportRef.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			reports = append(reports, report.(string))
 		}
 
@@ -431,7 +431,7 @@ func init() {
 		// Split dataset
 		splitRef := ray.RemoteCall("DatasetSplit", dataset, 0.8)
 		splitResult, err := splitRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		splitData := splitResult.(DatasetSplit)
 		assert.Equal(800, splitData.TrainSize)
@@ -439,9 +439,9 @@ func init() {
 
 		// Store split data for reuse
 		trainDataRef, err := ray.Put(splitData.TrainData)
-		assert.Nil(err)
+		assert.NoError(err)
 		testDataRef, err := ray.Put(splitData.TestData)
-		assert.Nil(err)
+		assert.NoError(err)
 
 		// Train multiple models with different epochs
 		var modelRefs []ray.ObjectRef
@@ -463,7 +463,7 @@ func init() {
 		var evaluations []EvaluationResult
 		for _, evalRef := range evalRefs {
 			eval, err := evalRef.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			evaluations = append(evaluations, eval.(EvaluationResult))
 		}
 
@@ -493,7 +493,7 @@ func init() {
 
 		// Wait for all tasks to complete
 		ready, notReady, err := ray.Wait(taskRefs, len(taskRefs), ray.Option("timeout", 5.0))
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(ready, len(taskRefs))
 		assert.Empty(notReady)
 
@@ -501,14 +501,14 @@ func init() {
 		var results []ComputeResult
 		for _, taskRef := range ready {
 			result, err := taskRef.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			results = append(results, result.(ComputeResult))
 		}
 
 		// Aggregate results
 		aggregateRef := ray.RemoteCall("ResultAggregator", results)
 		aggregate, err := aggregateRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		aggregatedResults := aggregate.(AggregatedResults)
 		assert.Equal(4, aggregatedResults.TotalTasks)
@@ -532,7 +532,7 @@ func init() {
 		for i, config := range workflowConfigs {
 			ref := coordinator.RemoteCall("StartWorkflow", workflowIds[i], config)
 			result, err := ref.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			assert.Contains(result.(string), "Started workflow")
 		}
 
@@ -540,7 +540,7 @@ func init() {
 		for _, workflowId := range workflowIds {
 			statusRef := coordinator.RemoteCall("GetWorkflowStatus", workflowId)
 			status, err := statusRef.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 
 			statusData := status.(WorkflowStatus)
 			assert.True(statusData.Exists)
@@ -557,14 +557,14 @@ func init() {
 
 			completeRef := coordinator.RemoteCall("CompleteWorkflow", workflowId, results)
 			result, err := completeRef.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			assert.Contains(result.(string), "Completed workflow")
 		}
 
 		// List all workflows
 		listRef := coordinator.RemoteCall("ListWorkflows")
 		workflows, err := listRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		workflowList := workflows.([]string)
 		assert.Len(workflowList, 3)
@@ -580,7 +580,7 @@ func init() {
 		// Check initial status
 		statusRef := pool.RemoteCall("GetStatus")
 		status, err := statusRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		statusData := status.(ResourceStatus)
 		assert.Equal(5, statusData.Total)
@@ -592,7 +592,7 @@ func init() {
 		for i := 0; i < 3; i++ {
 			acquireRef := pool.RemoteCall("AcquireResource")
 			resource, err := acquireRef.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			assert.NotEmpty(resource.(string))
 			acquiredResources = append(acquiredResources, resource.(string))
 		}
@@ -600,7 +600,7 @@ func init() {
 		// Check updated status
 		statusRef2 := pool.RemoteCall("GetStatus")
 		status2, err := statusRef2.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		statusData2 := status2.(ResourceStatus)
 		assert.Equal(5, statusData2.Total)
@@ -611,14 +611,14 @@ func init() {
 		for _, resource := range acquiredResources {
 			releaseRef := pool.RemoteCall("ReleaseResource", resource)
 			released, err := releaseRef.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			assert.True(released.(bool))
 		}
 
 		// Check final status
 		statusRef3 := pool.RemoteCall("GetStatus")
 		status3, err := statusRef3.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		statusData3 := status3.(ResourceStatus)
 		assert.Equal(5, statusData3.Total)
@@ -638,7 +638,7 @@ func init() {
 
 		startRef := coordinator.RemoteCall("StartWorkflow", "mixed_workflow", config)
 		startResult, err := startRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Contains(startResult.(string), "Started workflow")
 
 		// Run data processing tasks
@@ -648,7 +648,7 @@ func init() {
 
 		// Get aggregation result and complete workflow
 		aggResult, err := aggRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		// Create workflow results with the aggregation data
 		workflowResults := WorkflowResults{
@@ -661,13 +661,13 @@ func init() {
 		// Complete the workflow through coordinator
 		completeRef := coordinator.RemoteCall("CompleteWorkflow", "mixed_workflow", workflowResults)
 		completeResult, err := completeRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Contains(completeResult.(string), "Completed workflow")
 
 		// Verify final workflow status
 		statusRef := coordinator.RemoteCall("GetWorkflowStatus", "mixed_workflow")
 		status, err := statusRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		statusData := status.(WorkflowStatus)
 		assert.True(statusData.Exists)

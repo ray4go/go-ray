@@ -6,7 +6,7 @@
 ## 手动启动测试用例
 
 ```bash
-bash ../examples/run.sh local --import cases/registry.py
+bash ./run.sh local --import cases/registry.py
 ```
 
 ## 测试用例编写指南

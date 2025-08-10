@@ -41,7 +41,7 @@ func init() {
 	AddTestCase("TestConcurrentExecution", func(assert *require.Assertions) {
 		// warn up
 		_, err := ray.RemoteCall("SlowAdd", 10, 20).GetAll()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		start := time.Now()
 
@@ -77,7 +77,7 @@ func init() {
 		ref4 := ray.RemoteCall("SlowMultiply", ref3, 3) // = 105
 
 		result, err := ref4.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		// (5+10) = 15, 15*2 = 30, 30+5 = 35, 35*3 = 105
 		assert.Equal(105, result)
 	})
@@ -92,7 +92,7 @@ func init() {
 		combinedRef := ray.RemoteCall("CombineResults", ref1, ref2, ref3)
 		result, err := combinedRef.Get1()
 
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(48, result) // 3 + 20 + 25 = 48
 	})
 
@@ -104,7 +104,7 @@ func init() {
 		sumRef := ray.RemoteCall("ComputeSum", seqRef)
 
 		result, err := sumRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(55, result) // 1+2+3+...+10 = 55
 	})
 
@@ -121,7 +121,7 @@ func init() {
 		// Wait for at least 2 tasks to complete
 		ready, notReady, err := ray.Wait(refs, 2, ray.Option("timeout", 1.0))
 
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(len(refs), len(ready)+len(notReady))
 		assert.Len(ready, 2)
 		assert.Len(notReady, 1)
@@ -140,7 +140,7 @@ func init() {
 		// Wait for all tasks
 		ready, notReady, err := ray.Wait(refs, 2, ray.Option("timeout", 2.0))
 
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(ready, 2)
 		assert.Len(notReady, 0)
 

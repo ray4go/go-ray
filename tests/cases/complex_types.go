@@ -80,7 +80,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessComplexStruct", input)
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		expected := ComplexStruct{
 			ID:   246,
@@ -133,7 +133,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessSliceOfStructs", input)
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultSlice := result.([]ComplexStruct)
 		assert.Len(resultSlice, 2)
@@ -162,7 +162,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessMap", input)
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultMap := result.(map[string]int)
 		assert.Equal(10, resultMap["apple_processed"])

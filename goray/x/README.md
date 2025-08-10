@@ -1,9 +1,11 @@
 # Python & Golang Cross Language Call Framework
 
 Support:
-- go call python function
-- python call go function
-- python init go class and call method
+- Go call Python function
+- Python call Go function
+- Python init Go class and call method
+
+For the type convertion of parameters and return values when cross language call, see [Types convertion](../../docs/crosslang_types.md)
 
 ## Usage
 

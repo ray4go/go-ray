@@ -6,3 +6,5 @@ test_/
 *.so
 *.h
 *.pyc
+*.egg-info/
+archive

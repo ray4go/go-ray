@@ -64,6 +64,8 @@ func (obj ObjectRef) GetAll() ([]any, error) {
 }
 
 // GetInto is used to decode the result of remote task / actor method into the given pointer.
+// The number of pointers must match the number of return values of the remote task / actor method.
+// If the remote task / actor method has no return values, no pointers should be provided.
 // Pass a float to the last argument to set the timeout in seconds.
 func (obj ObjectRef) GetInto(ptrs ...any) error {
 	timeout := -1.0

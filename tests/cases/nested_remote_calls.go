@@ -222,7 +222,7 @@ func init() {
 		// Test task calling other remote tasks
 		ref := ray.RemoteCall("CoordinatorTask", 5)
 		results, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultSlice := results.([]int)
 		assert.Len(resultSlice, 5)
@@ -239,7 +239,7 @@ func init() {
 		// Test recursive remote calls
 		ref := ray.RemoteCall("ChainedTask", 1, 3)
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		// 1 -> 2 -> 4 -> 8 (depth 3)
 		assert.Equal(8, result)
@@ -250,7 +250,7 @@ func init() {
 		data := []int{1, 2, 3, 4, 5}
 		ref := ray.RemoteCall("DataSharingTask", data)
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		assert.Equal(15, result) // sum of 1+2+3+4+5
 	})
@@ -259,7 +259,7 @@ func init() {
 		// Test Wait functionality within tasks
 		ref := ray.RemoteCall("BatchCoordinatorTask", 6)
 		results, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultSlice := results.([]int)
 		assert.Len(resultSlice, 3) // Should get 3 results (half of 6)
@@ -276,7 +276,7 @@ func init() {
 
 		ref := actor.RemoteCall("CallRemoteTask", "QuickTask", 5)
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(10, result) // QuickTask returns id * 2 = 5 * 2 = 10
 	})
 
@@ -286,7 +286,7 @@ func init() {
 
 		ref := actor.RemoteCall("BatchCallTasks", 3)
 		results, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultSlice := results.([]int)
 		assert.Len(resultSlice, 3)
@@ -305,7 +305,7 @@ func init() {
 		// Use the calling actor to interact with the counter actor
 		ref := callingActor.RemoteCall("CallOtherActor", "test_counter", "Incr", 5)
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(105, result) // 100 + 5 = 105
 	})
 
@@ -317,7 +317,7 @@ func init() {
 		operations := []string{"incr", "incr", "decr", "incr"}
 		ref := ray.RemoteCall("ActorCoordinatorTask", "coord_counter", operations)
 		results, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultSlice := results.([]int)
 		assert.Len(resultSlice, 4)

@@ -35,7 +35,7 @@ func init() {
 	AddTestCase("TestNoReturnVal", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("NoReturnVal", 1, 2)
 		err := objRef.Get0()
-		assert.Nil(err)
+		assert.NoError(err)
 	})
 }
 
@@ -48,7 +48,7 @@ func init() {
 	AddTestCase("TestCancel", func(assert *require.Assertions) {
 		obj := ray.RemoteCall("Busy", "Workload1", 100)
 		err := obj.Cancel()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		_, err2 := obj.GetAll()
 		assert.ErrorIs(err2, ray.ErrCancelled)
@@ -111,7 +111,7 @@ func init() {
 		obj3 := ray.RemoteCall("Add2Points", obj1, obj2)
 		res, err := obj3.Get1()
 		assert.Equal(Point{4, 6}, res)
-		assert.Nil(err)
+		assert.NoError(err)
 	})
 
 	AddTestCase("TestObjRefArg", func(assert *require.Assertions) {
@@ -119,7 +119,7 @@ func init() {
 		obj2 := ray.RemoteCall("Add2Points", obj1, Point{5, 6})
 		res, err := obj2.Get1()
 		assert.Equal(Point{9, 12}, res)
-		assert.Nil(err)
+		assert.NoError(err)
 	})
 }
 
@@ -216,7 +216,7 @@ func init() {
 		}
 		obj2 := ray.RemoteCall("MultipleReturns", t1, 1)
 		_, err := obj2.GetAll()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		var (
 			res3 T1

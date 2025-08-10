@@ -175,7 +175,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessStructWithUnexportedFields", input)
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		output := result.(StructWithUnexportedFields)
 		assert.Equal("processed_test", output.PublicField)
@@ -192,7 +192,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessLinkedList", node1)
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		head := result.(*Node)
 		assert.Equal(2, head.Value)           // 1 * 2
@@ -208,7 +208,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessNilAndEmptySlices", nilSlice, emptySlice)
 		results, err := objRef.GetAll()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(results, 4)
 
 		assert.True(results[0].(bool)) // nilSlice == nil
@@ -225,7 +225,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessNilAndEmptyMaps", nilMap, emptyMap)
 		results, err := objRef.GetAll()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(results, 4)
 
 		assert.True(results[0].(bool)) // nilMap == nil
@@ -245,7 +245,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessStructWithMixedPointers", input)
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		output := result.(StructWithMixedPointers)
 		assert.Equal("processed_test", *output.ValidPtr)
@@ -260,7 +260,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessArraysAndSlices", arr, slice)
 		results, err := objRef.GetAll()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(results, 2)
 
 		resultArr := results[0].([5]int)
@@ -283,7 +283,7 @@ func init() {
 		// Test with a moderately large size (not too large to avoid timeout)
 		objRef := ray.RemoteCall("ProcessVeryLargeSlice", 10000)
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultSlice := result.([]int)
 		assert.Len(resultSlice, 10000)

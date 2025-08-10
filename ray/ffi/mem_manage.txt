@@ -1,0 +1,19 @@
+
+remote task call
+
+* go -> python: ExeRemoteTask
+  | cmdId   | taskIndex |
+  | 10 bits | 54 bits   |
+  data: arguments_bytes + options_bytes
+
+* python:
+- call remote task
+- save objectref to local store
+- return objectref_local_id
+
+* remote python -> go: RunTask
+| cmdId   | taskIndex |
+| 10 bits | 54 bits   |
+
+data: raw_args_data + objectRefs_resolved_data...
+- resolved data format: | arg_pos:8byte:int64 | data:[]byte |

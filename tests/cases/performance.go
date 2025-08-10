@@ -87,7 +87,7 @@ func init() {
 		results := make([]int, numTasks)
 		for i, ref := range refs {
 			result, err := ref.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			results[i] = result.(int)
 		}
 
@@ -122,7 +122,7 @@ func init() {
 		// Collect results
 		for i, ref := range refs {
 			result, err := ref.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 
 			// Expected: i + sum(0 to 999) = i + 499500
 			expected := i + 499500
@@ -145,7 +145,7 @@ func init() {
 		results := make([]int, len(refs))
 		for i, ref := range refs {
 			result, err := ref.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			results[i] = result.(int)
 		}
 
@@ -194,14 +194,14 @@ func init() {
 		rowResults := make([][]float64, rows)
 		for i, ref := range rowRefs {
 			result, err := ref.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			rowResults[i] = result.([]float64)
 		}
 
 		// Aggregate results
 		aggregateRef := ray.RemoteCall("AggregateResults", rowResults)
 		finalResult, err := aggregateRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		aggregated := finalResult.([]float64)
 		assert.Len(aggregated, cols)
@@ -224,7 +224,7 @@ func init() {
 		// Verify all tasks complete successfully
 		for i, ref := range refs {
 			result, err := ref.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 
 			data := result.([]int)
 			assert.Len(data, sizes[i])
@@ -251,7 +251,7 @@ func init() {
 		}
 
 		result, err := currentRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		// Each task doubles the input, so after 10 tasks: 1 * 2^10 = 1024
 		expected := 1
@@ -276,7 +276,7 @@ func init() {
 		refs := []ray.ObjectRef{cpuRef1, cpuRef2, memRef1, memRef2}
 		ready, notReady, err := ray.Wait(refs, 4, ray.Option("timeout", 30.0))
 
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(ready, 4)
 		assert.Empty(notReady)
 
@@ -288,7 +288,7 @@ func init() {
 		// Verify all results
 		for _, ref := range refs {
 			_, err := ref.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 		}
 	})
 
@@ -309,7 +309,7 @@ func init() {
 			ready, notReady, err := ray.Wait(refs, tasksPerRound,
 				ray.Option("timeout", 5.0))
 
-			assert.Nil(err)
+			assert.NoError(err)
 			assert.Len(ready, tasksPerRound)
 			assert.Empty(notReady)
 		}

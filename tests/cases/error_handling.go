@@ -78,7 +78,7 @@ func init() {
 
 		// Wait for completion
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal("delayed_fast", result)
 
 		// Try to cancel after completion (should be safe)
@@ -93,7 +93,7 @@ func init() {
 		objRef := ray.RemoteCall("ProcessLargeData", size)
 
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		dataSlice := result.([]int)
 		assert.Len(dataSlice, size)
@@ -108,11 +108,11 @@ func init() {
 
 		// Test Get0 for no return values
 		err := objRef.Get0()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		// Test GetAll for empty returns
 		results, err := objRef.GetAll()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Empty(results)
 	})
 
@@ -121,7 +121,7 @@ func init() {
 
 		// Test getting all values at once
 		results, err := objRef.GetAll()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(results, 4)
 		assert.Equal(25, results[0])      // 15 + 10
 		assert.Equal(150, results[1])     // 15 * 10
@@ -131,7 +131,7 @@ func init() {
 		// Test specific Get methods
 		objRef2 := ray.RemoteCall("MultipleReturnValues", 5, 8)
 		val1, val2, val3, val4, err := objRef2.Get4()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(13, val1)    // 5 + 8
 		assert.Equal(40, val2)    // 5 * 8
 		assert.Equal("5_8", val3) // formatted string
@@ -161,7 +161,7 @@ func init() {
 		// Wait with short timeout
 		ready, notReady, err := ray.Wait(refs, 1, ray.Option("timeout", 0.1)) // 100ms timeout
 
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Empty(ready)
 		assert.Len(notReady, 1)
 		assert.Contains(notReady, slowRef)

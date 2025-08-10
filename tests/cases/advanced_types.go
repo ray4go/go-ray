@@ -154,7 +154,7 @@ func init() {
 		objRef := ray.RemoteCall("ProcessCustomTypes",
 			CustomInt(10), CustomString("test"), CustomSlice{1, 2, 3})
 		results, err := objRef.GetAll()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(results, 3)
 
 		assert.Equal(CustomInt(20), results[0])
@@ -169,7 +169,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessTimeAndDuration", now, duration)
 		results, err := objRef.GetAll()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(results, 2)
 
 		resultTime := results[0].(time.Time)
@@ -195,7 +195,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessNestedStructs", input)
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		output := result.(OuterStruct)
 		assert.Equal(200, output.ID)
@@ -224,7 +224,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessNestedCollections", nestedMap, nestedSlice, mixedStructure)
 		results, err := objRef.GetAll()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(results, 3)
 
 		resultNestedMap := results[0].(map[string]map[string]int)
@@ -242,7 +242,7 @@ func init() {
 	AddTestCase("TestVariadic", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("ProcessVariadic", 10, 1, 2, 3, 4, 5)
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultSlice := result.([]int)
 		assert.Equal([]int{11, 12, 13, 14, 15}, resultSlice)
@@ -266,7 +266,7 @@ func init() {
 
 		objRef := ray.RemoteCall("ProcessLargeStruct", large)
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		output := result.(LargeStruct)
 		assert.Equal(999, output.Data[0])
@@ -319,7 +319,7 @@ func init() {
 		// This should work fine since we're not passing nil as the only argument
 		objRef := ray.RemoteCall("ProcessVariadic", 10)
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal([]int{}, result) // Empty slice is fine
 	})
 
@@ -327,7 +327,7 @@ func init() {
 	AddTestCase("TestEmptyVariadic", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("ProcessVariadic", 100) // Only base parameter
 		result, err := objRef.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal([]int{}, result)
 	})
 }

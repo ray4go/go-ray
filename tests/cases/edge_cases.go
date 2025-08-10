@@ -205,13 +205,13 @@ func init() {
 		// Test empty slice
 		ref1 := ray.RemoteCall("EmptySliceTask", []int{})
 		result1, err := ref1.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(0, result1)
 
 		// Test nil map (this might fail depending on gob encoding)
 		ref2 := ray.RemoteCall("NilMapTask", map[string]int(nil))
 		result2, err := ref2.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		// todo
 		//assert.Equal(-1, result2)
 		_ = result2
@@ -220,7 +220,7 @@ func init() {
 	AddTestCase("TestZeroValues", func(assert *require.Assertions) {
 		ref := ray.RemoteCall("ZeroValueTask", "", 0, 0.0, false)
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultMap := result.(map[string]interface{})
 		assert.Equal(true, resultMap["string_empty"])
@@ -233,7 +233,7 @@ func init() {
 		// Test transferring large strings
 		ref := ray.RemoteCall("LargeStringTask", 1024*100) // 100KB string
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultStr := result.(string)
 		assert.Equal(1024*100, len(resultStr))
@@ -245,7 +245,7 @@ func init() {
 		return // todo
 		ref := ray.RemoteCall("DeepNestedStructTask")
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultMap := result.(map[string]interface{})
 		level1 := resultMap["level1"].(map[string]interface{})
@@ -261,7 +261,7 @@ func init() {
 	AddTestCase("TestNumericBoundaries", func(assert *require.Assertions) {
 		ref := ray.RemoteCall("NumericBoundaryTask", 2147483647, -2147483648, 1.7976931348623157e+308)
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultMap := result.(map[string]interface{})
 		// These operations might overflow, but should not crash
@@ -281,14 +281,14 @@ func init() {
 
 		// Wait for some to complete
 		ready, notReady, err := ray.Wait(refs, 3, ray.Option("timeout", 2.0))
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(ready, 3)
 		assert.Len(notReady, 2)
 
 		// Get results from ready tasks
 		for _, ref := range ready {
 			result, err := ref.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			assert.IsType(0, result)
 		}
 
@@ -310,7 +310,7 @@ func init() {
 		// All should complete successfully
 		for _, ref := range refs {
 			result, err := ref.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			assert.Equal(102400, result) // 100 * 1024 bytes
 		}
 	})
@@ -324,13 +324,13 @@ func init() {
 
 		ref := actor.RemoteCall("GetStoredValue", "test_key")
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Nil(result)
 
 		// Test large array processing
 		ref2 := actor.RemoteCall("ProcessLargeArray", 10000)
 		sum, err := ref2.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(49995000, sum) // sum of 0 to 9999
 	})
 
@@ -340,7 +340,7 @@ func init() {
 		// Start a long-running operation
 		ref := actor.RemoteCall("InterruptibleOperation", 50) // 1 second operation
 		err := ref.Cancel()
-		assert.Nil(err)
+		assert.NoError(err)
 		// Should not be cancelled
 		_, err2 := ref.GetAll()
 		assert.ErrorIs(err2, ray.ErrCancelled)
@@ -380,19 +380,19 @@ func init() {
 		// Check resource count
 		ref1 := actor.RemoteCall("GetResourceCount")
 		count1, err := ref1.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(3, count1)
 
 		// Release all resources
 		ref2 := actor.RemoteCall("ReleaseAllResources")
 		released, err := ref2.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(3, released)
 
 		// Check count is now zero
 		ref3 := actor.RemoteCall("GetResourceCount")
 		count2, err := ref3.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(0, count2)
 
 		// Kill actor to test cleanup
@@ -407,7 +407,7 @@ func init() {
 			// Use the actor briefly
 			ref := actor.RemoteCall("GetCallHistory")
 			_, err := ref.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 
 			// Kill the actor
 			killErr := actor.Kill()
@@ -441,7 +441,7 @@ func init() {
 
 		// Wait for all to complete (including failures)
 		ready, notReady, err := ray.Wait(refs, 5, ray.Option("timeout", 5.0))
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(ready, 5)
 		assert.Len(notReady, 0)
 

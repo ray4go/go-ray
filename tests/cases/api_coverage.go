@@ -152,7 +152,7 @@ func init() {
 		// Test calling Python code from within a task
 		ref := ray.RemoteCall("GetPythonEnvironment")
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Contains(result.(string), "Python")
 	})
 
@@ -167,13 +167,13 @@ func init() {
 
 		// Wait for first 2 to complete
 		ready, notReady, err := ray.Wait(refs, 2, ray.Option("timeout", 1.0))
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(ready, 2)
 		assert.Len(notReady, 2)
 
 		// Wait for all remaining
 		allReady, allNotReady, err := ray.Wait(append(ready, notReady...), 4, ray.Option("timeout", 2.0))
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(allReady, 4)
 		assert.Len(allNotReady, 0)
 	})
@@ -189,7 +189,7 @@ func init() {
 
 		// Wait should still work even with failures
 		ready, notReady, err := ray.Wait(refs, 4, ray.Option("timeout", 2.0))
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(ready, 4)
 		assert.Len(notReady, 0)
 
@@ -216,7 +216,7 @@ func init() {
 	//	ref2 := ray.RemoteCall("ProcessComplexObjectRef", ref1)
 	//
 	//	result, err := ref2.Get1()
-	//	assert.Nil(err)
+	//	assert.NoError(err)
 	//	assert.Equal("Processed object 12345: complex_object", result)
 	//})
 
@@ -235,7 +235,7 @@ func init() {
 		)
 
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		resultMap := result.(map[string]interface{})
 		assert.Equal(int64(84), resultMap["int_doubled"])
@@ -256,7 +256,7 @@ func init() {
 		)
 
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(30, result) // 10 * 3
 	})
 
@@ -272,7 +272,7 @@ func init() {
 		// Test actor functionality
 		ref := actor.RemoteCall("GetStatus")
 		status, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 
 		statusMap := status.(map[string]interface{})
 		assert.Equal("advanced_test", statusMap["id"])
@@ -289,7 +289,7 @@ func init() {
 
 		ref := actor.RemoteCall("MemoryIntensiveOperation", 50) // 50x50 matrix
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Greater(result.(int), 0)
 	})
 
@@ -335,7 +335,7 @@ func init() {
 
 		// Wait for completion
 		result, err := ref.Get1()
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Equal(200, result)
 
 		// Cancel after completion (should be harmless)
@@ -357,14 +357,14 @@ func init() {
 
 		// Wait for all to complete
 		ready, notReady, err := ray.Wait(refs, batchSize, ray.Option("timeout", 5.0))
-		assert.Nil(err)
+		assert.NoError(err)
 		assert.Len(ready, batchSize)
 		assert.Len(notReady, 0)
 
 		// Verify all results
 		for _, ref := range ready {
 			result, err := ref.Get1()
-			assert.Nil(err)
+			assert.NoError(err)
 			// Results might not be in order, so we just check they're all valid
 			assert.True(result.(int) >= 0 && result.(int) < batchSize*2)
 		}
