@@ -1,6 +1,9 @@
 /*
 GoRay provides Golang support for the [Ray Core API] within the Ray distributed framework.
 
+[User Guide]
+
+[User Guide]: https://github.com/ray4go/go-ray#user-content-goray
 [Ray Core API]: https://docs.ray.io/en/latest/ray-core/walkthrough.html
 */
 package ray

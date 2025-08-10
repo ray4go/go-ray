@@ -11,9 +11,10 @@ import (
 // Test cross-language types conversion
 func init() {
 	AddTestCase("CrossLangTypes-Go2Py", func(assert *require.Assertions) {
+		// Golang -> Python 类型转换
 		testcases := []struct {
-			goVal       any
-			pyExpresion string
+			goVal       any    // golang 中的值
+			pyExpresion string // 转换到python中的值
 		}{
 			{0, "0"},
 			{123, "123"},
@@ -161,6 +162,11 @@ func init() {
 	})
 
 	AddTestCase("CrossLangTypes-Py2Go", func(assert *require.Assertions) {
+		// Python -> Golang 类型转换
+		// Golang 函数在接收Python传参和读取Python调用结果时，需要提前声明类型
+		// testPyTypes2Go[T](pyExpresion, expect, assert)
+		// 表示对于Python表达式 pyExpresion 中的值，若在golang中通过类型T接收时， 其值应该为 expect。
+
 		testPyTypes2Go[int](`123`, 123, assert)
 		testPyTypes2Go[uint](`123`, 123, assert)
 		testPyTypes2Go[int](`None`, 0, assert)
