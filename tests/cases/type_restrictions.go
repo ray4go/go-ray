@@ -319,10 +319,10 @@ func init() {
 		}
 
 		objRef := ray.RemoteCall("ProcessValidStruct", input)
-		result, err := objRef.Get1()
+		result, err := objRef.GetAll()
 		assert.NoError(err)
 
-		output := result.(ValidStruct)
+		output := result[0].(ValidStruct)
 		assert.Equal(int64(246), output.ID)
 		assert.Equal("processed_test", output.Name)
 		assert.Equal([]int{2, 4, 6}, output.Values)
@@ -346,9 +346,8 @@ func init() {
 	AddTestCase("TestNilPointerPanic", func(assert *require.Assertions) {
 		assert.NotPanics(func() {
 			objRef := ray.RemoteCall("TaskExpectingNonNilPointer", (*int)(nil))
-			res, err := objRef.Get1() // This should panic when the remote task executes
+			_, err := objRef.GetAll() // This should panic when the remote task executes
 			assert.NotNil(err, "Expected an error due to nil pointer dereference")
-			assert.Nil(res, "Expected nil result due to panic")
 		})
 	})
 
@@ -382,9 +381,9 @@ func init() {
 		// This should NOT panic - gob can handle nil pointers in structs
 		assert.NotPanics(func() {
 			objRef := ray.RemoteCall("TaskWithNilInStruct", s)
-			result, err := objRef.Get1()
+			result, err := objRef.GetAll()
 			assert.NoError(err)
-			resultStruct := result.(StructWithNilPointer)
+			resultStruct := result[0].(StructWithNilPointer)
 			assert.Equal(1, resultStruct.ID)
 			assert.Nil(resultStruct.Ptr)
 			assert.Equal("test", resultStruct.Data)
@@ -394,9 +393,8 @@ func init() {
 	AddTestCase("TestSingleNilParam", func(assert *require.Assertions) {
 		assert.NotPanics(func() {
 			obj := ray.RemoteCall("TaskExpectingNonNilPointer", nil)
-			res, err := obj.Get1()
+			_, err := obj.GetAll()
 			assert.NotNil(err, "Expected an error due to nil pointer dereference")
-			assert.Nil(res, "Expected nil result due to panic")
 		})
 	})
 
@@ -459,9 +457,9 @@ func init() {
 
 		assert.NotPanics(func() {
 			objRef := ray.RemoteCall("TaskWithValidPointers", s)
-			result, err := objRef.Get1()
+			result, err := objRef.GetAll()
 			assert.NoError(err)
-			resultStruct := result.(StructWithValidPointers)
+			resultStruct := result[0].(StructWithValidPointers)
 			assert.Equal(1, resultStruct.ID)
 			assert.Equal("valid string_processed", *resultStruct.StringPtr)
 			assert.Equal(84, *resultStruct.IntPtr)
@@ -478,9 +476,8 @@ func init() {
 
 		assert.NotPanics(func() {
 			objRef := ray.RemoteCall("TaskWithValidMap", validMap)
-			result, err := objRef.Get1()
+			resultMap, err := ray.Get1[map[string]string](objRef)
 			assert.NoError(err)
-			resultMap := result.(map[string]string)
 			assert.Equal("value1_processed", resultMap["key1"])
 			assert.Equal("value2_processed", resultMap["key2"])
 		})
@@ -492,9 +489,9 @@ func init() {
 
 		assert.NotPanics(func() {
 			objRef := ray.RemoteCall("TaskWithValidSlice", validSlice)
-			result, err := objRef.Get1()
+			result, err := objRef.GetAll()
 			assert.NoError(err)
-			resultSlice := result.([]string)
+			resultSlice := result[0].([]string)
 			assert.Equal([]string{"item1_processed", "item2_processed", "item3_processed"}, resultSlice)
 		})
 	})

@@ -115,25 +115,32 @@ func (f *FutureExt${l}[${types}]) Result() (${types_ext}, error) {
 """
 future_tpl = string.Template(_future_tpl)
 
+
 def gen_future(num_returns: int):
     assert num_returns >= 2
     l = num_returns
-    
-    types = ', '.join(f"T{i}" for i in range(l))  # T0, T1, ..., Tn
-    type_decls = ', '.join(f"T{i} any" for i in range(l))  # T0 any, T1 any, ..., Tn any
-    types_ext = ', '.join(f"T{i}" for i in range(l-1))  # T0, T1, ..., Tn-1
-    ret_asserts = ', '.join(f"r[{i}].({T})" for i, T in enumerate(types.split(', ')))  # r[0].(T0), r[1].(T1),..., r[n].(Tn)
-    ret_names_ext = ', '.join(f"r{i}" for i in range(l-1))  # r0, r1,..., rn-1
 
-    return future_tpl.substitute(dict(
-        l=l, types=types, type_decls=type_decls, types_ext=types_ext,
-        ret_asserts=ret_asserts, ret_names_ext=ret_names_ext,
-    ))
+    types = ", ".join(f"T{i}" for i in range(l))  # T0, T1, ..., Tn
+    type_decls = ", ".join(f"T{i} any" for i in range(l))  # T0 any, T1 any, ..., Tn any
+    types_ext = ", ".join(f"T{i}" for i in range(l - 1))  # T0, T1, ..., Tn-1
+    ret_asserts = ", ".join(
+        f"r[{i}].({T})" for i, T in enumerate(types.split(", "))
+    )  # r[0].(T0), r[1].(T1),..., r[n].(Tn)
+    ret_names_ext = ", ".join(f"r{i}" for i in range(l - 1))  # r0, r1,..., rn-1
+
+    return future_tpl.substitute(
+        dict(
+            l=l,
+            types=types,
+            type_decls=type_decls,
+            types_ext=types_ext,
+            ret_asserts=ret_asserts,
+            ret_names_ext=ret_names_ext,
+        )
+    )
+
 
 with open(out_file, "w") as f:
     f.write(preamble)
-    for i in range(2, max_returns_len+1):
+    for i in range(2, max_returns_len + 1):
         f.write(gen_future(i))
-
-
-

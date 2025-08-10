@@ -151,9 +151,9 @@ func init() {
 	AddTestCase("TestCallPythonCodeInTask", func(assert *require.Assertions) {
 		// Test calling Python code from within a task
 		ref := ray.RemoteCall("GetPythonEnvironment")
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
-		assert.Contains(result.(string), "Python")
+		assert.Contains(result[0].(string), "Python")
 	})
 
 	AddTestCase("TestAdvancedWaitScenarios", func(assert *require.Assertions) {
@@ -197,7 +197,7 @@ func init() {
 		successCount := 0
 		failureCount := 0
 		for _, ref := range ready {
-			_, err := ref.Get1()
+			_, err := ref.GetAll()
 			if err != nil {
 				failureCount++
 			} else {
@@ -234,10 +234,10 @@ func init() {
 			testMap,   // map[string]int
 		)
 
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
 
-		resultMap := result.(map[string]interface{})
+		resultMap := result[0].(map[string]interface{})
 		assert.Equal(int64(84), resultMap["int_doubled"])
 		assert.InDelta(9.8596, resultMap["float_squared"], 0.0001)
 		assert.Equal("PROCESSED_test", resultMap["string_upper"])
@@ -255,9 +255,9 @@ func init() {
 			ray.Option("retry_exceptions", true),
 		)
 
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
-		assert.Equal(30, result) // 10 * 3
+		assert.Equal(30, result[0]) // 10 * 3
 	})
 
 	AddTestCase("TestActorWithAdvancedOptions", func(assert *require.Assertions) {
@@ -271,10 +271,10 @@ func init() {
 
 		// Test actor functionality
 		ref := actor.RemoteCall("GetStatus")
-		status, err := ref.Get1()
+		status, err := ref.GetAll()
 		assert.NoError(err)
 
-		statusMap := status.(map[string]interface{})
+		statusMap := status[0].(map[string]interface{})
 		assert.Equal("advanced_test", statusMap["id"])
 		assert.Equal(1, statusMap["call_count"])
 		assert.Greater(statusMap["uptime"].(float64), 0.0)
@@ -288,9 +288,9 @@ func init() {
 		)
 
 		ref := actor.RemoteCall("MemoryIntensiveOperation", 50) // 50x50 matrix
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
-		assert.Greater(result.(int), 0)
+		assert.Greater(result[0].(int), 0)
 	})
 
 	AddTestCase("TestObjectRefTimeoutHandling", func(assert *require.Assertions) {
@@ -312,15 +312,15 @@ func init() {
 		ref := ray.RemoteCall("ProcessMixedTypes", 5, 2.5, "multi", false, []string{"a"}, map[string]int{"x": 1})
 
 		// First Get call
-		result1, err1 := ref.Get1()
+		result1, err1 := ref.GetAll()
 		assert.Nil(err1)
 
 		// Second Get call on same ObjectRef
-		result2, err2 := ref.Get1()
+		result2, err2 := ref.GetAll()
 		assert.Nil(err2)
 
 		// Results should be identical
-		assert.Equal(result1, result2)
+		assert.Equal(result1[0], result2[0])
 	})
 
 	AddTestCase("TestGetActorNonExistent", func(assert *require.Assertions) {
@@ -334,9 +334,9 @@ func init() {
 		ref := ray.RemoteCall("QuickTask", 100)
 
 		// Wait for completion
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
-		assert.Equal(200, result)
+		assert.Equal(200, result[0])
 
 		// Cancel after completion (should be harmless)
 		cancelErr := ref.Cancel()
@@ -363,10 +363,10 @@ func init() {
 
 		// Verify all results
 		for _, ref := range ready {
-			result, err := ref.Get1()
+			result, err := ref.GetAll()
 			assert.NoError(err)
 			// Results might not be in order, so we just check they're all valid
-			assert.True(result.(int) >= 0 && result.(int) < batchSize*2)
+			assert.True(result[0].(int) >= 0 && result[0].(int) < batchSize*2)
 		}
 	})
 }

@@ -1,10 +1,11 @@
 package cases
 
 import (
-	"github.com/ray4go/go-ray/ray"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"time"
+
+	"github.com/ray4go/go-ray/ray"
+	"github.com/stretchr/testify/require"
 )
 
 // Test error handling and edge cases
@@ -47,7 +48,7 @@ func (_ testTask) MultipleReturnValues(a, b int) (int, int, string, bool) {
 func init() {
 	AddTestCase("TestPanicHandling", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("TaskThatPanics", "test_panic")
-		_, err := objRef.Get1()
+		_, err := ray.Get1[any](objRef)
 
 		// The task should fail but not crash the system
 		assert.NotNil(err)
@@ -56,7 +57,7 @@ func init() {
 
 	AddTestCase("TestDivisionByZero", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("DivideByZero", 10, 0)
-		_, err := objRef.Get1()
+		_, err := ray.Get1[any](objRef)
 
 		// Should handle division by zero gracefully
 		assert.NotNil(err)
@@ -77,7 +78,7 @@ func init() {
 		objRef := ray.RemoteCall("TaskWithDelay", 10, "fast")
 
 		// Wait for completion
-		result, err := objRef.Get1()
+		result, err := ray.Get1[string](objRef)
 		assert.NoError(err)
 		assert.Equal("delayed_fast", result)
 
@@ -92,10 +93,10 @@ func init() {
 		size := 10000
 		objRef := ray.RemoteCall("ProcessLargeData", size)
 
-		result, err := objRef.Get1()
+		result, err := ray.Get1[[]int](objRef)
 		assert.NoError(err)
 
-		dataSlice := result.([]int)
+		dataSlice := result
 		assert.Len(dataSlice, size)
 		assert.Equal(0, dataSlice[0])     // 0*0 = 0
 		assert.Equal(1, dataSlice[1])     // 1*1 = 1
@@ -107,7 +108,7 @@ func init() {
 		objRef := ray.RemoteCall("EmptyReturns")
 
 		// Test Get0 for no return values
-		err := objRef.Get0()
+		err := ray.Get0(objRef)
 		assert.NoError(err)
 
 		// Test GetAll for empty returns
@@ -130,7 +131,7 @@ func init() {
 
 		// Test specific Get methods
 		objRef2 := ray.RemoteCall("MultipleReturnValues", 5, 8)
-		val1, val2, val3, val4, err := objRef2.Get4()
+		val1, val2, val3, val4, err := ray.Get4[int, int, string, bool](objRef2)
 		assert.NoError(err)
 		assert.Equal(13, val1)    // 5 + 8
 		assert.Equal(40, val2)    // 5 * 8
@@ -184,9 +185,9 @@ func init() {
 		assert.Nil(err3)
 
 		// Getting results should return cancelled errors
-		_, getErr1 := ref1.Get1()
-		_, getErr2 := ref2.Get1()
-		_, getErr3 := ref3.Get1()
+		_, getErr1 := ray.Get1[string](ref1)
+		_, getErr2 := ray.Get1[string](ref2)
+		_, getErr3 := ray.Get1[string](ref3)
 
 		assert.ErrorIs(getErr1, ray.ErrCancelled)
 		assert.ErrorIs(getErr2, ray.ErrCancelled)

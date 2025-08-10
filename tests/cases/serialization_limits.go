@@ -174,10 +174,10 @@ func init() {
 		// Set private fields (though they won't survive serialization)
 
 		objRef := ray.RemoteCall("ProcessStructWithUnexportedFields", input)
-		result, err := objRef.Get1()
+		result, err := objRef.GetAll()
 		assert.NoError(err)
 
-		output := result.(StructWithUnexportedFields)
+		output := result[0].(StructWithUnexportedFields)
 		assert.Equal("processed_test", output.PublicField)
 		assert.Equal(84, output.AnotherPublic)
 		// Private fields will be zero values after deserialization
@@ -191,10 +191,10 @@ func init() {
 		node1 := &Node{Value: 1, Next: node2}
 
 		objRef := ray.RemoteCall("ProcessLinkedList", node1)
-		result, err := objRef.Get1()
+		result, err := objRef.GetAll()
 		assert.NoError(err)
 
-		head := result.(*Node)
+		head := result[0].(*Node)
 		assert.Equal(2, head.Value)           // 1 * 2
 		assert.Equal(4, head.Next.Value)      // 2 * 2
 		assert.Equal(6, head.Next.Next.Value) // 3 * 2
@@ -219,7 +219,7 @@ func init() {
 
 	// Test nil and empty maps
 	AddTestCase("TestNilAndEmptyMaps", func(assert *require.Assertions) {
-		return
+
 		var nilMap map[string]int = nil
 		emptyMap := make(map[string]int)
 
@@ -244,10 +244,10 @@ func init() {
 		}
 
 		objRef := ray.RemoteCall("ProcessStructWithMixedPointers", input)
-		result, err := objRef.Get1()
+		result, err := objRef.GetAll()
 		assert.NoError(err)
 
-		output := result.(StructWithMixedPointers)
+		output := result[0].(StructWithMixedPointers)
 		assert.Equal("processed_test", *output.ValidPtr)
 		assert.Nil(output.NilPtr)
 		assert.Equal("processed_data", output.Data)
@@ -282,10 +282,10 @@ func init() {
 	AddTestCase("TestLargeSlice", func(assert *require.Assertions) {
 		// Test with a moderately large size (not too large to avoid timeout)
 		objRef := ray.RemoteCall("ProcessVeryLargeSlice", 10000)
-		result, err := objRef.Get1()
+		result, err := objRef.GetAll()
 		assert.NoError(err)
 
-		resultSlice := result.([]int)
+		resultSlice := result[0].([]int)
 		assert.Len(resultSlice, 10000)
 		assert.Equal(0, resultSlice[0])
 		assert.Equal(9999, resultSlice[9999])
@@ -300,7 +300,7 @@ func init() {
 			s := SelfReferencingStruct{ID: 1}
 			s.Self = &s // Create circular reference
 			objRef := ray.RemoteCall("ProcessSelfReferencingStruct", s)
-			objRef.Get1()
+			objRef.GetAll()
 		})
 	})
 
@@ -310,7 +310,7 @@ func init() {
 		assert.Panics(func() {
 			ch := make(chan int, 1)
 			objRef := ray.RemoteCall("ProcessChannel", ch, 42)
-			objRef.Get1()
+			objRef.GetAll()
 		})
 	})
 
@@ -320,7 +320,7 @@ func init() {
 			return // todo
 			fn := func(x int) int { return x * 2 }
 			objRef := ray.RemoteCall("ProcessFunction", fn, 21)
-			objRef.Get1()
+			objRef.GetAll()
 		})
 	})
 
@@ -330,7 +330,7 @@ func init() {
 			var x int = 42
 			ptr := unsafe.Pointer(&x)
 			objRef := ray.RemoteCall("ProcessUnsafePointer", ptr)
-			objRef.Get1()
+			objRef.GetAll()
 		})
 	})
 
@@ -350,7 +350,7 @@ func init() {
 				},
 			}
 			objRef := ray.RemoteCall("ProcessComplexNestedWithInterface", s)
-			objRef.Get1()
+			objRef.GetAll()
 		})
 	})
 
@@ -360,7 +360,7 @@ func init() {
 		// This might panic due to memory constraints
 		assert.Panics(func() {
 			objRef := ray.RemoteCall("ProcessVeryLargeSlice", 100000000) // 100M integers
-			objRef.Get1()
+			objRef.GetAll()
 		})
 	})
 }

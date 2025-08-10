@@ -194,10 +194,9 @@ func init() {
 		}
 
 		objRef := ray.RemoteCall("ProcessNestedStructs", input)
-		result, err := objRef.Get1()
+		output, err := ray.Get1[OuterStruct](objRef)
 		assert.NoError(err)
 
-		output := result.(OuterStruct)
 		assert.Equal(200, output.ID)
 		assert.Equal("processed_inner", output.Inner.Value)
 		assert.Equal(15, output.Inner.Count)
@@ -241,10 +240,9 @@ func init() {
 	// Test variadic functions
 	AddTestCase("TestVariadic", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("ProcessVariadic", 10, 1, 2, 3, 4, 5)
-		result, err := objRef.Get1()
+		resultSlice, err := ray.Get1[[]int](objRef)
 		assert.NoError(err)
 
-		resultSlice := result.([]int)
 		assert.Equal([]int{11, 12, 13, 14, 15}, resultSlice)
 	})
 
@@ -265,10 +263,10 @@ func init() {
 		large.Maps = map[int]string{1: "initial"}
 
 		objRef := ray.RemoteCall("ProcessLargeStruct", large)
-		result, err := objRef.Get1()
+		result, err := objRef.GetAll()
 		assert.NoError(err)
 
-		output := result.(LargeStruct)
+		output := result[0].(LargeStruct)
 		assert.Equal(999, output.Data[0])
 		assert.Equal(1000, output.Data[999])
 		assert.Equal("processed", output.Maps[0])
@@ -282,7 +280,7 @@ func init() {
 		assert.NotPanics(func() {
 			data := []interface{}{"string", 42, true}
 			objRef := ray.RemoteCall("TaskWithSliceOfInterface", data)
-			objRef.Get1()
+			objRef.GetAll()
 		})
 	})
 
@@ -295,7 +293,7 @@ func init() {
 				"bool":   true,
 			}
 			objRef := ray.RemoteCall("TaskWithMapOfInterface", data)
-			objRef.Get1()
+			objRef.GetAll()
 		})
 	})
 
@@ -310,7 +308,7 @@ func init() {
 				},
 			}
 			objRef := ray.RemoteCall("TaskWithDeeplyNestedInterface", s)
-			objRef.Get1()
+			objRef.GetAll()
 		})
 	})
 
@@ -318,16 +316,16 @@ func init() {
 	AddTestCase("TestVariadicWithNil", func(assert *require.Assertions) {
 		// This should work fine since we're not passing nil as the only argument
 		objRef := ray.RemoteCall("ProcessVariadic", 10)
-		result, err := objRef.Get1()
+		result, err := objRef.GetAll()
 		assert.NoError(err)
-		assert.Equal([]int{}, result) // Empty slice is fine
+		assert.Equal([]int{}, result[0]) // Empty slice is fine
 	})
 
 	// Test empty variadic call
 	AddTestCase("TestEmptyVariadic", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("ProcessVariadic", 100) // Only base parameter
-		result, err := objRef.Get1()
+		result, err := objRef.GetAll()
 		assert.NoError(err)
-		assert.Equal([]int{}, result)
+		assert.Equal([]int{}, result[0])
 	})
 }

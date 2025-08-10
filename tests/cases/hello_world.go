@@ -1,10 +1,11 @@
 package cases
 
 import (
-	"github.com/ray4go/go-ray/ray"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"time"
+
+	"github.com/ray4go/go-ray/ray"
+	"github.com/stretchr/testify/require"
 )
 
 func (_ testTask) Divide(a, b int64) (int64, int64) {
@@ -14,7 +15,7 @@ func (_ testTask) Divide(a, b int64) (int64, int64) {
 func init() {
 	AddTestCase("TestDivide", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("Divide", 16, 5, ray.Option("num_cpus", 2))
-		res, remainder, err := objRef.Get2()
+		res, remainder, err := ray.Get2[int64, int64](objRef)
 		assert.Equal(int64(3), res)
 		assert.Equal(int64(1), remainder)
 		assert.Equal(nil, err)
@@ -34,7 +35,7 @@ func (_ testTask) NoReturnVal(a, b int64) {
 func init() {
 	AddTestCase("TestNoReturnVal", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("NoReturnVal", 1, 2)
-		err := objRef.Get0()
+		err := ray.Get0(objRef)
 		assert.NoError(err)
 	})
 }
@@ -109,7 +110,7 @@ func init() {
 		assert.Nil(e2)
 
 		obj3 := ray.RemoteCall("Add2Points", obj1, obj2)
-		res, err := obj3.Get1()
+		res, err := ray.Get1[Point](obj3)
 		assert.Equal(Point{4, 6}, res)
 		assert.NoError(err)
 	})
@@ -117,7 +118,7 @@ func init() {
 	AddTestCase("TestObjRefArg", func(assert *require.Assertions) {
 		obj1 := ray.RemoteCall("AddPointSlice", []Point{{1, 2}, {3, 4}})
 		obj2 := ray.RemoteCall("Add2Points", obj1, Point{5, 6})
-		res, err := obj2.Get1()
+		res, err := ray.Get1[Point](obj2)
 		assert.Equal(Point{9, 12}, res)
 		assert.NoError(err)
 	})
@@ -151,19 +152,19 @@ func init() {
 	AddTestCase("TestActor", func(assert *require.Assertions) {
 		actor := ray.NewActor(name, 10)
 		obj1 := actor.RemoteCall("Incr", 1)
-		res1, err1 := obj1.Get1()
+		res1, err1 := ray.Get1[int](obj1)
 		assert.Equal(nil, err1)
 		assert.Equal(11, res1)
 
 		obj2 := actor.RemoteCall("Decr", 2)    // 9
 		obj3 := actor.RemoteCall("Incr", obj2) // 18
-		res3, err3 := obj3.Get1()
+		res3, err3 := ray.Get1[int](obj3)
 		assert.Equal(nil, err3)
 		assert.Equal(18, res3)
 
 		obj4 := actor.RemoteCall("Busy", 100)
 		actor.Kill()
-		err4 := obj4.Get0()
+		err4 := ray.Get0(obj4)
 		assert.NotNil(err4)
 	})
 }

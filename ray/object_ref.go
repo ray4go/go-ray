@@ -101,8 +101,8 @@ func getN(obj ObjectRef, n int, timeout ...float64) ([]any, error) {
 		timeoutVal = timeout[0]
 	}
 	res, err := obj.GetAll(timeoutVal)
-	if len(res) != n {
-		panic(fmt.Sprintf("ObjectRef Get%d: the number of return values error, expect %d but got %v", n, n, len(res)))
+	if err == nil && len(res) < n {
+		panic(fmt.Sprintf("ObjectRef Get%d: the number of return values mismatch, expect %d but got %v", n, n, len(res)))
 	}
 	return res, err
 }
@@ -116,107 +116,44 @@ func Get0(obj ObjectRef, timeout ...float64) error {
 // Get1 is used to get the result of remote task / actor method with 1 return value, with optional timeout.
 func Get1[T0 any](obj ObjectRef, timeout ...float64) (T0, error) {
 	r, err := getN(obj, 1, timeout...)
+	if err != nil {
+		return *new(T0), err
+	}
 	return r[0].(T0), err
 }
 
 // Get2 is used to get the result of remote task / actor method with 2 return value, with optional timeout.
 func Get2[T0 any, T1 any](obj ObjectRef, timeout ...float64) (T0, T1, error) {
 	r, err := getN(obj, 2, timeout...)
+	if err != nil {
+		return *new(T0), *new(T1), err
+	}
 	return r[0].(T0), r[1].(T1), err
 }
 
 // Get3 is used to get the result of remote task / actor method with 3 return value, with optional timeout.
 func Get3[T0 any, T1 any, T2 any](obj ObjectRef, timeout ...float64) (T0, T1, T2, error) {
 	r, err := getN(obj, 3, timeout...)
+	if err != nil {
+		return *new(T0), *new(T1), *new(T2), err
+	}
 	return r[0].(T0), r[1].(T1), r[2].(T2), err
 }
 
 // Get4 is used to get the result of remote task / actor method with 4 return value, with optional timeout.
 func Get4[T0 any, T1 any, T2 any, T3 any](obj ObjectRef, timeout ...float64) (T0, T1, T2, T3, error) {
 	r, err := getN(obj, 4, timeout...)
+	if err != nil {
+		return *new(T0), *new(T1), *new(T2), *new(T3), err
+	}
 	return r[0].(T0), r[1].(T1), r[2].(T2), r[3].(T3), err
 }
 
 // Get5 is used to get the result of remote task / actor method with 5 return value, with optional timeout.
 func Get5[T0 any, T1 any, T2 any, T3 any, T4 any](obj ObjectRef, timeout ...float64) (T0, T1, T2, T3, T4, error) {
 	r, err := getN(obj, 5, timeout...)
+	if err != nil {
+		return *new(T0), *new(T1), *new(T2), *new(T3), *new(T4), err
+	}
 	return r[0].(T0), r[1].(T1), r[2].(T2), r[3].(T3), r[4].(T4), err
-}
-
-// Get0 is used to wait remote task / actor method execution finish.
-func (obj ObjectRef) Get0() error {
-	_, err := obj.GetAll()
-	return err
-}
-
-// Get1 is used to get the result of remote task / actor method with 1 return value.
-func (obj ObjectRef) Get1() (any, error) {
-	res, err := obj.GetAll()
-	if err != nil {
-		return nil, err
-	}
-	if len(res) != 1 {
-		panic(fmt.Sprintf("ObjectRef.Get1: the number of return values error, expect 1 but got %v", len(res)))
-	}
-	return res[0], err
-}
-
-// Get2 is used to get the result of remote task / actor method with 2 return value.
-func (obj ObjectRef) Get2() (any, any, error) {
-	res, err := obj.GetAll()
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(res) != 2 {
-		panic(fmt.Sprintf("ObjectRef.Get2: the number of return values error, expect 2 but got %v", len(res)))
-	}
-	return res[0], res[1], err
-}
-
-// Get3 is used to get the result of remote task / actor method with 3 return value.
-func (obj ObjectRef) Get3() (any, any, any, error) {
-	res, err := obj.GetAll()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	if len(res) != 3 {
-		panic(fmt.Sprintf("ObjectRef.Get3: the number of return values error, expect 3 but got %v", len(res)))
-	}
-	return res[0], res[1], res[2], err
-}
-
-// Get4 is used to get the result of remote task / actor method with 4 return value.
-func (obj ObjectRef) Get4() (any, any, any, any, error) {
-	res, err := obj.GetAll()
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	if len(res) != 4 {
-		panic(fmt.Sprintf("ObjectRef.Get4: the number of return values error, expect 4 but got %v", len(res)))
-	}
-	return res[0], res[1], res[2], res[3], err
-}
-
-// Get5 is used to get the result of remote task / actor method with 5 return value.
-func (obj ObjectRef) Get5() (any, any, any, any, any, error) {
-	res, err := obj.GetAll()
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	if len(res) != 5 {
-		panic(fmt.Sprintf("ObjectRef.Get5: the number of return values error, expect 5 but got %v", len(res)))
-	}
-	return res[0], res[1], res[2], res[3], res[4], err
-}
-
-// Get6 is used to get the result of remote task / actor method with 6 return value.
-func (obj ObjectRef) Get6() (any, any, any, any, any, any, error) {
-	res, err := obj.GetAll()
-	if err != nil {
-		return nil, nil, nil, nil, nil, nil, err
-	}
-	if len(res) != 6 {
-		panic(fmt.Sprintf("ObjectRef.Get6: the number of return values error, expect 6 but got %v", len(res)))
-	}
-	return res[0], res[1], res[2], res[3], res[4], res[5], err
 }

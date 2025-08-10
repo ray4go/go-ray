@@ -1,11 +1,12 @@
 package cases
 
 import (
+	"sync"
+	"time"
+
 	"github.com/ray4go/go-ray/ray"
 	"github.com/ray4go/go-ray/tests/tools"
 	"github.com/stretchr/testify/require"
-	"sync"
-	"time"
 )
 
 func (t testTask) GenData(x int) int {
@@ -37,13 +38,13 @@ func init() {
 
 	AddTestCase("TestGoCallPy-option", func(assert *require.Assertions) {
 		obj := ray.RemoteCallPyTask("overwrite_ray_options", ray.Option("num_cpus", 1))
-		err := obj.Get0()
+		err := ray.Get0(obj)
 		assert.NoError(err)
 	})
 
 	AddTestCase("TestGoCallPy-args", func(assert *require.Assertions) {
 		obj := ray.RemoteCallPyTask("echo", 1, "str", true, 3.14, []int{1, 2, 3}, map[string]int{"a": 1})
-		args, err := obj.Get1()
+		args, err := ray.Get1[any](obj)
 		assert.NoError(err)
 		assert.True(tools.DeepEqualValues([]any{1, "str", true, 3.14, []int{1, 2, 3}, map[string]int{"a": 1}}, args))
 	})
@@ -52,7 +53,7 @@ func init() {
 		obj := ray.RemoteCall("GenData", 44)
 		obj2 := ray.RemoteCall("GenData", 12)
 		obj3 := ray.RemoteCallPyTask("echo", 1, obj, obj, 2, obj2)
-		args, err := obj3.Get1()
+		args, err := ray.Get1[any](obj3)
 		assert.NoError(err)
 		assert.True(tools.DeepEqualValues([]any{1, 44, 44, 2, 12}, args))
 	})

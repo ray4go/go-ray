@@ -79,7 +79,7 @@ func init() {
 		}
 
 		objRef := ray.RemoteCall("ProcessComplexStruct", input)
-		result, err := objRef.Get1()
+		result, err := ray.Get1[ComplexStruct](objRef)
 		assert.NoError(err)
 
 		expected := ComplexStruct{
@@ -132,25 +132,24 @@ func init() {
 		}
 
 		objRef := ray.RemoteCall("ProcessSliceOfStructs", input)
-		result, err := objRef.Get1()
+		result, err := ray.Get1[[]ComplexStruct](objRef)
 		assert.NoError(err)
 
-		resultSlice := result.([]ComplexStruct)
-		assert.Len(resultSlice, 2)
+		assert.Len(result, 2)
 
 		// Check first element
-		assert.Equal(int64(1), resultSlice[0].ID)
-		assert.Equal("first_batch", resultSlice[0].Name)
-		assert.Contains(resultSlice[0].Tags, "batch_processed")
-		assert.Equal(int64(0), resultSlice[0].Metadata["batch_index"])
-		assert.Equal(int64(1), resultSlice[0].Metadata["original_id"])
+		assert.Equal(int64(1), result[0].ID)
+		assert.Equal("first_batch", result[0].Name)
+		assert.Contains(result[0].Tags, "batch_processed")
+		assert.Equal(int64(0), result[0].Metadata["batch_index"])
+		assert.Equal(int64(1), result[0].Metadata["original_id"])
 
 		// Check second element
-		assert.Equal(int64(3), resultSlice[1].ID)
-		assert.Equal("second_batch", resultSlice[1].Name)
-		assert.Contains(resultSlice[1].Tags, "batch_processed")
-		assert.Equal(int64(1), resultSlice[1].Metadata["batch_index"])
-		assert.Equal(int64(2), resultSlice[1].Metadata["original_id"])
+		assert.Equal(int64(3), result[1].ID)
+		assert.Equal("second_batch", result[1].Name)
+		assert.Contains(result[1].Tags, "batch_processed")
+		assert.Equal(int64(1), result[1].Metadata["batch_index"])
+		assert.Equal(int64(2), result[1].Metadata["original_id"])
 	})
 
 	AddTestCase("TestMapProcessing", func(assert *require.Assertions) {
@@ -161,13 +160,12 @@ func init() {
 		}
 
 		objRef := ray.RemoteCall("ProcessMap", input)
-		result, err := objRef.Get1()
+		result, err := ray.Get1[map[string]int](objRef)
 		assert.NoError(err)
 
-		resultMap := result.(map[string]int)
-		assert.Equal(10, resultMap["apple_processed"])
-		assert.Equal(6, resultMap["banana_processed"])
-		assert.Equal(16, resultMap["cherry_processed"])
-		assert.Len(resultMap, 3)
+		assert.Equal(10, result["apple_processed"])
+		assert.Equal(6, result["banana_processed"])
+		assert.Equal(16, result["cherry_processed"])
+		assert.Len(result, 3)
 	})
 }

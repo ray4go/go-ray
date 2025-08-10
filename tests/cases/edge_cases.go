@@ -1,6 +1,7 @@
 package cases
 
 import (
+	"github.com/ray4go/go-ray/tests/tools"
 	"fmt"
 	"time"
 
@@ -204,25 +205,23 @@ func init() {
 	AddTestCase("TestEmptyAndNilInputs", func(assert *require.Assertions) {
 		// Test empty slice
 		ref1 := ray.RemoteCall("EmptySliceTask", []int{})
-		result1, err := ref1.Get1()
+		result1, err := ref1.GetAll()
 		assert.NoError(err)
-		assert.Equal(0, result1)
+		assert.Equal(0, result1[0])
 
 		// Test nil map (this might fail depending on gob encoding)
 		ref2 := ray.RemoteCall("NilMapTask", map[string]int(nil))
-		result2, err := ref2.Get1()
+		result2, err := ref2.GetAll()
 		assert.NoError(err)
-		// todo
-		//assert.Equal(-1, result2)
-		_ = result2
+		assert.Equal(-1, result2[0])
 	})
 
 	AddTestCase("TestZeroValues", func(assert *require.Assertions) {
 		ref := ray.RemoteCall("ZeroValueTask", "", 0, 0.0, false)
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
 
-		resultMap := result.(map[string]interface{})
+		resultMap := result[0].(map[string]interface{})
 		assert.Equal(true, resultMap["string_empty"])
 		assert.Equal(true, resultMap["int_zero"])
 		assert.Equal(true, resultMap["float_zero"])
@@ -232,38 +231,37 @@ func init() {
 	AddTestCase("TestLargeDataTransfer", func(assert *require.Assertions) {
 		// Test transferring large strings
 		ref := ray.RemoteCall("LargeStringTask", 1024*100) // 100KB string
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
 
-		resultStr := result.(string)
+		resultStr := result[0].(string)
 		assert.Equal(1024*100, len(resultStr))
 		assert.Equal(uint8('A'), resultStr[0])
 		assert.Equal(uint8('Z'), resultStr[25])
 	})
 
 	AddTestCase("TestDeeplyNestedStructures", func(assert *require.Assertions) {
-		return // todo
 		ref := ray.RemoteCall("DeepNestedStructTask")
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
 
-		resultMap := result.(map[string]interface{})
-		level1 := resultMap["level1"].(map[string]interface{})
-		level2 := level1["level2"].(map[string]interface{})
-		level3 := level2["level3"].(map[string]interface{})
-		level4 := level3["level4"].(map[string]interface{})
+		resultMap := result[0].(map[string]interface{})
+		level1 := resultMap["level1"].(map[any]interface{})
+		level2 := level1["level2"].(map[any]interface{})
+		level3 := level2["level3"].(map[any]interface{})
+		level4 := level3["level4"].(map[any]interface{})
 
 		assert.Equal("deeply nested", level4["info"])
-		dataSlice := level4["data"].([]int)
-		assert.Equal([]int{1, 2, 3, 4, 5}, dataSlice)
+		dataSlice := level4["data"].([]any)
+		tools.DeepEqualValues([]any{1, 2, 3, 4, 5}, dataSlice)
 	})
 
 	AddTestCase("TestNumericBoundaries", func(assert *require.Assertions) {
 		ref := ray.RemoteCall("NumericBoundaryTask", 2147483647, -2147483648, 1.7976931348623157e+308)
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
 
-		resultMap := result.(map[string]interface{})
+		resultMap := result[0].(map[string]interface{})
 		// These operations might overflow, but should not crash
 		assert.NotNil(resultMap["max_plus_one"])
 		assert.NotNil(resultMap["min_minus_one"])
@@ -287,9 +285,9 @@ func init() {
 
 		// Get results from ready tasks
 		for _, ref := range ready {
-			result, err := ref.Get1()
+			result, err := ref.GetAll()
 			assert.NoError(err)
-			assert.IsType(0, result)
+			assert.IsType(0, result[0])
 		}
 
 		// Cancel remaining tasks
@@ -309,9 +307,9 @@ func init() {
 
 		// All should complete successfully
 		for _, ref := range refs {
-			result, err := ref.Get1()
+			result, err := ref.GetAll()
 			assert.NoError(err)
-			assert.Equal(102400, result) // 100 * 1024 bytes
+			assert.Equal(102400, result[0]) // 100 * 1024 bytes
 		}
 	})
 
@@ -320,18 +318,18 @@ func init() {
 		actor := ray.NewActor(edgeCaseActorName)
 
 		// Test storing nil values
-		actor.RemoteCall("StoreNil", "test_key").Get0()
+		actor.RemoteCall("StoreNil", "test_key").GetAll()
 
 		ref := actor.RemoteCall("GetStoredValue", "test_key")
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
-		assert.Nil(result)
+		assert.Nil(result[0])
 
 		// Test large array processing
 		ref2 := actor.RemoteCall("ProcessLargeArray", 10000)
-		sum, err := ref2.Get1()
+		sum, err := ref2.GetAll()
 		assert.NoError(err)
-		assert.Equal(49995000, sum) // sum of 0 to 9999
+		assert.Equal(49995000, sum[0]) // sum of 0 to 9999
 	})
 
 	AddTestCase("TestActorInterruption", func(assert *require.Assertions) {
@@ -351,20 +349,20 @@ func init() {
 
 		// Call that should succeed
 		ref1 := actor.RemoteCall("SimulateError", false)
-		result1, err1 := ref1.Get1()
+		result1, err1 := ref1.GetAll()
 		assert.Nil(err1)
-		assert.Equal("no_error", result1)
+		assert.Equal("no_error", result1[0])
 
 		// Call that should fail
 		ref2 := actor.RemoteCall("SimulateError", true)
-		_, err2 := ref2.Get1()
+		_, err2 := ref2.GetAll()
 		assert.NotNil(err2)
 
 		// Actor should still be responsive after error
 		ref3 := actor.RemoteCall("GetCallHistory")
-		history, err3 := ref3.Get1()
+		history, err3 := ref3.GetAll()
 		assert.Nil(err3)
-		historySlice := history.([]string)
+		historySlice := history[0].([]string)
 		assert.Contains(historySlice, "error_sim_false")
 		assert.Contains(historySlice, "error_sim_true")
 	})
@@ -373,27 +371,27 @@ func init() {
 		actor := ray.NewActor(resourceActorName)
 
 		// Allocate some resources
-		actor.RemoteCall("AllocateResource", "resource1").Get1()
-		actor.RemoteCall("AllocateResource", "resource2").Get1()
-		actor.RemoteCall("AllocateResource", "resource3").Get1()
+		actor.RemoteCall("AllocateResource", "resource1").GetAll()
+		actor.RemoteCall("AllocateResource", "resource2").GetAll()
+		actor.RemoteCall("AllocateResource", "resource3").GetAll()
 
 		// Check resource count
 		ref1 := actor.RemoteCall("GetResourceCount")
-		count1, err := ref1.Get1()
+		count1, err := ref1.GetAll()
 		assert.NoError(err)
-		assert.Equal(3, count1)
+		assert.Equal(3, count1[0])
 
 		// Release all resources
 		ref2 := actor.RemoteCall("ReleaseAllResources")
-		released, err := ref2.Get1()
+		released, err := ref2.GetAll()
 		assert.NoError(err)
-		assert.Equal(3, released)
+		assert.Equal(3, released[0])
 
 		// Check count is now zero
 		ref3 := actor.RemoteCall("GetResourceCount")
-		count2, err := ref3.Get1()
+		count2, err := ref3.GetAll()
 		assert.NoError(err)
-		assert.Equal(0, count2)
+		assert.Equal(0, count2[0])
 
 		// Kill actor to test cleanup
 		actor.Kill()
@@ -406,7 +404,7 @@ func init() {
 
 			// Use the actor briefly
 			ref := actor.RemoteCall("GetCallHistory")
-			_, err := ref.Get1()
+			_, err := ref.GetAll()
 			assert.NoError(err)
 
 			// Kill the actor
@@ -450,7 +448,7 @@ func init() {
 		failureCount := 0
 
 		for _, ref := range ready {
-			_, err := ref.Get1()
+			_, err := ref.GetAll()
 			if err != nil {
 				failureCount++
 			} else {

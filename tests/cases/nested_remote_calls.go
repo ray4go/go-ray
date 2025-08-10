@@ -23,11 +23,11 @@ func (_ testTask) CoordinatorTask(taskCount int) []int {
 	// Collect results
 	var results []int
 	for _, ref := range refs {
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		if err != nil {
 			panic(fmt.Sprintf("Error getting result: %v", err))
 		}
-		results = append(results, result.(int))
+		results = append(results, result[0].(int))
 	}
 
 	return results
@@ -59,11 +59,11 @@ func (_ testTask) ActorCoordinatorTask(actorName string, operations []string) []
 			continue
 		}
 
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		if err != nil {
 			panic(fmt.Sprintf("Error calling actor method: %v", err))
 		}
-		results = append(results, result.(int))
+		results = append(results, result[0].(int))
 	}
 
 	return results
@@ -77,12 +77,12 @@ func (_ testTask) ChainedTask(initial int, depth int) int {
 
 	// Call another task recursively
 	ref := ray.RemoteCall("ChainedTask", initial*2, depth-1)
-	result, err := ref.Get1()
+	result, err := ref.GetAll()
 	if err != nil {
 		panic(fmt.Sprintf("Error in chained call: %v", err))
 	}
 
-	return result.(int)
+	return result[0].(int)
 }
 
 // Task that uses Put and Get operations
@@ -95,12 +95,12 @@ func (_ testTask) DataSharingTask(data []int) int {
 
 	// Use the stored data in another task
 	ref := ray.RemoteCall("ProcessStoredData", objRef)
-	result, err := ref.Get1()
+	result, err := ref.GetAll()
 	if err != nil {
 		panic(fmt.Sprintf("Error processing stored data: %v", err))
 	}
 
-	return result.(int)
+	return result[0].(int)
 }
 
 func (_ testTask) ProcessStoredData(data []int) int {
@@ -130,11 +130,11 @@ func (_ testTask) BatchCoordinatorTask(batchSize int) []int {
 	// Get results from ready tasks
 	var results []int
 	for _, ref := range ready {
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		if err != nil {
 			panic(fmt.Sprintf("Error getting ready result: %v", err))
 		}
-		results = append(results, result.(int))
+		results = append(results, result[0].(int))
 	}
 
 	// Cancel remaining tasks
@@ -161,11 +161,11 @@ func NewTaskCallingActor(id int) *TaskCallingActor {
 
 func (a *TaskCallingActor) CallRemoteTask(taskName string, value int) int {
 	ref := ray.RemoteCall(taskName, value)
-	result, err := ref.Get1()
+	result, err := ref.GetAll()
 	if err != nil {
 		panic(fmt.Sprintf("Actor failed to call remote task: %v", err))
 	}
-	return result.(int)
+	return result[0].(int)
 }
 
 func (a *TaskCallingActor) BatchCallTasks(count int) []int {
@@ -178,11 +178,11 @@ func (a *TaskCallingActor) BatchCallTasks(count int) []int {
 
 	var results []int
 	for _, ref := range refs {
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		if err != nil {
 			panic(fmt.Sprintf("Actor batch call failed: %v", err))
 		}
-		results = append(results, result.(int))
+		results = append(results, result[0].(int))
 	}
 
 	return results
@@ -204,12 +204,12 @@ func (a *ActorCallingActor) CallOtherActor(actorName string, methodName string, 
 	}
 
 	ref := actor.RemoteCall(methodName, value)
-	result, err := ref.Get1()
+	result, err := ref.GetAll()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to call other actor: %v", err))
 	}
 
-	return result.(int)
+	return result[0].(int)
 }
 
 func init() {
@@ -221,10 +221,10 @@ func init() {
 	AddTestCase("TestNestedRemoteCalls", func(assert *require.Assertions) {
 		// Test task calling other remote tasks
 		ref := ray.RemoteCall("CoordinatorTask", 5)
-		results, err := ref.Get1()
+		results, err := ref.GetAll()
 		assert.NoError(err)
 
-		resultSlice := results.([]int)
+		resultSlice := results[0].([]int)
 		assert.Len(resultSlice, 5)
 
 		// Check expected results: [0*0, 1*10, 2*20, 3*30, 4*40] = [0, 10, 40, 90, 160]
@@ -238,30 +238,30 @@ func init() {
 	AddTestCase("TestChainedRemoteCalls", func(assert *require.Assertions) {
 		// Test recursive remote calls
 		ref := ray.RemoteCall("ChainedTask", 1, 3)
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
 
 		// 1 -> 2 -> 4 -> 8 (depth 3)
-		assert.Equal(8, result)
+		assert.Equal(8, result[0])
 	})
 
 	AddTestCase("TestDataSharingInTasks", func(assert *require.Assertions) {
 		// Test Put/Get operations within tasks
 		data := []int{1, 2, 3, 4, 5}
 		ref := ray.RemoteCall("DataSharingTask", data)
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
 
-		assert.Equal(15, result) // sum of 1+2+3+4+5
+		assert.Equal(15, result[0]) // sum of 1+2+3+4+5
 	})
 
 	AddTestCase("TestBatchCoordinatorWithWait", func(assert *require.Assertions) {
 		// Test Wait functionality within tasks
 		ref := ray.RemoteCall("BatchCoordinatorTask", 6)
-		results, err := ref.Get1()
+		results, err := ref.GetAll()
 		assert.NoError(err)
 
-		resultSlice := results.([]int)
+		resultSlice := results[0].([]int)
 		assert.Len(resultSlice, 3) // Should get 3 results (half of 6)
 
 		// Results should be some subset of [0, 10, 20, 30, 40, 50]
@@ -275,9 +275,9 @@ func init() {
 		actor := ray.NewActor(taskCallingActorName, 1)
 
 		ref := actor.RemoteCall("CallRemoteTask", "QuickTask", 5)
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
-		assert.Equal(10, result) // QuickTask returns id * 2 = 5 * 2 = 10
+		assert.Equal(10, result[0]) // QuickTask returns id * 2 = 5 * 2 = 10
 	})
 
 	AddTestCase("TestActorBatchCallingTasks", func(assert *require.Assertions) {
@@ -285,10 +285,10 @@ func init() {
 		actor := ray.NewActor(taskCallingActorName, 2)
 
 		ref := actor.RemoteCall("BatchCallTasks", 3)
-		results, err := ref.Get1()
+		results, err := ref.GetAll()
 		assert.NoError(err)
 
-		resultSlice := results.([]int)
+		resultSlice := results[0].([]int)
 		assert.Len(resultSlice, 3)
 		assert.Equal(0, resultSlice[0]) // QuickTask(0) = 0 * 2 = 0
 		assert.Equal(2, resultSlice[1]) // QuickTask(1) = 1 * 2 = 2
@@ -304,9 +304,9 @@ func init() {
 
 		// Use the calling actor to interact with the counter actor
 		ref := callingActor.RemoteCall("CallOtherActor", "test_counter", "Incr", 5)
-		result, err := ref.Get1()
+		result, err := ref.GetAll()
 		assert.NoError(err)
-		assert.Equal(105, result) // 100 + 5 = 105
+		assert.Equal(105, result[0]) // 100 + 5 = 105
 	})
 
 	AddTestCase("TestNestedActorCoordination", func(assert *require.Assertions) {
@@ -316,10 +316,10 @@ func init() {
 		// Test task coordinating with named actor
 		operations := []string{"incr", "incr", "decr", "incr"}
 		ref := ray.RemoteCall("ActorCoordinatorTask", "coord_counter", operations)
-		results, err := ref.Get1()
+		results, err := ref.GetAll()
 		assert.NoError(err)
 
-		resultSlice := results.([]int)
+		resultSlice := results[0].([]int)
 		assert.Len(resultSlice, 4)
 		// Starting from 50: 51, 52, 51, 52
 		assert.Equal(51, resultSlice[0])

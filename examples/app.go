@@ -129,21 +129,21 @@ func (_ demo) CallPython() {
 func (_ demo) RemoteCallPython() {
 	{
 		obj := ray.RemoteCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3})
-		res, err := obj.Get1()
+		res, err := obj.GetAll()
 		fmt.Println("go remote call python: echo", res, err)
 	}
 	{
 		obj := ray.RemoteCallPyTask("hello", "from remote go")
-		res, err := obj.Get1()
+		res, err := obj.GetAll()
 		fmt.Println("go remote call python: hello", res, err)
 
 		obj2 := ray.RemoteCallPyTask("echo", 1, obj)
-		res, err = obj2.Get1()
+		res, err = obj2.GetAll()
 		fmt.Println("go remote call python: echo [obj as arg]", res, err)
 	}
 	{
 		obj := ray.RemoteCallPyTask("no_return", "")
-		err := obj.Get0()
+		_, err := obj.GetAll()
 		fmt.Println("go remote call python: no_return", err)
 	}
 
@@ -153,26 +153,26 @@ func (_ demo) RemoteCallPython() {
 		fmt.Printf("PyActor %#v\n", a)
 
 		obj0 := a.RemoteCall("hello", "hello from pyactor")
-		res, err := obj0.Get1()
+		res, err := obj0.GetAll()
 		fmt.Printf("PyActor hello %#v %#v\n", res, err)
 
 		obj1 := a.RemoteCall("get_args")
-		res, err = obj1.Get1()
+		res, err = obj1.GetAll()
 		fmt.Printf("PyActor get_args %#v %#v\n", res, err)
 		obj2 := a.RemoteCall("echo", 2.13, ref, "str", []byte("bytes"), []int{1, 2, 3})
-		res, err = obj2.Get1()
+		res, err = obj2.GetAll()
 		fmt.Printf("PyActor echo %#v %#v\n", res, err)
 
 		a2, err := ray.GetActor("named")
 		fmt.Printf("GetActor %#v\n err%v\n", a2, err)
 
 		obj3 := a2.RemoteCall("echo", []int{1, 2, 3})
-		res, err = obj3.Get1()
+		res, err = obj3.GetAll()
 		fmt.Printf("PyActor echo %#v %#v\n", res, err)
 
 		a2.Kill()
 		obj4 := a2.RemoteCall("busy", 1)
-		res, err = obj4.Get1()
+		res, err = obj4.GetAll()
 		fmt.Printf("PyActor busy %#v %#v\n", res, err != nil)
 	}
 
@@ -190,17 +190,17 @@ func driver() int {
 		fmt.Printf("a: %#v\n", a)
 		obj := a.RemoteCall("Incr", 1)
 		fmt.Println("obj ", obj)
-		res, err := obj.Get1()
+		res, err := ray.Get1[int](obj)
 		fmt.Println("res ", res, err)
 
 		obj2 := a.RemoteCall("Incr", 1)
 		obj3 := a.RemoteCall("Incr", obj2)
 		fmt.Println("obj3 ", obj3)
-		fmt.Println(obj3.Get1())
+		fmt.Println(obj3.GetAll())
 	}
 	{
 		obj := ray.RemoteCall("Nest", "nest", 2)
-		res, err := obj.Get1()
+		res, err := obj.GetAll()
 		fmt.Println("res ", res, err)
 	}
 	{
@@ -217,7 +217,7 @@ func driver() int {
 		obj1, _ := ray.Put(Point{1, 2})
 		obj2, _ := ray.Put(Point{3, 4})
 		obj3 := ray.RemoteCall("Add2Points", obj1, obj2)
-		res, err := obj3.Get1()
+		res, err := obj3.GetAll()
 		fmt.Println("Add2Points: ", res, err)
 	}
 	{
@@ -235,7 +235,7 @@ func driver() int {
 		// pass objectRef as argument
 		obj1 := ray.RemoteCall("AddPointSlice", []Point{{1, 2}, {3, 4}})
 		obj2 := ray.RemoteCall("Add2Points", obj1, Point{5, 6})
-		res, err := obj2.Get1()
+		res, err := obj2.GetAll()
 		fmt.Println("Add2Points: ", res, err)
 	}
 	return 0

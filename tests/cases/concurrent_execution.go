@@ -1,9 +1,10 @@
 package cases
 
 import (
+	"time"
+
 	"github.com/ray4go/go-ray/ray"
 	"github.com/stretchr/testify/require"
-	"time"
 )
 
 // Test concurrent execution and ObjectRef chaining
@@ -51,9 +52,9 @@ func init() {
 		ref3 := ray.RemoteCall("SlowAdd", 100, 200)
 
 		// Get results
-		result1, err1 := ref1.Get1()
-		result2, err2 := ref2.Get1()
-		result3, err3 := ref3.Get1()
+		result1, err1 := ray.Get1[int](ref1)
+		result2, err2 := ray.Get1[int](ref2)
+		result3, err3 := ray.Get1[int](ref3)
 
 		elapsed := time.Since(start)
 
@@ -76,7 +77,7 @@ func init() {
 		ref3 := ray.RemoteCall("SlowAdd", ref2, 5)      // = 35
 		ref4 := ray.RemoteCall("SlowMultiply", ref3, 3) // = 105
 
-		result, err := ref4.Get1()
+		result, err := ray.Get1[int](ref4)
 		assert.NoError(err)
 		// (5+10) = 15, 15*2 = 30, 30+5 = 35, 35*3 = 105
 		assert.Equal(105, result)
@@ -90,7 +91,7 @@ func init() {
 
 		// Combine all three results
 		combinedRef := ray.RemoteCall("CombineResults", ref1, ref2, ref3)
-		result, err := combinedRef.Get1()
+		result, err := ray.Get1[int](combinedRef)
 
 		assert.NoError(err)
 		assert.Equal(48, result) // 3 + 20 + 25 = 48
@@ -103,7 +104,7 @@ func init() {
 		// Use the sequence result in another task
 		sumRef := ray.RemoteCall("ComputeSum", seqRef)
 
-		result, err := sumRef.Get1()
+		result, err := ray.Get1[int](sumRef)
 		assert.NoError(err)
 		assert.Equal(55, result) // 1+2+3+...+10 = 55
 	})
@@ -145,8 +146,8 @@ func init() {
 		assert.Len(notReady, 0)
 
 		// Verify results
-		result1, err1 := ref1.Get1()
-		result2, err2 := ref2.Get1()
+		result1, err1 := ray.Get1[int](ref1)
+		result2, err2 := ray.Get1[int](ref2)
 
 		assert.Nil(err1)
 		assert.Nil(err2)

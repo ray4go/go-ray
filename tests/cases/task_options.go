@@ -1,10 +1,11 @@
 package cases
 
 import (
-	"github.com/ray4go/go-ray/ray"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"time"
+
+	"github.com/ray4go/go-ray/ray"
+	"github.com/stretchr/testify/require"
 )
 
 // Test ray task options and configuration
@@ -47,13 +48,13 @@ func init() {
 		objRef := ray.RemoteCall("CpuIntensiveTask", 1000,
 			ray.Option("num_cpus", 2))
 
-		result, err := objRef.Get1()
+		result, err := ray.Get1[int](objRef)
 		assert.NoError(err)
 		assert.IsType(0, result) // Should return an integer
 
 		// The actual computation result depends on the algorithm
 		// Just verify it's a reasonable number
-		assert.Greater(result.(int), 0)
+		assert.Greater(result, 0)
 	})
 
 	AddTestCase("TestTaskWithMemoryOption", func(assert *require.Assertions) {
@@ -61,13 +62,12 @@ func init() {
 		objRef := ray.RemoteCall("MemoryIntensiveTask", 10000,
 			ray.Option("memory", 100*1024*1024)) // 100MB
 
-		result, err := objRef.Get1()
+		result, err := ray.Get1[[]int](objRef)
 		assert.NoError(err)
 
-		resultSlice := result.([]int)
-		assert.Len(resultSlice, 10000)
-		assert.Equal(0, resultSlice[0])            // 0*0 = 0
-		assert.Equal(9999*9999, resultSlice[9999]) // last element
+		assert.Len(result, 10000)
+		assert.Equal(0, result[0])            // 0*0 = 0
+		assert.Equal(9999*9999, result[9999]) // last element
 	})
 
 	AddTestCase("TestTaskWithMultipleOptions", func(assert *require.Assertions) {
@@ -77,7 +77,7 @@ func init() {
 			ray.Option("memory", 50*1024*1024), // 50MB
 		)
 
-		result, err := objRef.Get1()
+		result, err := ray.Get1[string](objRef)
 		assert.NoError(err)
 		assert.Equal("task_multi_option_completed", result)
 	})
@@ -88,7 +88,7 @@ func init() {
 			ray.Option("max_retries", 3),
 			ray.Option("retry_exceptions", true))
 
-		result, err := objRef.Get1()
+		result, err := ray.Get1[string](objRef)
 		assert.NoError(err)
 		assert.Equal("task_retry_completed", result)
 	})
@@ -114,9 +114,9 @@ func init() {
 			ray.Option("memory", 200*1024*1024))
 
 		// Get all results
-		result1, err1 := ref1.Get1()
-		result2, err2 := ref2.Get1()
-		result3, err3 := ref3.Get1()
+		result1, err1 := ray.Get1[[]string](ref1)
+		result2, err2 := ray.Get1[[]string](ref2)
+		result3, err3 := ray.Get1[[]string](ref3)
 
 		assert.Nil(err1)
 		assert.Nil(err2)
@@ -134,7 +134,7 @@ func init() {
 			ray.Option("scheduling_strategy", "SPREAD"),
 			ray.Option("placement_group", nil))
 
-		result, err := objRef.Get1()
+		result, err := ray.Get1[string](objRef)
 		assert.NoError(err)
 		assert.Equal("task_scheduled_completed", result)
 	})
@@ -147,7 +147,7 @@ func init() {
 				"env_vars": map[string]string{"TEST_VAR": "test_value"},
 			}))
 
-		result, err := objRef.Get1()
+		result, err := ray.Get1[string](objRef)
 		assert.NoError(err)
 		assert.Equal("task_string_opt_completed", result)
 	})
@@ -170,7 +170,7 @@ func init() {
 			ray.Option("num_cpus", 1),
 			ray.Option("memory", 50*1024*1024))
 
-		result, err := objRef.Get1()
+		result, err := ray.Get1[[]string](objRef)
 		assert.NoError(err)
 		assert.Equal([]string{"ref_item1_batch_99", "ref_item2_batch_99"}, result)
 	})

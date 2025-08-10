@@ -207,19 +207,19 @@ func init() {
 
 		// Test initial value
 		ref1 := actor.RemoteCall("GetValue")
-		value, err := ref1.Get1()
+		value, err := ray.Get1[int](ref1)
 		assert.NoError(err)
 		assert.Equal(10, value)
 
 		// Test state modification
 		ref2 := actor.RemoteCall("Add", 5)
-		newValue, err := ref2.Get1()
+		newValue, err := ray.Get1[int](ref2)
 		assert.NoError(err)
 		assert.Equal(15, newValue)
 
 		// Verify state persisted
 		ref3 := actor.RemoteCall("GetValue")
-		finalValue, err := ref3.Get1()
+		finalValue, err := ray.Get1[int](ref3)
 		assert.NoError(err)
 		assert.Equal(15, finalValue)
 	})
@@ -228,17 +228,16 @@ func init() {
 		actor := ray.NewActor(statefulActorName, 0)
 
 		// Perform sequence of operations
-		actor.RemoteCall("Add", 10).Get1()
-		actor.RemoteCall("SetValue", 20).Get1()
-		actor.RemoteCall("Add", 5).Get1()
+		ray.Get1[int](actor.RemoteCall("Add", 10))
+		ray.Get1[int](actor.RemoteCall("SetValue", 20))
+		ray.Get1[int](actor.RemoteCall("Add", 5))
 
 		// Check history
 		ref := actor.RemoteCall("GetHistory")
-		history, err := ref.Get1()
+		history, err := ray.Get1[[]int](ref)
 		assert.NoError(err)
 
-		historySlice := history.([]int)
-		assert.Equal(historySlice, []int{10, 20, 25}) // History should contain all values
+		assert.Equal(history, []int{10, 20, 25}) // History should contain all values
 	})
 
 	AddTestCase("TestComplexActorState", func(assert *require.Assertions) {
@@ -246,41 +245,39 @@ func init() {
 
 		// Test counter operations
 		ref1 := actor.RemoteCall("IncrementCounter", "counter1", 5)
-		result1, err := ref1.Get1()
+		result1, err := ray.Get1[int](ref1)
 		assert.NoError(err)
 		assert.Equal(5, result1)
 
 		ref2 := actor.RemoteCall("IncrementCounter", "counter2", 10)
-		result2, err := ref2.Get1()
+		result2, err := ray.Get1[int](ref2)
 		assert.NoError(err)
 		assert.Equal(10, result2)
 
 		// Test item operations
 		ref3 := actor.RemoteCall("AddItem", "item1")
-		count1, err := ref3.Get1()
+		count1, err := ray.Get1[int](ref3)
 		assert.NoError(err)
 		assert.Equal(1, count1)
 
 		ref4 := actor.RemoteCall("AddItem", "item2")
-		count2, err := ref4.Get1()
+		count2, err := ray.Get1[int](ref4)
 		assert.NoError(err)
 		assert.Equal(2, count2)
 
 		// Test getting all state
 		ref5 := actor.RemoteCall("GetAllCounters")
-		counters, err := ref5.Get1()
+		counters, err := ray.Get1[map[string]int](ref5)
 		assert.NoError(err)
 
-		counterMap := counters.(map[string]int)
-		assert.Equal(5, counterMap["counter1"])
-		assert.Equal(10, counterMap["counter2"])
+		assert.Equal(5, counters["counter1"])
+		assert.Equal(10, counters["counter2"])
 
 		ref6 := actor.RemoteCall("GetItems")
-		items, err := ref6.Get1()
+		items, err := ray.Get1[[]string](ref6)
 		assert.NoError(err)
 
-		itemSlice := items.([]string)
-		assert.Equal([]string{"item1", "item2"}, itemSlice)
+		assert.Equal([]string{"item1", "item2"}, items)
 	})
 
 	AddTestCase("TestActorBatchOperations", func(assert *require.Assertions) {
@@ -296,16 +293,15 @@ func init() {
 		}
 
 		ref := actor.RemoteCall("ProcessBatch", operations)
-		results, err := ref.Get1()
+		results, err := ray.Get1[[]interface{}](ref)
 		assert.NoError(err)
 
-		resultSlice := results.([]interface{})
-		assert.Len(resultSlice, 5)
-		assert.EqualValues(5, resultSlice[0]) // First increment result
-		assert.EqualValues(1, resultSlice[1]) // First item count
-		assert.EqualValues(8, resultSlice[2]) // Second increment result
-		assert.EqualValues(2, resultSlice[3]) // Second item count
-		assert.EqualValues(8, resultSlice[4]) // Final counter value
+		assert.Len(results, 5)
+		assert.EqualValues(5, results[0]) // First increment result
+		assert.EqualValues(1, results[1]) // First item count
+		assert.EqualValues(8, results[2]) // Second increment result
+		assert.EqualValues(2, results[3]) // Second item count
+		assert.EqualValues(8, results[4]) // Final counter value
 	})
 
 	AddTestCase("TestMultipleActorInstances", func(assert *require.Assertions) {
@@ -319,24 +315,24 @@ func init() {
 		ref2 := actor2.RemoteCall("GetValue")
 		ref3 := actor3.RemoteCall("GetValue")
 
-		val1, _ := ref1.Get1()
-		val2, _ := ref2.Get1()
-		val3, _ := ref3.Get1()
+		val1, _ := ray.Get1[int](ref1)
+		val2, _ := ray.Get1[int](ref2)
+		val3, _ := ray.Get1[int](ref3)
 
 		assert.Equal(100, val1)
 		assert.Equal(200, val2)
 		assert.Equal(300, val3)
 
 		// Modify one actor and verify others unchanged
-		actor2.RemoteCall("Add", 50).Get1()
+		ray.Get1[int](actor2.RemoteCall("Add", 50))
 
 		ref1b := actor1.RemoteCall("GetValue")
 		ref2b := actor2.RemoteCall("GetValue")
 		ref3b := actor3.RemoteCall("GetValue")
 
-		val1b, _ := ref1b.Get1()
-		val2b, _ := ref2b.Get1()
-		val3b, _ := ref3b.Get1()
+		val1b, _ := ray.Get1[int](ref1b)
+		val2b, _ := ray.Get1[int](ref2b)
+		val3b, _ := ray.Get1[int](ref3b)
 
 		assert.Equal(100, val1b) // Unchanged
 		assert.Equal(250, val2b) // Changed
@@ -349,7 +345,7 @@ func init() {
 		actor1 := ray.NewActor(statefulActorName, 42, ray.Option("name", actorName))
 
 		// Set some state
-		actor1.RemoteCall("SetValue", 100).Get1()
+		ray.Get1[int](actor1.RemoteCall("SetValue", 100))
 
 		// Get the same actor by name
 		actor2, err := ray.GetActor(actorName)
@@ -357,7 +353,7 @@ func init() {
 
 		// Verify it's the same actor (same state)
 		ref := actor2.RemoteCall("GetValue")
-		value, err := ref.Get1()
+		value, err := ray.Get1[int](ref)
 		assert.NoError(err)
 		assert.Equal(100, value)
 	})
@@ -375,14 +371,14 @@ func init() {
 		// Wait for all to complete
 		var results []int
 		for _, ref := range refs {
-			result, err := ref.Get1()
+			result, err := ray.Get1[int](ref)
 			assert.NoError(err)
-			results = append(results, result.(int))
+			results = append(results, result)
 		}
 
 		// Final value should be sum of 1+2+...+10 = 55
 		finalRef := actor.RemoteCall("GetValue")
-		finalValue, err := finalRef.Get1()
+		finalValue, err := ray.Get1[int](finalRef)
 		assert.NoError(err)
 		assert.Equal(55, finalValue)
 
@@ -421,18 +417,18 @@ func init() {
 
 		// Call method that will panic
 		ref := actor.RemoteCall("MightFail", "test_error")
-		_, err := ref.Get1()
+		_, err := ray.Get1[string](ref)
 		assert.NotNil(err) // Should have error
 
 		// Toggle failure mode
 		toggleRef := actor.RemoteCall("ToggleFailure")
-		newMode, err := toggleRef.Get1()
+		newMode, err := ray.Get1[bool](toggleRef)
 		assert.NoError(err)
 		assert.Equal(false, newMode) // Should now be false
 
 		// Now call should succeed
 		ref2 := actor.RemoteCall("MightFail", "test_success")
-		result, err := ref2.Get1()
+		result, err := ray.Get1[string](ref2)
 		assert.NoError(err)
 		assert.Equal("success: test_success", result)
 	})
@@ -459,12 +455,12 @@ func init() {
 			ray.Option("memory", 100*1024*1024)) // 100MB
 
 		ref1 := actor.RemoteCall("GetSize")
-		size, err := ref1.Get1()
+		size, err := ray.Get1[int](ref1)
 		assert.NoError(err)
 		assert.Equal(100, size)
 
 		ref2 := actor.RemoteCall("ComputeSum")
-		sum, err := ref2.Get1()
+		sum, err := ray.Get1[int](ref2)
 		assert.NoError(err)
 		// Sum should be 0+1+2+...+9999 = 9999*10000/2 = 49995000
 		assert.Equal(49995000, sum)
@@ -481,11 +477,11 @@ func init() {
 		// This would require modifying the actor to accept ObjectRefs
 		// For now, just test that we can pass regular data
 		for _, item := range items {
-			actor.RemoteCall("AddItem", item).Get1()
+			ray.Get1[int](actor.RemoteCall("AddItem", item))
 		}
 
 		ref := actor.RemoteCall("GetItems")
-		result, err := ref.Get1()
+		result, err := ray.Get1[[]string](ref)
 		assert.NoError(err)
 		assert.Equal(items, result)
 	})

@@ -182,7 +182,6 @@ func init() {
 
 		// error
 		testPyTypes2GoOverflow[int8](`-1230`, assert)
-
 		assert.Panics(func() {
 			testPyTypes2Go[uint8](`-1`, 0, assert)
 		})

@@ -1,9 +1,10 @@
 package cases
 
 import (
+	"time"
+
 	"github.com/ray4go/go-ray/ray"
 	"github.com/stretchr/testify/require"
-	"time"
 )
 
 // Test performance and scalability scenarios
@@ -86,9 +87,9 @@ func init() {
 		// Collect all results
 		results := make([]int, numTasks)
 		for i, ref := range refs {
-			result, err := ref.Get1()
+			result, err := ray.Get1[int](ref)
 			assert.NoError(err)
-			results[i] = result.(int)
+			results[i] = result
 		}
 
 		elapsed := time.Since(start)
@@ -121,7 +122,7 @@ func init() {
 
 		// Collect results
 		for i, ref := range refs {
-			result, err := ref.Get1()
+			result, err := ray.Get1[int](ref)
 			assert.NoError(err)
 
 			// Expected: i + sum(0 to 999) = i + 499500
@@ -144,9 +145,9 @@ func init() {
 
 		results := make([]int, len(refs))
 		for i, ref := range refs {
-			result, err := ref.Get1()
+			result, err := ray.Get1[int](ref)
 			assert.NoError(err)
-			results[i] = result.(int)
+			results[i] = result
 		}
 
 		elapsed := time.Since(start)
@@ -193,17 +194,17 @@ func init() {
 		// Collect row results
 		rowResults := make([][]float64, rows)
 		for i, ref := range rowRefs {
-			result, err := ref.Get1()
+			result, err := ray.Get1[[]float64](ref)
 			assert.NoError(err)
-			rowResults[i] = result.([]float64)
+			rowResults[i] = result
 		}
 
 		// Aggregate results
 		aggregateRef := ray.RemoteCall("AggregateResults", rowResults)
-		finalResult, err := aggregateRef.Get1()
+		finalResult, err := ray.Get1[[]float64](aggregateRef)
 		assert.NoError(err)
 
-		aggregated := finalResult.([]float64)
+		aggregated := finalResult
 		assert.Len(aggregated, cols)
 
 		// Verify result makes sense (sum should be positive)
@@ -223,10 +224,10 @@ func init() {
 
 		// Verify all tasks complete successfully
 		for i, ref := range refs {
-			result, err := ref.Get1()
+			result, err := ray.Get1[[]int](ref)
 			assert.NoError(err)
 
-			data := result.([]int)
+			data := result
 			assert.Len(data, sizes[i])
 
 			// Verify some values
@@ -250,7 +251,7 @@ func init() {
 			currentRef = ray.RemoteCall("QuickTask", currentRef) // Each step doubles the value
 		}
 
-		result, err := currentRef.Get1()
+		result, err := ray.Get1[int](currentRef)
 		assert.NoError(err)
 
 		// Each task doubles the input, so after 10 tasks: 1 * 2^10 = 1024
@@ -287,7 +288,7 @@ func init() {
 
 		// Verify all results
 		for _, ref := range refs {
-			_, err := ref.Get1()
+			_, err := ref.GetAll()
 			assert.NoError(err)
 		}
 	})

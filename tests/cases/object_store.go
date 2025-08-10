@@ -55,7 +55,7 @@ func init() {
 		// Use the stored objects in a task
 		resultRef := ray.RemoteCall("ProcessPrimitiveTypes", intRef, floatRef, stringRef, boolRef)
 
-		val1, val2, val3, val4, err := resultRef.Get4()
+		val1, val2, val3, val4, err := ray.Get4[int, float64, string, bool](resultRef)
 		assert.NoError(err)
 		assert.Equal(84, val1)
 		assert.Equal(6.28, val2)
@@ -76,7 +76,7 @@ func init() {
 
 		// Use the stored object in a task
 		resultRef := ray.RemoteCall("ProcessStoredObject", objRef)
-		result, err := resultRef.Get1()
+		result, err := ray.Get1[StorageTestStruct](resultRef)
 		assert.NoError(err)
 
 		expected := StorageTestStruct{
@@ -97,7 +97,7 @@ func init() {
 		// Note: We need a task that accepts []int
 		// Let's create it inline for this test by using existing tasks
 		resultRef := ray.RemoteCall("ComputeSum", sliceRef)
-		result, err := resultRef.Get1()
+		result, err := ray.Get1[int](resultRef)
 		assert.NoError(err)
 		assert.Equal(15, result) // 1+2+3+4+5 = 15
 	})
@@ -115,13 +115,12 @@ func init() {
 
 		// Use the stored map
 		resultRef := ray.RemoteCall("ProcessMap", mapRef)
-		result, err := resultRef.Get1()
+		result, err := ray.Get1[map[string]int](resultRef)
 		assert.NoError(err)
 
-		resultMap := result.(map[string]int)
-		assert.Equal(2, resultMap["a_processed"])
-		assert.Equal(4, resultMap["b_processed"])
-		assert.Equal(6, resultMap["c_processed"])
+		assert.Equal(2, result["a_processed"])
+		assert.Equal(4, result["b_processed"])
+		assert.Equal(6, result["c_processed"])
 	})
 
 	AddTestCase("TestMultiplePutOperations", func(assert *require.Assertions) {
@@ -144,7 +143,7 @@ func init() {
 
 		// Combine the stored objects
 		resultRef := ray.RemoteCall("CombineStoredObjects", ref1, ref2)
-		result, err := resultRef.Get1()
+		result, err := ray.Get1[StorageTestStruct](resultRef)
 		assert.NoError(err)
 
 		expected := StorageTestStruct{
@@ -168,7 +167,7 @@ func init() {
 
 		// Process the stored slice
 		resultRef := ray.RemoteCall("UseMultipleStoredObjects", structsRef)
-		result, err := resultRef.Get1()
+		result, err := ray.Get1[int](resultRef)
 		assert.NoError(err)
 		assert.Equal(6, result) // 1+2+3 = 6
 	})
@@ -191,13 +190,12 @@ func init() {
 
 		// Process the large object
 		resultRef := ray.RemoteCall("ProcessStoredObject", objRef)
-		result, err := resultRef.Get1()
+		result, err := ray.Get1[StorageTestStruct](resultRef)
 		assert.NoError(err)
 
-		resultStruct := result.(StorageTestStruct)
-		assert.Equal(1998, resultStruct.ID)              // 999 * 2
-		assert.Equal(185.184, resultStruct.Value)        // 123.456 * 1.5
-		assert.Len(resultStruct.Data, len(largeData)+10) // original + "_processed"
+		assert.Equal(1998, result.ID)              // 999 * 2
+		assert.Equal(185.184, result.Value)        // 123.456 * 1.5
+		assert.Len(result.Data, len(largeData)+10) // original + "_processed"
 	})
 
 	AddTestCase("TestMixedPutAndRemoteCall", func(assert *require.Assertions) {
@@ -215,7 +213,7 @@ func init() {
 		// Chain operations
 		ref2 := ray.RemoteCall("SlowMultiply", ref1, value2) // 15 * 3 = 45
 
-		result, err := ref2.Get1()
+		result, err := ray.Get1[int](ref2)
 		assert.NoError(err)
 		assert.Equal(45, result)
 	})
