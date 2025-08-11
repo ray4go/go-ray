@@ -8,9 +8,11 @@ import goray
 def overwrite_ray_options():
     pass
 
+
 @goray.remote
 def echo(*args) -> tuple:
     return args
+
 
 @goray.remote
 def single(arg):
@@ -26,9 +28,11 @@ def hello(name: str):
 def no_return(name: str):
     return
 
+
 @goray.remote
 def no_args():
     return 42
+
 
 @goray.remote
 def busy(sec: int) -> int:
@@ -50,14 +54,14 @@ class PyActor:
     def hello(self, name: str):
         return f"hello {name}"
 
-    def single(self,arg):
+    def single(self, arg):
         return arg
 
     def busy(self, sec: int) -> int:
         time.sleep(sec)
         return sec
 
-    def no_return(self,name: str):
+    def no_return(self, name: str):
         return
 
     def no_args(self):

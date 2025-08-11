@@ -17,9 +17,10 @@ def _golang_remote_task(func_id: int, *args):
     return common.load_go_lib().call_golang_func(func_id, args)
 
 
-def golang_task(name: str, options:dict) -> "GolangRemoteFunc":
+def golang_task(name: str, options: dict) -> "GolangRemoteFunc":
     tasks_name2idx, actors_name2idx = common.load_go_lib().get_golang_tasks_info()
     func_id = tasks_name2idx[name]
+    common.inject_runtime_env(options)
     return GolangRemoteFunc(_golang_remote_task, func_id, **options)
 
 
@@ -32,10 +33,10 @@ class GolangRemoteFunc:
     def options(self, **kwargs) -> "GolangRemoteFunc":
         options = dict(self._options)
         options.update(kwargs)
+        # todo: make sure user didn't overwrite runtime_env/env_vars
         return GolangRemoteFunc(self._remote_handle, self._bind_arg, **options)
 
     def remote(self, *args):
-        common.inject_runtime_env(self._options)
         return self._remote_handle.options(**self._options).remote(
             self._bind_arg, *args
         )

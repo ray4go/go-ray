@@ -13,21 +13,30 @@ from .raycore import common
 from .raycore import go2py, py2go, common
 
 
-def init(libpath: str, **ray_init_args: dict):
+def init(
+    libpath: str,
+    py_module_path: str = "",
+    **ray_init_args: dict,
+):
     """
     Initialize GoRay and the ray environment.
 
     :param libpath: path to the go-ray library.
+    :param py_module_path: path to the python module to import python ray tasks and actors
     :param ray_init_args: arguments to pass to ray.init.
         https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html#ray.init
     """
-    debug=False
+    debug = False
     state.golibpath = libpath
+    state.pymodulepath = py_module_path
     state.debug = debug
 
     ray_init_args.setdefault("runtime_env", {})
     ray_init_args["runtime_env"].setdefault("env_vars", {})
     ray_init_args["runtime_env"]["env_vars"][consts.GORAY_BIN_PATH_ENV] = libpath
+    ray_init_args["runtime_env"]["env_vars"][
+        consts.GORAY_PY_MUDULE_PATH_ENV
+    ] = py_module_path
     if debug:
         ray_init_args["runtime_env"]["env_vars"]["GORAY_DEBUG_LOGGING"] = "1"
 

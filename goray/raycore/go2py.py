@@ -103,7 +103,8 @@ def handle_run_py_task(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
 
     task_and_opts = _user_tasks_actors.get(func_name)
     if task_and_opts is None:
-        return f"[py] task {func_name} not found".encode("utf-8"), ErrCode.Failed
+        print(f"{_user_tasks_actors=}")
+        return utils.error_msg(f"[py] task {func_name} not found"), ErrCode.Failed
     _, opts = task_and_opts
     opts = dict(opts)
     opts.update(options)
@@ -129,7 +130,6 @@ class PyActorWrapper:
         *object_refs: tuple[bytes, int],
     ):
         global _user_tasks_actors
-        print(f"actor {_user_tasks_actors=}")
         if class_name not in _user_tasks_actors:
             raise Exception(f"python actor {class_name} not found")
         cls, opts = _user_tasks_actors[class_name]
