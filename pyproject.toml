@@ -1,6 +1,6 @@
 [project]
 name = "goray"
-description = "py deiver for ray-core-go"
+description = "Python driver for goray project"
 version = "0.1.0"
 authors = [
     { name = "WeiminWang", email = "wang0.618@qq.com" }
@@ -12,8 +12,9 @@ ray = [
     "ray[default]"
 ]
 
-[tool.setuptools]
-packages = ["goray"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["goray*"]
 
 [build-system]
 requires = ["setuptools >= 77.0.3"]
