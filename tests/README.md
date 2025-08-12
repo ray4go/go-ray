@@ -6,8 +6,10 @@
 ## 手动启动测试用例
 
 ```bash
-bash ./run.sh local --import cases/registry.py
+bash ../run.sh . local --import tests/cases/registry.py
 ```
+
+支持通过设置 `TEST_PATTERN` 环境变量来指定测试用例。
 
 ## 测试用例编写指南
 

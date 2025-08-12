@@ -37,7 +37,7 @@ def main():
     )
     args = parser.parse_args()
 
-    import_file = getattr(args, "import", None)
+    import_file = getattr(args, "import") or ""
     if import_file:
         utils.get_module(import_file)
 

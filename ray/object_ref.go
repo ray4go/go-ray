@@ -72,13 +72,15 @@ func (obj ObjectRef) GetAll(timeout ...float64) ([]any, error) {
 // Pass a float to the last argument to set the timeout in seconds.
 func (obj ObjectRef) GetInto(ptrs ...any) error {
 	timeout := -1.0
-	switch val := ptrs[len(ptrs)-1].(type) {
-	case float32:
-		timeout = float64(val)
-		ptrs = ptrs[:len(ptrs)-1]
-	case float64:
-		timeout = val
-		ptrs = ptrs[:len(ptrs)-1]
+	if len(ptrs) > 0 {
+		switch val := ptrs[len(ptrs)-1].(type) {
+		case float32:
+			timeout = float64(val)
+			ptrs = ptrs[:len(ptrs)-1]
+		case float64:
+			timeout = val
+			ptrs = ptrs[:len(ptrs)-1]
+		}
 	}
 
 	resultData, err := obj.getRaw(timeout)
