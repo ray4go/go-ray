@@ -24,7 +24,7 @@ def ray_nodes():
         )
         print(f"Node: {name}, CPU: {cpu:.1f}, Memory: {mem:.2f} GB", node["NodeManagerAddress"])
         node_ids.append(node["NodeManagerAddress"])
-    return node_ids
+    return list(set(node_ids))
 `
 
 // 返回剩余 step 后的 hostname 列表
