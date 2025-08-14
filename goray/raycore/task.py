@@ -1,29 +1,13 @@
-import ray
-from .. import funccall
-from ..consts import *
 import logging
-from . import common
-from .. import state
 
+import ray
+
+from . import common
+from .. import funccall
+from .. import state
+from ..consts import *
 
 logger = logging.getLogger(__name__)
-
-
-@ray.remote
-def ray_run_task(
-    func_id: int,
-    raw_args: bytes,
-    object_positions: list[int],
-    *object_refs: list[tuple[bytes, int]],
-) -> tuple[bytes, int]:
-    """
-    :param func_id:
-    :param data:
-    :param object_positions: 调用的go task func中, 传入的object_ref作为参数的位置列表, 有序
-    :param object_refs: object_ref列表, 会被ray core替换为实际的数据
-    :return:
-    """
-    return run_task(func_id, raw_args, object_positions, *object_refs)
 
 
 def run_task(
@@ -56,10 +40,14 @@ def handle_run_remote_task(data: bytes, func_id: int, mock=False) -> tuple[bytes
     )
     logger.debug(f"[py] run remote task {func_id}, {options=}, {object_positions=}")
     common.inject_runtime_env(options)
+    task_name = options.pop("goray_task_name", None)
     if mock:
         fut = run_task(func_id, args_data, object_positions, *object_refs)
     else:
-        fut = ray_run_task.options(**options).remote(
+        task_func = ray.remote(
+            common.copy_function(run_task, task_name or "task", "Go")
+        )
+        fut = task_func.options(**options).remote(
             func_id, args_data, object_positions, *object_refs
         )
     fut_local_id = state.futures.add(fut)

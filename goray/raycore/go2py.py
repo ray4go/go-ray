@@ -6,38 +6,22 @@ import msgpack
 import ray
 
 from . import common
+from . import registry
 from .. import funccall
 from .. import state
 from .. import utils
-from .. import x
 from ..consts import *
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
 
-# name -> (func_or_class, options)
-_user_tasks_actors = {}
 
-
-def make_remote(function_or_class, options: dict):
-    _user_tasks_actors[function_or_class.__name__] = (function_or_class, options)
-    if not inspect.isclass(function_or_class):
-        x.export(function_or_class)
-
-    if options:
-        return ray.remote(**options)(function_or_class)
-    else:
-        return ray.remote(function_or_class)
-
-
-@ray.remote
 def ray_run_task_from_go(
     func_name: str,
     raw_args: bytes,
     object_positions: list[int],
     *object_refs: list[tuple[bytes, int]],
 ) -> tuple[bytes, int]:
-    global _user_tasks_actors  # make ray pickle them
     common.load_go_lib()
     # wired, run_task can't access global _user_tasks_actors, so we pass it as an argument
     return run_task(
@@ -45,7 +29,6 @@ def ray_run_task_from_go(
         raw_args,
         object_positions,
         *object_refs,
-        user_tasks_actors=_user_tasks_actors,
     )
 
 
@@ -72,12 +55,8 @@ def run_task(
     raw_args: bytes,
     object_positions: list[int],
     *object_refs: tuple[bytes, int],
-    user_tasks_actors=None,
 ) -> tuple[bytes, int]:
-    global _user_tasks_actors
-
-    user_tasks_actors = user_tasks_actors or _user_tasks_actors
-    func_and_opts = user_tasks_actors.get(func_name)
+    func_and_opts = registry.get_user_tasks_or_actors(func_name)
     if func_and_opts is None:
         return f"[py] task {func_name} not found".encode("utf-8"), ErrCode.Failed
     func, _ = func_and_opts
@@ -101,10 +80,9 @@ def handle_run_py_task(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     )
     func_name = options.pop("task_name")
 
-    task_and_opts = _user_tasks_actors.get(func_name)
+    task_and_opts = registry.get_user_tasks_or_actors(func_name)
     if task_and_opts is None:
-        print(f"{_user_tasks_actors=}")
-        return utils.error_msg(f"[py] task {func_name} not found"), ErrCode.Failed
+        return utils.error_msg(f"python task {func_name} not found, all tasks and actors: {registry.all_user_tasks_or_actors()}"), ErrCode.Failed
     _, opts = task_and_opts
     opts = dict(opts)
     opts.update(options)
@@ -112,14 +90,16 @@ def handle_run_py_task(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     if mock:
         fut = run_task(func_name, args_data, object_positions, *object_refs)
     else:
-        fut = ray_run_task_from_go.options(**opts).remote(
+        task_func = ray.remote(
+            common.copy_function(ray_run_task_from_go, func_name, "py")
+        )
+        fut = task_func.options(**opts).remote(
             func_name, args_data, object_positions, *object_refs
         )
     fut_local_id = state.futures.add(fut)
     return str(fut_local_id).encode(), 0
 
 
-@ray.remote
 class PyActorWrapper:
 
     def __init__(
@@ -129,10 +109,12 @@ class PyActorWrapper:
         object_positions: list[int],
         *object_refs: tuple[bytes, int],
     ):
-        global _user_tasks_actors
-        if class_name not in _user_tasks_actors:
-            raise Exception(f"python actor {class_name} not found")
-        cls, opts = _user_tasks_actors[class_name]
+        common.load_go_lib()
+
+        cls_and_opts = registry.get_user_tasks_or_actors(class_name)
+        if not cls_and_opts:
+            raise Exception(f"python actor {class_name} not found, all tasks and actors: {registry.all_user_tasks_or_actors()}")
+        cls, opts = cls_and_opts
         if not inspect.isclass(cls):
             raise Exception(f"python actor {class_name} not found")
 
@@ -167,14 +149,16 @@ def handle_new_py_actor(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     )
     class_name = options.pop("actor_class_name")
 
-    if class_name not in _user_tasks_actors:
+    cls_and_opts = registry.get_user_tasks_or_actors(class_name)
+    if not cls_and_opts:
         return f"python actor {class_name} not found".encode("utf-8"), ErrCode.Failed
-    cls, opts = _user_tasks_actors[class_name]
+    cls, opts = cls_and_opts
     if not inspect.isclass(cls):
         return f"python actor {class_name} not found".encode("utf-8"), ErrCode.Failed
 
     common.inject_runtime_env(options)
-    actor_handle = PyActorWrapper.options(**options).remote(
+    ActorCls = ray.remote(common.copy_class(PyActorWrapper, class_name, "py"))
+    actor_handle = ActorCls.options(**options).remote(
         class_name, args_data, object_positions, *object_refs
     )
     actor_local_id = state.actors.add(actor_handle)

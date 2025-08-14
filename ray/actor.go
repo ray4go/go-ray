@@ -77,6 +77,7 @@ func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 	}
 	actor := actorTypes[actorIndex]
 	callable := newCallableType(reflect.TypeOf(actor.newFunc), false)
+	argsAndOpts = append(argsAndOpts, Option("goray_actor_type_name", typeName))
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
 	// request bitmap layout (64 bits, LSB first)

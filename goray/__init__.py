@@ -9,8 +9,13 @@ from . import consts
 from . import state
 from . import utils
 from . import x
-from .raycore import common
-from .raycore import go2py, py2go, common
+from .raycore import (
+    common,
+    go2py,
+    py2go,
+    common,
+    registry,
+)
 
 
 def init(
@@ -62,8 +67,8 @@ def remote(*args, **kwargs):
     if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
         # This is the case where the decorator is just @remote.
         # "args[0]" is the class or function under the decorator.
-        return go2py.make_remote(args[0], {})
-    return functools.partial(go2py.make_remote, options=kwargs)
+        return registry.make_remote(args[0], {})
+    return functools.partial(registry.make_remote, options=kwargs)
 
 
 def golang_actor_class(name: str, **options) -> py2go.GolangActorClass:

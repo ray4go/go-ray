@@ -42,6 +42,7 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	}
 	taskFunc := taskFuncs[funcId]
 	callable := newCallableType(taskFunc.Type, true)
+	argsAndOpts = append(argsAndOpts, Option("goray_task_name", name))
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
 	// request bitmap layout (64 bits, LSB first)

@@ -1,5 +1,5 @@
-from .. import state, utils
 from .. import consts
+from .. import state, utils
 from ..x import ffi
 
 
@@ -33,3 +33,26 @@ def inject_runtime_env(options: dict):
     options["runtime_env"]["env_vars"][
         consts.GORAY_PY_MUDULE_PATH_ENV
     ] = state.pymodulepath
+
+
+def copy_function(func, name: str, namespace: str = ""):
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    wrapper.__name__ = name
+    if namespace:
+        namespace = namespace + "."
+    wrapper.__qualname__ = namespace + name
+    wrapper.__module__ = "goray"
+    return wrapper
+
+
+def copy_class(cls, name: str, namespace: str = ""):
+    if namespace:
+        namespace = namespace + "."
+    new_cls = type(
+        name,
+        (cls,),
+        {"__module__": "goray", "__qualname__": namespace + name, "__name__": name},
+    )
+    return new_cls

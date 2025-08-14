@@ -69,7 +69,6 @@ class _Actor:
         return res, code
 
 
-@ray.remote
 class Actor:
     _actor: _Actor
 
@@ -91,11 +90,14 @@ def handle_new_actor(
     )
     logger.debug(f"[py] new actor {actor_class_idx}, {options=}, {object_positions=}")
     common.inject_runtime_env(options)
-
+    actor_type_name = options.pop("goray_actor_type_name", None)
     if mock:
         actor_handle = _Actor(actor_class_idx, raw_args, object_positions, *object_refs)
     else:
-        actor_handle = Actor.options(**options).remote(
+        ActorCls = ray.remote(
+            common.copy_class(Actor, actor_type_name or "Actor", "Go")
+        )
+        actor_handle = ActorCls.options(**options).remote(
             actor_class_idx, raw_args, object_positions, *object_refs
         )
     actor_local_id = state.actors.add(actor_handle)
