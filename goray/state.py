@@ -1,9 +1,9 @@
 """global state"""
 
-from . import utils
-from . import consts
 import os
 
+from . import consts
+from . import utils
 
 actors = utils.ThreadSafeLocalStore()
 

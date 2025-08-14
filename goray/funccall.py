@@ -1,6 +1,7 @@
 import json
-from . import utils
+
 from . import state
+from . import utils
 
 
 def _get_objects(object_pos_to_local_id: dict[int, int]):
@@ -16,7 +17,7 @@ def _get_objects(object_pos_to_local_id: dict[int, int]):
 
 def decode_funccall_args(data: bytes):
     raw_args, opts_data = utils.unpack_bytes_units(data)
-    options = json.loads(opts_data)
+    options: dict = json.loads(opts_data)
     object_pos_to_local_id = options.pop("go_ray_object_pos_to_local_id", {})
     object_positions, object_refs = _get_objects(object_pos_to_local_id)
     return raw_args, options, object_positions, object_refs

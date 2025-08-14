@@ -4,8 +4,8 @@ import ctypes
 import logging
 import typing
 from ctypes.util import find_library
-from . import cmds
 
+from . import cmds
 
 # execute 需要在 register_handler 之后调用
 __all__ = [
