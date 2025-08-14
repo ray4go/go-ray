@@ -37,6 +37,7 @@ class _Actor:
         self.go_instance_index = int(res.decode("utf-8"))
         self.go_class_idx = actor_class_idx
 
+    # todo: rename method name to actual name
     def method(
         self,
         method_idx: int,

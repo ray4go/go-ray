@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 utils.init_logger(logger)
 
 
-@ray.remote
 def _golang_remote_task(func_id: int, *args):
     return common.load_go_lib().call_golang_func(func_id, args)
 
@@ -18,7 +17,10 @@ def golang_task(name: str, options: dict) -> "GolangRemoteFunc":
     tasks_name2idx, actors_name2idx = common.load_go_lib().get_golang_tasks_info()
     func_id = tasks_name2idx[name]
     common.inject_runtime_env(options)
-    return GolangRemoteFunc(_golang_remote_task, func_id, **options)
+    remote_task = ray.remote(
+        common.copy_function(_golang_remote_task, name or "task", "Go")
+    )
+    return GolangRemoteFunc(remote_task, func_id, **options)
 
 
 class GolangRemoteFunc:
@@ -39,7 +41,6 @@ class GolangRemoteFunc:
         )
 
 
-@ray.remote
 class _RemoteActor:
     def __init__(self, actor_class_name: str, *args):
         cmder = common.load_go_lib()
@@ -72,7 +73,7 @@ class GolangActorClass:
         if self._class_name not in actors_name2idx:
             raise Exception(f"golang actor {self._class_name} not found")
         common.inject_runtime_env(self._options)
-        actor_handle = _RemoteActor.options(**self._options).remote(
-            self._class_name, *args
-        )
+
+        ActorCls = ray.remote(common.copy_class(_RemoteActor, self._class_name, "Go"))
+        actor_handle = ActorCls.options(**self._options).remote(self._class_name, *args)
         return GolangRemoteActorHandle(actor_handle)
