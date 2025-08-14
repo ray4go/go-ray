@@ -5,12 +5,9 @@ import logging
 import msgpack
 import ray
 
-from . import common
-from . import registry
-from .. import funccall
-from .. import state
-from .. import utils
+from .. import funccall, state, utils
 from ..consts import *
+from . import common, registry
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
@@ -82,7 +79,12 @@ def handle_run_py_task(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
 
     task_and_opts = registry.get_user_tasks_or_actors(func_name)
     if task_and_opts is None:
-        return utils.error_msg(f"python task {func_name} not found, all tasks and actors: {registry.all_user_tasks_or_actors()}"), ErrCode.Failed
+        return (
+            utils.error_msg(
+                f"python task {func_name} not found, all tasks and actors: {registry.all_user_tasks_or_actors()}"
+            ),
+            ErrCode.Failed,
+        )
     _, opts = task_and_opts
     opts = dict(opts)
     opts.update(options)
@@ -113,7 +115,9 @@ class PyActorWrapper:
 
         cls_and_opts = registry.get_user_tasks_or_actors(class_name)
         if not cls_and_opts:
-            raise Exception(f"python actor {class_name} not found, all tasks and actors: {registry.all_user_tasks_or_actors()}")
+            raise Exception(
+                f"python actor {class_name} not found, all tasks and actors: {registry.all_user_tasks_or_actors()}"
+            )
         cls, opts = cls_and_opts
         if not inspect.isclass(cls):
             raise Exception(f"python actor {class_name} not found")

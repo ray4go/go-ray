@@ -2,9 +2,8 @@ import logging
 
 import ray
 
+from .. import utils, x
 from . import common
-from .. import utils
-from .. import x
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)

@@ -6,11 +6,8 @@ import typing
 
 import msgpack
 
-from . import actor
-from . import cmds
-from . import ffi
-from . import handlers
 from ..consts import *
+from . import actor, cmds, ffi, handlers
 
 
 class GolangLocalActor:

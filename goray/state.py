@@ -2,8 +2,7 @@
 
 import os
 
-from . import consts
-from . import utils
+from . import consts, utils
 
 actors = utils.ThreadSafeLocalStore()
 

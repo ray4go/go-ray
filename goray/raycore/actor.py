@@ -3,11 +3,9 @@ import logging
 
 import ray
 
-from . import common
-from .. import funccall
-from .. import state
-from .. import utils
+from .. import funccall, state, utils
 from ..consts import *
+from . import common
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,4 @@
-from .. import consts
-from .. import state, utils
+from .. import consts, state, utils
 from ..x import ffi
 
 

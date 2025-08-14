@@ -3,8 +3,7 @@ import logging
 
 import ray
 
-from .. import consts
-from .. import state
+from .. import consts, state
 
 logger = logging.getLogger(__name__)
 

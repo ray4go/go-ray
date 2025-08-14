@@ -1,7 +1,6 @@
 import json
 
-from . import state
-from . import utils
+from . import state, utils
 
 
 def _get_objects(object_pos_to_local_id: dict[int, int]):
