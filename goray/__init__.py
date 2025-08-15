@@ -90,10 +90,9 @@ def get_golang_actor(name: str, namespace: typing.Optional[str] = None):
 
 def golang_task(name: str, **options) -> py2go.GolangRemoteFunc:
     """
-    Get a golang task, which you can run the task remote.
+    Get a golang task, which you can run the task remotely.
 
-    The returned task can be used as same as python ray task function.
-
+    The returned task can be used in same way as python ray task function.
     Example:
         task = golang_task("task_name")
         obj = task.remote(...)
@@ -105,6 +104,7 @@ def golang_task(name: str, **options) -> py2go.GolangRemoteFunc:
 def golang_local_run_task(name: str, *args):
     """
     Run a golang task locally (in current process).
+    Unlike remote tasks, this function is blocking and returns the result directly.
     """
     lib = common.load_go_lib()
     return x.CrossLanguageClient(lib).func_call(name, *args)
@@ -114,6 +114,7 @@ def golang_local_new_actor(name: str, *args) -> x.GolangLocalActor:
     """
     Create a golang actor locally (in current process).
 
+    Unlike remote actors, the method calls of local actor are blocking and return the result directly.
     Example:
         actor = golang_local_new_actor("Counter", 0)
         actor.Inc(1)

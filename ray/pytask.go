@@ -90,6 +90,7 @@ func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 }
 
 // LocalCallPyTask executes a Python task locally (in current process) by name with the provided arguments.
+// Unlike [RemoteCall] and [ActorHandle.RemoteCall], this function is synchronous. It will block until the task is completed.
 // Noted: [ObjectRef] is not supported as arguments.
 func LocalCallPyTask(name string, args ...any) LocalPyCallResult {
 	log.Debug("[Go] LocalCallPyTask %s %#v\n", name, args)
