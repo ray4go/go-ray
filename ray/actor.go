@@ -235,20 +235,22 @@ func GetActor(name string, opts ...*option) (*ActorHandle, error) {
 		return nil, fmt.Errorf("GetActor failed, reason: %w, detail: %s", newError(retCode), resData)
 	}
 
-	var res map[string]int
+	var res struct {
+		PyLocalId     int64  `json:"py_local_id"`
+		ActorTypeName string `json:"actor_type_name"`
+		IsGolangActor bool   `json:"is_golang_actor"`
+	}
+
 	err = json.Unmarshal(resData, &res)
 	if err != nil {
 		return nil, fmt.Errorf("json.Unmarshal failed, reason: %w, detail: %s", err, resData)
 	}
-	pyLocalId := int64(res["py_local_id"])
-	actorIndex := res["actor_index"]
-
 	var actorTyp *actorType
-	if actorIndex != -1 {
-		actorTyp = actorTypes[actorIndex]
+	if res.IsGolangActor {
+		actorTyp = actorTypes[actorsName2Idx[res.ActorTypeName]]
 	}
 	return &ActorHandle{
-		pyLocalId: pyLocalId,
+		pyLocalId: res.PyLocalId,
 		typ:       actorTyp,
 	}, nil
 }

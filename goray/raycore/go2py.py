@@ -30,7 +30,9 @@ def ray_run_task_from_go(
 
 
 def decode_args(
-    raw_args: bytes, object_positions: list[int], object_refs: typing.Sequence[tuple[bytes, int]]
+    raw_args: bytes,
+    object_positions: list[int],
+    object_refs: typing.Sequence[tuple[bytes, int]],
 ) -> list:
     reader = io.BytesIO(raw_args)
     unpacker = msgpack.Unpacker(reader)
@@ -136,9 +138,6 @@ class PyActorWrapper:
                 ErrCode.Failed,
             )
         return msgpack.packb(res, use_bin_type=True), ErrCode.Success
-
-    def get_go_class_index(self):
-        return -1
 
 
 def handle_new_py_actor(data: bytes, _: int, mock=False) -> tuple[bytes, int]:

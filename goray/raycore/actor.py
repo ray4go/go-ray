@@ -77,9 +77,6 @@ class Actor:
     def method(self, *args, **kwargs):
         return self._actor.method(*args, **kwargs)
 
-    def get_go_class_index(self):
-        return self._actor.go_class_idx
-
 
 def handle_new_actor(
     data: bytes, actor_class_idx: int, mock=False
@@ -147,22 +144,30 @@ def handle_kill_actor(
     return b"", 0
 
 
+def _actor_class_name(actor_handle: ray.actor.ActorHandle) -> str:
+    try:
+        return actor_handle._ray_actor_creation_function_descriptor.class_name
+    except Exception as e:
+        # Actor(Go.Hello, b6018165d88f27ae4fde1bc801000000)
+        return (
+            str(actor_handle).removeprefix("Actor(").removesuffix(")").split(",", 1)[0]
+        )
+
+
 def handle_get_actor(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     options = json.loads(data)
     actor_handle = ray.get_actor(**options)
     actor_local_id = state.actors.add(actor_handle)
 
-    # todo: use a separate actor to store the mapping of actor name to go_class_idx
-    if not mock:
-        # this will block the caller, not good
-        go_class_idx = ray.get(actor_handle.get_go_class_index.remote())
-    else:
-        go_class_idx = actor_handle.go_class_idx
-
+    actor_full_name = _actor_class_name(actor_handle)
+    # we use actor class_name to indicate the actor language and underlying type.
+    # it's not a good way, but we have no better choice.
+    lang, name = actor_full_name.split(".", 1)
     res = json.dumps(
         {
             "py_local_id": actor_local_id,
-            "actor_index": go_class_idx,
+            "actor_type_name": name,
+            "is_golang_actor": lang == "Go",
         }
     )
     return res.encode(), 0
