@@ -98,7 +98,7 @@ def golang_task(name: str, **options) -> py2go.GolangRemoteFunc:
         obj = task.remote(...)
         print(ray.get(obj))
     """
-    return py2go.golang_task(name, options)
+    return py2go.get_golang_remote_task(name, options)
 
 
 def golang_local_run_task(name: str, *args):

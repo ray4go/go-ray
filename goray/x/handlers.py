@@ -1,6 +1,7 @@
 import io
 import logging
 import traceback
+import typing
 
 import msgpack
 
@@ -17,7 +18,9 @@ def add_python_export_func(func):
 
 
 def decode_args(
-    raw_args: bytes, object_positions: list[int], object_refs: list[tuple[bytes, int]]
+    raw_args: bytes,
+    object_positions: list[int],
+    object_refs: typing.Sequence[tuple[bytes, int]],
 ) -> list:
     reader = io.BytesIO(raw_args)
     unpacker = msgpack.Unpacker(reader)

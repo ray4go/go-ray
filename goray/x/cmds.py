@@ -33,14 +33,16 @@ class GoCommander:
         res, code = self.execute(Py2GoCmd.CMD_CLOSE_ACTOR, go_instance_id, b"")
         return res.decode("utf8"), code
 
-    def call_golang_func(self, func_id: int, args: tuple):
+    def call_golang_func(self, func_name: str, args: tuple):
         raw_args = b"".join(msgpack.packb(arg, use_bin_type=True) for arg in args)
-        data, code = funccall.pack_golang_funccall_data(raw_args, [], {})
+        data, code = funccall.pack_golang_funccall_data(func_name, raw_args, [])
         assert code == 0
 
-        res, code = self.execute(Py2GoCmd.CMD_RUN_TASK, func_id, data)
+        res, code = self.execute(Py2GoCmd.CMD_RUN_TASK, 0, data)
         if code != 0:
-            raise Exception(f"golang task {func_id} error: {res.decode('utf-8')}")
+            raise Exception(
+                f"execute golang task {func_name} error: {res.decode('utf-8')}"
+            )
         returns = list(msgpack.Unpacker(io.BytesIO(res)))
         if len(returns) == 1:
             return returns[0]

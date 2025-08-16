@@ -23,17 +23,19 @@ def decode_funccall_args(data: bytes):
 
 
 def pack_golang_funccall_data(
+    name: str,
     raw_args: bytes,
     object_positions: list[int],
     *object_refs: tuple[bytes, int],
 ) -> tuple[bytes, int]:
     """
     data format: multiple bytes units
-    - first unit is raw args data;
+    - first unit is function/actor/method name
+    - second unit is raw args data;
     - other units are objectRefs resolved data;
         - resolved data format: | arg_pos:8byte:int64 | data:[]byte |
     """
-    data = [raw_args]
+    data = [name.encode("utf8"), raw_args]
     for pos, (raw_res, code) in zip(object_positions, object_refs):
         if code != 0:  # ray task for this object failed
             origin_err_msg = raw_res.decode("utf-8")

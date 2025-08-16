@@ -2,25 +2,23 @@ import logging
 
 import ray
 
-from .. import utils, x
+from .. import utils, x, consts
 from . import common
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
 
 
-def _golang_remote_task(func_id: int, *args):
-    return common.load_go_lib().call_golang_func(func_id, args)
+def _run_golang_remote_task(func_name: str, *args):
+    return common.load_go_lib().call_golang_func(func_name, args)
 
 
-def golang_task(name: str, options: dict) -> "GolangRemoteFunc":
-    tasks_name2idx, actors_name2idx = common.load_go_lib().get_golang_tasks_info()
-    func_id = tasks_name2idx[name]
+def get_golang_remote_task(name: str, options: dict) -> "GolangRemoteFunc":
     common.inject_runtime_env(options)
     remote_task = ray.remote(
-        common.copy_function(_golang_remote_task, name or "task", "Go")
+        common.copy_function(_run_golang_remote_task, name, consts.Language.GO)
     )
-    return GolangRemoteFunc(remote_task, func_id, **options)
+    return GolangRemoteFunc(remote_task, name, **options)
 
 
 class GolangRemoteFunc:

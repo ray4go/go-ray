@@ -52,17 +52,20 @@ func encodeRemoteCallArgs(callable *callableType, argsAndOpts []any) []byte {
 data format: multiple bytes units
 bytes unit format: | length:8byte:int64 | data:${length}byte:[]byte |
 
-- first unit is raw args data;
+- first unit is function/actor/method name
+- second unit is raw args data;
 - other units are objectRefs resolved data;
   - resolved data format: | arg_pos:8byte:int64 | data:[]byte |
 */
-func decodeRemoteCallArgs(callable *callableType, data []byte) []any {
+func unpackRemoteCallArgs(data []byte) (string, []byte, map[int][]byte) {
 	args, ok := decodeBytesUnits(data)
 	if !ok || len(args) == 0 {
 		panic("Error: decode args of remote call failed")
 	}
-	rawArgs := args[0]
-	objUnits := args[1:]
+
+	funcName := string(args[0])
+	rawArgs := args[1]
+	objUnits := args[2:]
 
 	posArgs := make(map[int][]byte)
 	for _, unit := range objUnits {
@@ -70,7 +73,7 @@ func decodeRemoteCallArgs(callable *callableType, data []byte) []any {
 		posArgs[pos] = unit[8:]
 	}
 
-	return decodeWithType(rawArgs, posArgs, callable.InType)
+	return funcName, rawArgs, posArgs
 }
 
 func funcCall(receiverVal *reflect.Value, funcVal reflect.Value, args []any) []any {

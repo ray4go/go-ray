@@ -42,14 +42,10 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	}
 	taskFunc := taskFuncs[funcId]
 	callable := newCallableType(taskFunc.Type, true)
-	argsAndOpts = append(argsAndOpts, Option("goray_task_name", name))
+	argsAndOpts = append(argsAndOpts, Option(internal.TaskNameOptionKey, name))
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
-	// request bitmap layout (64 bits, LSB first)
-	// | cmdId   | taskIndex |
-	// | 10 bits | 54 bits   |
-	request := internal.Go2PyCmd_ExeRemoteTask | int64(funcId)<<internal.CmdBitsLen
-	res, retCode := ffi.CallServer(request, argsData) // todo: pass error to ObjectRef
+	res, retCode := ffi.CallServer(internal.Go2PyCmd_ExeRemoteTask, argsData) // todo: pass error to ObjectRef
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
 	}
@@ -64,9 +60,10 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	}
 }
 
-func handleRunTask(taskIndex int64, data []byte) (resData []byte, retCode int64) {
-	taskFunc := taskFuncs[taskIndex]
-	args := decodeRemoteCallArgs(newCallableType(taskFunc.Type, true), data)
+func handleRunTask(_ int64, data []byte) (resData []byte, retCode int64) {
+	funcName, rawArgs, posArgs := unpackRemoteCallArgs(data)
+	taskFunc := taskFuncs[tasksName2Idx[funcName]]
+	args := decodeWithType(rawArgs, posArgs, newCallableType(taskFunc.Type, true).InType)
 	res := funcCall(&taskReceiverVal, taskFunc.Func, args)
 	resData = encodeFuncResult(res)
 	log.Debug("funcCall %v -> %v\n", taskFunc, res)

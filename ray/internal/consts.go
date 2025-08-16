@@ -3,6 +3,10 @@ package internal
 const CmdBitsLen = 10
 const CmdBitsMask = (1 << CmdBitsLen) - 1
 
+const TaskNameOptionKey = "goray_task_name"
+const PyLocalActorId = "goray_py_local_actor_id"
+const ActorNameOptionKey = "goray_actor_type_name"
+
 const (
 	ErrorCode_Success = iota
 	ErrorCode_Failed

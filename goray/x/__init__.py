@@ -25,16 +25,15 @@ class GolangLocalActor:
         raw_args = b"".join(msgpack.packb(arg, use_bin_type=True) for arg in args)
         self._actor = actor.GoActor(
             self._cmder,
-            actor_class_idx,
+            actor_class_name,
             raw_args=raw_args,
             object_positions=[],
         )
 
     def _call_method(self, method_name: str, *args):
-        method_idx = self._method_name2index[method_name]
         raw_args = b"".join(msgpack.packb(arg, use_bin_type=True) for arg in args)
         res, code = self._actor.method(
-            method_idx,
+            method_name,
             raw_args=raw_args,
             object_positions=[],
         )

@@ -10,20 +10,21 @@ logger = logging.getLogger(__name__)
 
 
 def run_task(
-    func_id: int,
+    func_name: str,
     raw_args: bytes,
     object_positions: list[int],
-    *object_refs: tuple[bytes, int],
+    *resolved_object_refs: tuple[bytes, int],
 ) -> tuple[bytes, int]:
+    """run task, get error code and encoded result bytes"""
     data, err = funccall.pack_golang_funccall_data(
-        raw_args, object_positions, *object_refs
+        func_name, raw_args, object_positions, *resolved_object_refs
     )
     if err != 0:
         return data, err
 
+    logger.debug(f"[py] local_run_task {func_name=}, {object_positions=}")
     try:
-        res, code = common.load_go_lib().execute(Py2GoCmd.CMD_RUN_TASK, func_id, data)
-        logger.debug(f"[py] local_run_task {func_id=}, {res=} {code=}")
+        res, code = common.load_go_lib().execute(Py2GoCmd.CMD_RUN_TASK, 0, data)
     except Exception as e:
         logging.exception(f"[py] execute error {e}")
         return (
@@ -33,22 +34,21 @@ def run_task(
     return res, code
 
 
-def handle_run_remote_task(data: bytes, func_id: int, mock=False) -> tuple[bytes, int]:
+def handle_run_remote_task(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
     )
-    logger.debug(f"[py] run remote task {func_id}, {options=}, {object_positions=}")
+    task_name = options.pop(TASK_NAME_OPTION_KEY)
+
+    logger.debug(f"[py] run remote task {task_name}, {options=}, {object_positions=}")
     common.inject_runtime_env(options)
-    task_name = options.pop("goray_task_name", None)
-    if mock:
-        fut = run_task(func_id, args_data, object_positions, *object_refs)
-    else:
-        task_func = ray.remote(
-            common.copy_function(run_task, task_name or "task", "Go")
-        )
-        fut = task_func.options(**options).remote(
-            func_id, args_data, object_positions, *object_refs
-        )
+
+    task_func = ray.remote(
+        common.copy_function(run_task, task_name, namespace=Language.PYTHON)
+    )
+    fut = task_func.options(**options).remote(
+        task_name, args_data, object_positions, *object_refs
+    )
     fut_local_id = state.futures.add(fut)
     # show.remote(fut)
     return str(fut_local_id).encode(), 0
