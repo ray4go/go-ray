@@ -4,6 +4,7 @@ import os
 
 from . import consts, utils
 
+# values are raycore.go2py.PyActorWrapper / x.actor.GoActorWrapper
 actors = utils.ThreadSafeLocalStore()
 
 # value is ray object ref

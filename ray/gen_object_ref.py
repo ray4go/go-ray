@@ -10,7 +10,7 @@ func Get${l}[${T_any_list}](obj decodable, timeout ...float64) (${T_list}, error
 	var (
 ${var_list}
 	)
-	err := obj.GetInto(packArgs(timeout, ${addr_list})...)
+	err := obj.GetInto(optionalTimeout(timeout, ${addr_list})...)
 	return ${val_list}, err
 }
 """

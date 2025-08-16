@@ -47,7 +47,7 @@ def run_task(
 
     func = _python_export_funcs.get(func_name)
     if func is None:
-        return f"[py] task {func_name} not found".encode("utf-8"), ErrCode.Failed
+        return utils.error_msg(f"python task {func_name} not found"), ErrCode.Failed
 
     args = decode_args(raw_args, object_positions, object_refs)
 
@@ -56,7 +56,7 @@ def run_task(
     except Exception as e:
         logging.exception(f"[py] execute error {e}")
         return (
-            f"[goray error] python run task error: {e}".encode("utf-8"),
+            utils.error_msg(f"run python task error: {e}"),
             ErrCode.Failed,
         )
 
@@ -67,7 +67,7 @@ def handle_run_py_local_task(data: bytes, _: int) -> tuple[bytes, int]:
     args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
     )
-    func_name = options.pop("task_name")
+    func_name = options.pop(TASK_NAME_OPTION_KEY)
     return run_task(func_name, args_data, object_positions, *object_refs)
 
 

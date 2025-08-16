@@ -6,21 +6,21 @@ type decodable interface {
 	GetInto(ptrs ...any) error
 }
 
-func packArgs(timeout []float64, ptrs ...any) []any {
-	timeoutVal := float64(-1)
+// optionalTimeout add optional timeout value to the end of the ptrs slice.
+func optionalTimeout(timeout []float64, ptrs ...any) []any {
 	if len(timeout) > 0 {
 		if len(timeout) != 1 {
 			panic(fmt.Sprintf("ObjectRef Get: at most 1 timeout value is allowed, got %v", len(timeout)))
 		}
-		timeoutVal = timeout[0]
+		ptrs = append(ptrs, timeout[0])
 	}
-	return append(ptrs, timeoutVal)
+	return ptrs
 }
 
 // Get0 is used to wait remote task / actor method execution finish.
 // The optional timeout (in seconds) is only applicable for remote tasks / actors.
 func Get0(obj decodable, timeout ...float64) error {
-	return obj.GetInto(packArgs(timeout)...)
+	return obj.GetInto(optionalTimeout(timeout)...)
 }
 
 // Get1 is used to get the result of task / actor method with 1 return value.
@@ -29,7 +29,7 @@ func Get1[T0 any](obj decodable, timeout ...float64) (T0, error) {
 	var (
 		r0 T0
 	)
-	err := obj.GetInto(packArgs(timeout, &r0)...)
+	err := obj.GetInto(optionalTimeout(timeout, &r0)...)
 	return r0, err
 }
 
@@ -40,7 +40,7 @@ func Get2[T0 any, T1 any](obj decodable, timeout ...float64) (T0, T1, error) {
 		r0 T0
 		r1 T1
 	)
-	err := obj.GetInto(packArgs(timeout, &r0, &r1)...)
+	err := obj.GetInto(optionalTimeout(timeout, &r0, &r1)...)
 	return r0, r1, err
 }
 
@@ -52,7 +52,7 @@ func Get3[T0 any, T1 any, T2 any](obj decodable, timeout ...float64) (T0, T1, T2
 		r1 T1
 		r2 T2
 	)
-	err := obj.GetInto(packArgs(timeout, &r0, &r1, &r2)...)
+	err := obj.GetInto(optionalTimeout(timeout, &r0, &r1, &r2)...)
 	return r0, r1, r2, err
 }
 
@@ -65,7 +65,7 @@ func Get4[T0 any, T1 any, T2 any, T3 any](obj decodable, timeout ...float64) (T0
 		r2 T2
 		r3 T3
 	)
-	err := obj.GetInto(packArgs(timeout, &r0, &r1, &r2, &r3)...)
+	err := obj.GetInto(optionalTimeout(timeout, &r0, &r1, &r2, &r3)...)
 	return r0, r1, r2, r3, err
 }
 
@@ -79,6 +79,6 @@ func Get5[T0 any, T1 any, T2 any, T3 any, T4 any](obj decodable, timeout ...floa
 		r3 T3
 		r4 T4
 	)
-	err := obj.GetInto(packArgs(timeout, &r0, &r1, &r2, &r3, &r4)...)
+	err := obj.GetInto(optionalTimeout(timeout, &r0, &r1, &r2, &r3, &r4)...)
 	return r0, r1, r2, r3, r4, err
 }

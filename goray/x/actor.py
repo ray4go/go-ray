@@ -7,7 +7,7 @@ from . import cmds
 logger = logging.getLogger(__name__)
 
 
-class GoActor:
+class GoActorWrapper:
     cmder: cmds.GoCommander
     go_instance_index: int
 
@@ -26,15 +26,15 @@ class GoActor:
         )
         if err != 0:
             raise Exception(data.decode("utf-8"))
+        logger.debug(f"[py] new golang actor {actor_class_name}")
 
         res, code = cmder.execute(Py2GoCmd.CMD_NEW_ACTOR, 0, data)
-        logger.debug(f"[py] CMD_NEW_ACTOR {actor_class_name=}, {res=} {code=}")
         if code != ErrCode.Success:
-            raise Exception("go ffi.execute failed: " + res.decode("utf-8"))
+            raise Exception("create golang actor error: " + res.decode("utf-8"))
 
         self.go_instance_index = int(res.decode("utf-8"))
 
-    def method(
+    def call_method(
         self,
         method_name: str,
         raw_args: bytes,

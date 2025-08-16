@@ -23,7 +23,7 @@ class GolangLocalActor:
         actor_class_idx = actors_name2idx[actor_class_name]
         self._method_name2index = cmder.get_golang_actor_methods(actor_class_idx)
         raw_args = b"".join(msgpack.packb(arg, use_bin_type=True) for arg in args)
-        self._actor = actor.GoActor(
+        self._actor = actor.GoActorWrapper(
             self._cmder,
             actor_class_name,
             raw_args=raw_args,
@@ -32,7 +32,7 @@ class GolangLocalActor:
 
     def _call_method(self, method_name: str, *args):
         raw_args = b"".join(msgpack.packb(arg, use_bin_type=True) for arg in args)
-        res, code = self._actor.method(
+        res, code = self._actor.call_method(
             method_name,
             raw_args=raw_args,
             object_positions=[],
@@ -44,6 +44,8 @@ class GolangLocalActor:
         returns = list(msgpack.Unpacker(io.BytesIO(res)))
         if len(returns) == 1:
             return returns[0]
+        if len(returns) == 0:
+            return None
         return returns
 
     def __getattr__(self, name) -> typing.Callable:
@@ -72,9 +74,7 @@ class CrossLanguageClient:
         self._cmder.start_driver()
 
     def func_call(self, func_name: str, *args):
-        tasks_name2idx, actors_name2idx = self._cmder.get_golang_tasks_info()
-        func_id = tasks_name2idx[func_name]
-        return self._cmder.call_golang_func(func_id, args)
+        return self._cmder.call_golang_func(func_name, args)
 
     def new_type(self, type_name: str, *args):
         return GolangLocalActor(self._cmder, type_name, *args)

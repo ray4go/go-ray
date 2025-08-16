@@ -72,7 +72,7 @@ def run_task(
     return msgpack.packb(res, use_bin_type=True), ErrCode.Success
 
 
-def handle_run_py_task(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
+def handle_run_py_task(data: bytes, _: int) -> tuple[bytes, int]:
     args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
     )
@@ -88,21 +88,15 @@ def handle_run_py_task(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
     opts = dict(opts)
     opts.update(options)
     common.inject_runtime_env(options)
-    if mock:
-        fut = run_task(func_name, args_data, object_positions, *object_refs)
-    else:
-        task_func = ray.remote(
-            common.copy_function(ray_run_task_from_go, func_name, "py")
-        )
-        fut = task_func.options(**opts).remote(
-            func_name, args_data, object_positions, *object_refs
-        )
+    task_func = ray.remote(common.copy_function(ray_run_task_from_go, func_name, "py"))
+    fut = task_func.options(**opts).remote(
+        func_name, args_data, object_positions, *object_refs
+    )
     fut_local_id = state.futures.add(fut)
     return str(fut_local_id).encode(), 0
 
 
 class PyActorWrapper:
-
     def __init__(
         self,
         class_name: str,
@@ -121,7 +115,7 @@ class PyActorWrapper:
         args = decode_args(raw_args, object_positions, object_refs)
         self._actor = cls(*args)
 
-    def method(
+    def call_method(
         self,
         method_name: str,
         raw_args: bytes,
@@ -140,11 +134,11 @@ class PyActorWrapper:
         return msgpack.packb(res, use_bin_type=True), ErrCode.Success
 
 
-def handle_new_py_actor(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
+def handle_new_py_actor(data: bytes, _: int) -> tuple[bytes, int]:
     args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
     )
-    class_name = options.pop("actor_class_name")
+    class_name = options.pop(ACTOR_NAME_OPTION_KEY)
 
     cls, opts = registry.get_py_actor(class_name)
     if cls is None:

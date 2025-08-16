@@ -36,9 +36,8 @@ def handle(cmd: int, index: int, data: bytes) -> tuple[bytes, int]:
         f"[py] handle {Go2PyCmd(cmd).name}, {index=}, {len(data)=}, {threading.current_thread().name}"
     )
     func = handlers[cmd]
-    mock_mode = os.environ.get("GORAY_MOCK_MODE")
     try:
-        return func(data, index, mock=mock_mode)
+        return func(data, index)
     except Exception as e:
         error_string = (
             f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()

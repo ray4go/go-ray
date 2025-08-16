@@ -16,25 +16,12 @@ def run_task(
     *resolved_object_refs: tuple[bytes, int],
 ) -> tuple[bytes, int]:
     """run task, get error code and encoded result bytes"""
-    data, err = funccall.pack_golang_funccall_data(
+    return common.load_go_lib().raw_call_golang_func(
         func_name, raw_args, object_positions, *resolved_object_refs
     )
-    if err != 0:
-        return data, err
-
-    logger.debug(f"[py] local_run_task {func_name=}, {object_positions=}")
-    try:
-        res, code = common.load_go_lib().execute(Py2GoCmd.CMD_RUN_TASK, 0, data)
-    except Exception as e:
-        logging.exception(f"[py] execute error {e}")
-        return (
-            f"[goray error] python ffi.execute() error: {e}".encode("utf-8"),
-            ErrCode.Failed,
-        )
-    return res, code
 
 
-def handle_run_remote_task(data: bytes, _: int, mock=False) -> tuple[bytes, int]:
+def handle_run_remote_task(data: bytes, _: int) -> tuple[bytes, int]:
     args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
     )

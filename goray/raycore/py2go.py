@@ -22,6 +22,11 @@ def get_golang_remote_task(name: str, options: dict) -> "GolangRemoteFunc":
 
 
 class GolangRemoteFunc:
+    """
+    GolangRemoteFunc represents a remote task or actor method.
+    The usage is same as @ray.remote decorated function or actor.method.
+    """
+
     def __init__(self, remote_callable_handle, bind_arg, **options):
         self._remote_handle = remote_callable_handle
         self._bind_arg = bind_arg
@@ -49,6 +54,10 @@ class _RemoteActor:
 
 
 class GolangRemoteActorHandle:
+    """
+    The usage is same as ray actor handle.
+    """
+
     def __init__(self, actor_handle: _RemoteActor):
         self._actor = actor_handle
 
@@ -57,6 +66,10 @@ class GolangRemoteActorHandle:
 
 
 class GolangActorClass:
+    """
+    The usage is same as @ray.remote decorated class.
+    """
+
     def __init__(self, class_name: str, **options):
         self._class_name = class_name
         self._options = options
