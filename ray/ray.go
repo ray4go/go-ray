@@ -26,7 +26,7 @@ var (
 
 var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 	internal.Py2GoCmd_StartDriver:      handleStartDriver,
-	internal.Py2GoCmd_GetTaskActorList: handleGetInfo,
+	internal.Py2GoCmd_GetTaskActorList: handleGetTaskAndActorList,
 	internal.Py2GoCmd_GetActorMethods:  handleGetActorMethods,
 	internal.Py2GoCmd_RunTask:          handleRunTask,
 	internal.Py2GoCmd_NewActor:         handleCreateActor,
@@ -77,18 +77,18 @@ func handleStartDriver(_ int64, _ []byte) ([]byte, int64) {
 	return []byte(fmt.Sprint(ret)), internal.ErrorCode_Success
 }
 
-func handleGetInfo(_ int64, _ []byte) ([]byte, int64) {
-	data, err := json.Marshal([]any{tasksName2Idx, actorsName2Idx})
-	if err != nil {
-		return []byte(fmt.Sprintf("Error: handleGetInfo json.Marshal failed: %v", err)), internal.ErrorCode_Failed
+func handleGetTaskAndActorList(_ int64, _ []byte) ([]byte, int64) {
+	taskNames := make([]string, 0, len(taskFuncs))
+	for name := range taskFuncs {
+		taskNames = append(taskNames, name)
 	}
-	return data, 0
-}
-
-func handleGetActorMethods(actorTypeIdx int64, _ []byte) ([]byte, int64) {
-	data, err := json.Marshal(actorTypes[actorTypeIdx].methodName2Idx)
+	actorNames := make([]string, 0, len(actorTypes))
+	for name := range actorTypes {
+		actorNames = append(actorNames, name)
+	}
+	data, err := json.Marshal([][]string{taskNames, actorNames})
 	if err != nil {
-		return []byte(fmt.Sprintf("Error: handleGetActorMethods json.Marshal failed: %v", err)), internal.ErrorCode_Failed
+		return []byte(fmt.Sprintf("Error: handleGetTaskAndActorList json.Marshal failed: %v", err)), internal.ErrorCode_Failed
 	}
 	return data, 0
 }

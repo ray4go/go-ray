@@ -11,10 +11,9 @@ import (
 )
 
 type actorType struct {
-	name           string
-	newFunc        any
-	methods        []reflect.Method
-	methodName2Idx map[string]int
+	name    string
+	newFunc any
+	methods map[string]reflect.Method
 }
 
 type actorInstance struct {
@@ -33,9 +32,7 @@ type ActorHandle struct {
 }
 
 var (
-	actorTypes     = make([]*actorType, 0)
-	actorsName2Idx = make(map[string]int)
-
+	actorTypes     = make(map[string]*actorType)
 	actorInstances = make([]*actorInstance, 0)
 )
 
@@ -45,20 +42,16 @@ func registerActors(actorFactories map[string]any) {
 	mapOrderedIterate(actorFactories, func(name string, actorNewFunc any) {
 		typ := getFuncReturnType(actorNewFunc)
 
-		methods := getExportedMethods(typ)
-		methodName2Idx := make(map[string]int)
-		for i, method := range methods {
-			methodName2Idx[method.Name] = i
+		methods := make(map[string]reflect.Method)
+		for _, method := range getExportedMethods(typ) {
+			methods[method.Name] = method
 		}
 		actor := &actorType{
-			name:           name,
-			newFunc:        actorNewFunc,
-			methods:        methods,
-			methodName2Idx: methodName2Idx,
+			name:    name,
+			newFunc: actorNewFunc,
+			methods: methods,
 		}
-		actorTypes = append(actorTypes, actor)
-		actorsName2Idx[actor.name] = len(actorTypes) - 1
-		//log.Printf("RegisterActors %s %v, methods %v\n", name, typ.String(), methodName2Idx)
+		actorTypes[actor.name] = actor
 	})
 }
 
@@ -71,13 +64,18 @@ func registerActors(actorFactories map[string]any) {
 func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 	log.Debug("[Go] NewActor %s %#v\n", typeName, argsAndOpts)
 
-	actorIndex, ok := actorsName2Idx[typeName]
+	actor, ok := actorTypes[typeName]
 	if !ok {
 		panic(fmt.Sprintf("Actor type '%v' not found", typeName))
 	}
-	actor := actorTypes[actorIndex]
 	callable := newCallableType(reflect.TypeOf(actor.newFunc), false)
-	argsAndOpts = append(argsAndOpts, Option(internal.ActorNameOptionKey, typeName))
+	argsAndOpts = append(argsAndOpts, Option(internal.GorayOptionKey_ActorName, typeName))
+
+	methodNames := make([]string, 0)
+	for name := range actor.methods {
+		methodNames = append(methodNames, name)
+	}
+	argsAndOpts = append(argsAndOpts, Option(internal.GorayOptionKey_ActorMethodList, methodNames))
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
 	res, retCode := ffi.CallServer(internal.Go2PyCmd_NewActor, argsData)
@@ -95,8 +93,11 @@ func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 }
 
 func handleCreateActor(_ int64, data []byte) (resData []byte, retCode int64) {
-	actorName, rawArgs, posArgs := unpackRemoteCallArgs(data)
-	actor := actorTypes[actorsName2Idx[actorName]]
+	typeName, rawArgs, posArgs := unpackRemoteCallArgs(data)
+	actor, ok := actorTypes[typeName]
+	if !ok {
+		panic(fmt.Sprintf("Actor type '%v' not found", typeName))
+	}
 	args := decodeWithType(rawArgs, posArgs, newCallableType(reflect.TypeOf(actor.newFunc), false).InType)
 	res := funcCall(nil, reflect.ValueOf(actor.newFunc), args)
 	log.Debug("create actor %v -> %v\n", actor.name, res)
@@ -127,7 +128,7 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 	var callable *callableType
 	var originFunc reflect.Type
 	if actor.isGoActor() {
-		methodIdx, ok := actor.typ.methodName2Idx[methodName]
+		method, ok := actor.typ.methods[methodName]
 		if !ok {
 			panic(fmt.Sprintf(
 				"Error: RemoteCall failed: no method %s not found in actor %s",
@@ -135,15 +136,14 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 			))
 		}
 		log.Debug("[Go] RemoteCall %s.%s()\n", actor.typ.name, methodName)
-		method := actor.typ.methods[methodIdx]
 		callable = newCallableType(method.Type, true)
 		originFunc = method.Type
 	} else {
 		log.Debug("[Go] RemoteCallPyActor %s() %#v\n", methodName, argsAndOpts)
 		originFunc = dummyPyFunc
 	}
-	argsAndOpts = append(argsAndOpts, Option(internal.TaskNameOptionKey, methodName))
-	argsAndOpts = append(argsAndOpts, Option(internal.PyLocalActorId, actor.pyLocalId))
+	argsAndOpts = append(argsAndOpts, Option(internal.GorayOptionKey_TaskName, methodName))
+	argsAndOpts = append(argsAndOpts, Option(internal.GorayOptionKey_PyLocalActorId, actor.pyLocalId))
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
 	res, retCode := ffi.CallServer(internal.Go2PyCmd_ActorMethodCall, argsData)
@@ -162,6 +162,22 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 	}
 }
 
+func handleGetActorMethods(_ int64, methodName []byte) ([]byte, int64) {
+	actorTyp, ok := actorTypes[string(methodName)]
+	if !ok {
+		return []byte(fmt.Sprintf("Error: golang actor %s not found", methodName)), internal.ErrorCode_Failed
+	}
+	methodNames := make([]string, 0, len(actorTyp.methods))
+	for name := range actorTyp.methods {
+		methodNames = append(methodNames, name)
+	}
+	data, err := json.Marshal(methodNames)
+	if err != nil {
+		return []byte(fmt.Sprintf("Error: handleGetActorMethods json.Marshal failed: %v", err)), internal.ErrorCode_Failed
+	}
+	return data, 0
+}
+
 func handleActorMethodCall(actorGoInstanceIndex int64, data []byte) (resData []byte, retCode int64) {
 	methodName, rawArgs, posArgs := unpackRemoteCallArgs(data)
 	actorIns := actorInstances[actorGoInstanceIndex]
@@ -169,7 +185,7 @@ func handleActorMethodCall(actorGoInstanceIndex int64, data []byte) (resData []b
 	if actorIns == nil {
 		return []byte("the actor is died"), internal.ErrorCode_Failed
 	}
-	method := actorIns.typ.methods[actorIns.typ.methodName2Idx[methodName]]
+	method := actorIns.typ.methods[methodName]
 	args := decodeWithType(rawArgs, posArgs, newCallableType(method.Type, true).InType)
 	receiverVal := reflect.ValueOf(actorIns.receiver)
 	res := funcCall(&receiverVal, method.Func, args)
@@ -236,7 +252,11 @@ func GetActor(name string, opts ...*option) (*ActorHandle, error) {
 	}
 	var actorTyp *actorType
 	if res.IsGolangActor {
-		actorTyp = actorTypes[actorsName2Idx[res.ActorTypeName]]
+		var ok bool
+		actorTyp, ok = actorTypes[res.ActorTypeName]
+		if !ok {
+			panic(fmt.Sprintf("Actor type '%v' not found", res.ActorTypeName))
+		}
 	}
 	return &ActorHandle{
 		pyLocalId: res.PyLocalId,

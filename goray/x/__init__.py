@@ -11,17 +11,22 @@ from . import actor, cmds, ffi, handlers
 
 
 class GolangLocalActor:
-    def __init__(self, cmder: cmds.GoCommander, actor_class_name: str, *args):
+    """
+    Golang actor wrapper for local (in-process) call.
+    """
+
+    def __init__(
+        self,
+        cmder: cmds.GoCommander,
+        actor_class_name: str,
+        method_names: list[str],
+        *args,
+    ):
         self._cmder = cmder
         self._actor_class_name = actor_class_name
-        self._method_name2index = {}
         self._actor = None
 
-        tasks_name2idx, actors_name2idx = cmder.get_golang_tasks_info()
-        if actor_class_name not in actors_name2idx:
-            raise Exception(f"golang actor {actor_class_name} not found")
-        actor_class_idx = actors_name2idx[actor_class_name]
-        self._method_name2index = cmder.get_golang_actor_methods(actor_class_idx)
+        self._method_names = method_names
         raw_args = b"".join(msgpack.packb(arg, use_bin_type=True) for arg in args)
         self._actor = actor.GoActorWrapper(
             self._cmder,
@@ -49,7 +54,7 @@ class GolangLocalActor:
         return returns
 
     def __getattr__(self, name) -> typing.Callable:
-        if name not in self._method_name2index:
+        if name not in self._method_names:
             raise AttributeError(
                 f"golang actor type {self._actor_class_name!r} has no method {name!r}"
             )
@@ -77,7 +82,8 @@ class CrossLanguageClient:
         return self._cmder.call_golang_func(func_name, args)
 
     def new_type(self, type_name: str, *args):
-        return GolangLocalActor(self._cmder, type_name, *args)
+        method_names = self._cmder.get_golang_actor_methods(type_name)
+        return GolangLocalActor(self._cmder, type_name, method_names, *args)
 
 
 @functools.cache

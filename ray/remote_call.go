@@ -52,7 +52,7 @@ func encodeRemoteCallArgs(callable *callableType, argsAndOpts []any) []byte {
 data format: multiple bytes units
 bytes unit format: | length:8byte:int64 | data:${length}byte:[]byte |
 
-- first unit is function/actor/method name
+- first unit is function/actor_type/method name
 - second unit is raw args data;
 - other units are objectRefs resolved data;
   - resolved data format: | arg_pos:8byte:int64 | data:[]byte |

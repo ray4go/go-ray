@@ -26,10 +26,14 @@ def handle_new_actor(data: bytes, _: int) -> tuple[bytes, int]:
         data
     )
     actor_type_name = options.pop(ACTOR_NAME_OPTION_KEY)
+    actor_methods = options.pop(ACTOR_METHOD_LIST_OPTION_KEY)
     logger.debug(f"[py] new actor {actor_type_name}, {options=}, {object_positions=}")
 
     common.inject_runtime_env(options)
-    ActorCls = ray.remote(common.copy_class(Actor, actor_type_name, Language.GO))
+    methods = {name: Actor.call_method for name in actor_methods}
+    ActorCls = ray.remote(
+        common.copy_class(Actor, actor_type_name, namespace=TaskActorSource.GO, **methods)
+    )
     actor_handle = ActorCls.options(**options).remote(
         actor_type_name, raw_args, object_positions, *object_refs
     )
@@ -50,7 +54,8 @@ def handle_actor_method_call(data: bytes, _: int) -> tuple[bytes, int]:
         return utils.error_msg("actor not found!"), ErrCode.Failed
 
     actor_handle = state.actors[actor_local_id]
-    fut = actor_handle.call_method.options(**options).remote(
+    method = getattr(actor_handle, method_name)
+    fut = method.options(**options).remote(
         method_name, raw_args, object_positions, *object_refs
     )
     fut_local_id = state.futures.add(fut)
@@ -85,12 +90,19 @@ def handle_get_actor(data: bytes, _: int) -> tuple[bytes, int]:
     actor_full_name = _actor_class_name(actor_handle)
     # we use actor class_name to indicate the actor language and underlying type.
     # it's not a good way, but we have no better choice.
-    lang, name = actor_full_name.split(".", 1)
+    try:
+        source, name = actor_full_name.split(".", 1)
+        assert source in (TaskActorSource.GO, TaskActorSource.Py2Go)
+    except ValueError:
+        return utils.error_msg(
+            f"Invalid actor {actor_full_name!r}, only support getting actors created from golang for now."
+        ), ErrCode.Failed
+
     res = json.dumps(
         {
             "py_local_id": actor_local_id,
             "actor_type_name": name,
-            "is_golang_actor": lang == "Go",
+            "is_golang_actor": source == TaskActorSource.GO,
         }
     )
     return res.encode(), 0

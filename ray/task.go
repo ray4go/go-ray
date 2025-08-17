@@ -11,17 +11,16 @@ import (
 
 var (
 	taskReceiverVal reflect.Value
-	taskFuncs       []reflect.Method
-	tasksName2Idx   map[string]int
+	taskFuncs       map[string]reflect.Method
 )
 
 func registerTasks(taskReceiver any) {
 	taskReceiverVal = reflect.ValueOf(taskReceiver)
 	// TODO: check taskRcvr's underlying type is pointer of struct{} (make sure it's stateless)
-	taskFuncs = getExportedMethods(reflect.TypeOf(taskReceiver))
-	tasksName2Idx = make(map[string]int)
-	for i, task := range taskFuncs {
-		tasksName2Idx[task.Name] = i
+	taskFuncsList := getExportedMethods(reflect.TypeOf(taskReceiver))
+	taskFuncs = make(map[string]reflect.Method, len(taskFuncsList))
+	for _, taskFunc := range taskFuncsList {
+		taskFuncs[taskFunc.Name] = taskFunc
 	}
 }
 
@@ -36,13 +35,12 @@ func registerTasks(taskReceiver any) {
 func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	log.Debug("[Go] RemoteCall %s %#v\n", name, argsAndOpts)
 
-	funcId, ok := tasksName2Idx[name]
+	taskFunc, ok := taskFuncs[name]
 	if !ok {
 		panic(fmt.Sprintf("Error: RemoteCall failed: task %s not found", name))
 	}
-	taskFunc := taskFuncs[funcId]
 	callable := newCallableType(taskFunc.Type, true)
-	argsAndOpts = append(argsAndOpts, Option(internal.TaskNameOptionKey, name))
+	argsAndOpts = append(argsAndOpts, Option(internal.GorayOptionKey_TaskName, name))
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
 	res, retCode := ffi.CallServer(internal.Go2PyCmd_ExeRemoteTask, argsData) // todo: pass error to ObjectRef
@@ -62,7 +60,10 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 
 func handleRunTask(_ int64, data []byte) (resData []byte, retCode int64) {
 	funcName, rawArgs, posArgs := unpackRemoteCallArgs(data)
-	taskFunc := taskFuncs[tasksName2Idx[funcName]]
+	taskFunc, ok := taskFuncs[funcName]
+	if !ok {
+		panic(fmt.Sprintf("Error: RemoteCall failed: task %s not found", funcName))
+	}
 	args := decodeWithType(rawArgs, posArgs, newCallableType(taskFunc.Type, true).InType)
 	res := funcCall(&taskReceiverVal, taskFunc.Func, args)
 	resData = encodeFuncResult(res)

@@ -19,15 +19,17 @@ class GoCommander:
         self.execute = cmd_execute_func
 
     @functools.cache
-    def get_golang_tasks_info(self) -> tuple[dict[str, int], dict[str, int]]:
+    def get_golang_tasks_info(self) -> tuple[list[str], list[str]]:
         data, err = self.execute(Py2GoCmd.CMD_GET_TASK_ACTOR_LIST, 0, b"")
         if err != 0:
             raise Exception(data.decode("utf-8"))
         return json.loads(data)
 
     @functools.cache
-    def get_golang_actor_methods(self, actor_class_idx: int) -> dict[str, int]:
-        data, err = self.execute(Py2GoCmd.CMD_GET_ACTOR_METHODS, actor_class_idx, b"")
+    def get_golang_actor_methods(self, actor_class_name: str) -> list[str]:
+        data, err = self.execute(
+            Py2GoCmd.CMD_GET_ACTOR_METHODS, 0, actor_class_name.encode()
+        )
         if err != 0:
             raise Exception(data.decode("utf-8"))
         return json.loads(data)

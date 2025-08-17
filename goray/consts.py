@@ -43,11 +43,10 @@ class Py2GoCmd(enum.IntEnum):
     CMD_CLOSE_ACTOR = enum.auto()
 
 
-class Language(enum.StrEnum):
-    """The language type of ray task or actor."""
-
-    PYTHON = "Py"
-    GO = "Go"
+class TaskActorSource(enum.StrEnum):
+    GO = "Go"  # implemented in go, created by Go
+    Py2Go = "Py2Go"  # implemented in python, created by Go
+    Go2Py = "Go2Py"  # implemented in Go, created by python
 
 
 GORAY_BIN_PATH_ENV = "GORAY_BIN_PATH"
@@ -56,3 +55,4 @@ GORAY_PY_MUDULE_PATH_ENV = "GORAY_PY_MUDULE_PATH"
 PY_LOCAL_ACTOR_ID_KEY = "goray_py_local_actor_id"
 TASK_NAME_OPTION_KEY = "goray_task_name"
 ACTOR_NAME_OPTION_KEY = "goray_actor_type_name"
+ACTOR_METHOD_LIST_OPTION_KEY = "goray_actor_methods"

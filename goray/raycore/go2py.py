@@ -97,6 +97,8 @@ def handle_run_py_task(data: bytes, _: int) -> tuple[bytes, int]:
 
 
 class PyActorWrapper:
+    """Python actor wrapper for golang remote call"""
+
     def __init__(
         self,
         class_name: str,
@@ -145,7 +147,13 @@ def handle_new_py_actor(data: bytes, _: int) -> tuple[bytes, int]:
         return utils.error_msg(f"python actor {class_name} not found"), ErrCode.Failed
 
     common.inject_runtime_env(options)
-    ActorCls = ray.remote(common.copy_class(PyActorWrapper, class_name, "py"))
+    method_names = common.get_class_methods(cls)
+    methods = {name: PyActorWrapper.call_method for name in method_names}
+    ActorCls = ray.remote(
+        common.copy_class(
+            PyActorWrapper, class_name, namespace=TaskActorSource.Py2Go, **methods
+        )
+    )
     actor_handle = ActorCls.options(**options).remote(
         class_name, args_data, object_positions, *object_refs
     )

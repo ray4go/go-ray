@@ -8,6 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 class GoActorWrapper:
+    """Go actor wrapper for python remote call."""
+
     cmder: cmds.GoCommander
     go_instance_index: int
 

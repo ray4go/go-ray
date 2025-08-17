@@ -16,7 +16,7 @@ def _run_golang_remote_task(func_name: str, *args):
 def get_golang_remote_task(name: str, options: dict) -> "GolangRemoteFunc":
     common.inject_runtime_env(options)
     remote_task = ray.remote(
-        common.copy_function(_run_golang_remote_task, name, consts.Language.GO)
+        common.copy_function(_run_golang_remote_task, name, consts.TaskActorSource.Go2Py)
     )
     return GolangRemoteFunc(remote_task, name, **options)
 
@@ -44,10 +44,14 @@ class GolangRemoteFunc:
         )
 
 
-class _RemoteActor:
-    def __init__(self, actor_class_name: str, *args):
+class Go4PyRemoteActor:
+    """
+    Go actor wrapper for python remote call.
+    """
+
+    def __init__(self, actor_class_name: str, method_names: list[str], *args):
         cmder = common.load_go_lib()
-        self._actor = x.GolangLocalActor(cmder, actor_class_name, *args)
+        self._actor = x.GolangLocalActor(cmder, actor_class_name, method_names, *args)
 
     def call_method(self, method_name: str, *args):
         return self._actor._call_method(method_name, *args)
@@ -58,11 +62,16 @@ class GolangRemoteActorHandle:
     The usage is same as ray actor handle.
     """
 
-    def __init__(self, actor_handle: _RemoteActor):
+    def __init__(self, actor_handle: Go4PyRemoteActor):
         self._actor = actor_handle
 
     def __getattr__(self, method_name: str) -> "GolangRemoteFunc":
-        return GolangRemoteFunc(self._actor.call_method, method_name)
+        method = getattr(self._actor, method_name, None)
+        if method is None:
+            raise AttributeError(
+                f"golang actor {self._actor!r} has no method {method_name!r}"
+            )
+        return GolangRemoteFunc(method, method_name)
 
 
 class GolangActorClass:
@@ -80,11 +89,18 @@ class GolangActorClass:
         return GolangActorClass(self._class_name, **options)
 
     def remote(self, *args) -> "GolangRemoteActorHandle":
-        tasks_name2idx, actors_name2idx = common.load_go_lib().get_golang_tasks_info()
-        if self._class_name not in actors_name2idx:
-            raise Exception(f"golang actor {self._class_name} not found")
+        method_names = common.load_go_lib().get_golang_actor_methods(self._class_name)
+        methods = {name: Go4PyRemoteActor.call_method for name in method_names}
+        ActorCls = ray.remote(
+            common.copy_class(
+                Go4PyRemoteActor,
+                self._class_name,
+                namespace=consts.TaskActorSource.Go2Py,
+                **methods,
+            )
+        )
         common.inject_runtime_env(self._options)
-
-        ActorCls = ray.remote(common.copy_class(_RemoteActor, self._class_name, "Go"))
-        actor_handle = ActorCls.options(**self._options).remote(self._class_name, *args)
+        actor_handle = ActorCls.options(**self._options).remote(
+            self._class_name, method_names, *args
+        )
         return GolangRemoteActorHandle(actor_handle)

@@ -46,12 +46,24 @@ def copy_function(func, name: str, namespace: str = ""):
     return wrapper
 
 
-def copy_class(cls, name: str, namespace: str = ""):
+def copy_class(cls, name: str, namespace: str = "", **members):
     if namespace:
         namespace = namespace + "."
+
+    members.update(
+        {"__module__": "goray", "__qualname__": namespace + name, "__name__": name}
+    )
     new_cls = type(
         name,
         (cls,),
-        {"__module__": "goray", "__qualname__": namespace + name, "__name__": name},
+        members,
     )
     return new_cls
+
+
+def get_class_methods(cls):
+    return [
+        func
+        for func in dir(cls)
+        if callable(getattr(cls, func)) and not func.startswith("__")
+    ]

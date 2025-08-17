@@ -37,7 +37,7 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
 // [ObjectRef] can be passed as arguments.
 func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
 	log.Debug("[Go] NewPyActor %s %#v\n", className, argsAndOpts)
-	argsAndOpts = append(argsAndOpts, Option(internal.ActorNameOptionKey, className))
+	argsAndOpts = append(argsAndOpts, Option(internal.GorayOptionKey_ActorName, className))
 	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
 
 	res, retCode := ffi.CallServer(internal.Go2PyCmd_NewPythonActor, argsData)
@@ -95,7 +95,7 @@ func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 func LocalCallPyTask(name string, args ...any) LocalPyCallResult {
 	log.Debug("[Go] LocalCallPyTask %s %#v\n", name, args)
 	// todo: check no objref and option in args
-	argsAndOpts := append(args, Option(internal.TaskNameOptionKey, name))
+	argsAndOpts := append(args, Option(internal.GorayOptionKey_TaskName, name))
 	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
 	request := internal.Go2PyCmd_ExePythonLocalTask
 	resData, retCode := ffi.CallServer(int64(request), argsData)

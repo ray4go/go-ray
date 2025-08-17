@@ -84,6 +84,8 @@ def golang_actor_class(name: str, **options) -> py2go.GolangActorClass:
 def get_golang_actor(name: str, namespace: typing.Optional[str] = None):
     """
     Get a named golang actor by name.
+
+    The actor must be created from python via `golang_actor_class(name).remote(...)`
     """
     return py2go.GolangRemoteActorHandle(ray.get_actor(name, namespace=namespace))
 
