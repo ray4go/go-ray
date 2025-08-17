@@ -2,7 +2,8 @@ package ray
 
 import "fmt"
 
-type decodable interface {
+// [ObjectRef] and [LocalPyCallResult] implement this interface.
+type Decodable interface {
 	GetInto(ptrs ...any) error
 }
 
@@ -19,13 +20,13 @@ func optionalTimeout(timeout []float64, ptrs ...any) []any {
 
 // Get0 is used to wait remote task / actor method execution finish.
 // The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get0(obj decodable, timeout ...float64) error {
+func Get0(obj Decodable, timeout ...float64) error {
 	return obj.GetInto(optionalTimeout(timeout)...)
 }
 
 // Get1 is used to get the result of task / actor method with 1 return value.
 // The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get1[T0 any](obj decodable, timeout ...float64) (T0, error) {
+func Get1[T0 any](obj Decodable, timeout ...float64) (T0, error) {
 	var (
 		r0 T0
 	)
@@ -35,7 +36,7 @@ func Get1[T0 any](obj decodable, timeout ...float64) (T0, error) {
 
 // Get2 is used to get the result of task / actor method with 2 return value.
 // The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get2[T0 any, T1 any](obj decodable, timeout ...float64) (T0, T1, error) {
+func Get2[T0 any, T1 any](obj Decodable, timeout ...float64) (T0, T1, error) {
 	var (
 		r0 T0
 		r1 T1
@@ -46,7 +47,7 @@ func Get2[T0 any, T1 any](obj decodable, timeout ...float64) (T0, T1, error) {
 
 // Get3 is used to get the result of task / actor method with 3 return value.
 // The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get3[T0 any, T1 any, T2 any](obj decodable, timeout ...float64) (T0, T1, T2, error) {
+func Get3[T0 any, T1 any, T2 any](obj Decodable, timeout ...float64) (T0, T1, T2, error) {
 	var (
 		r0 T0
 		r1 T1
@@ -58,7 +59,7 @@ func Get3[T0 any, T1 any, T2 any](obj decodable, timeout ...float64) (T0, T1, T2
 
 // Get4 is used to get the result of task / actor method with 4 return value.
 // The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get4[T0 any, T1 any, T2 any, T3 any](obj decodable, timeout ...float64) (T0, T1, T2, T3, error) {
+func Get4[T0 any, T1 any, T2 any, T3 any](obj Decodable, timeout ...float64) (T0, T1, T2, T3, error) {
 	var (
 		r0 T0
 		r1 T1
@@ -71,7 +72,7 @@ func Get4[T0 any, T1 any, T2 any, T3 any](obj decodable, timeout ...float64) (T0
 
 // Get5 is used to get the result of task / actor method with 5 return value.
 // The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get5[T0 any, T1 any, T2 any, T3 any, T4 any](obj decodable, timeout ...float64) (T0, T1, T2, T3, T4, error) {
+func Get5[T0 any, T1 any, T2 any, T3 any, T4 any](obj Decodable, timeout ...float64) (T0, T1, T2, T3, T4, error) {
 	var (
 		r0 T0
 		r1 T1
