@@ -43,7 +43,8 @@ class Py2GoCmd(enum.IntEnum):
     CMD_CLOSE_ACTOR = enum.auto()
 
 
-class TaskActorSource(enum.StrEnum):
+# enum.StrEnum need py3.11+, so we use a simple class instead
+class TaskActorSource:
     GO = "Go"  # implemented in go, created by Go
     Py2Go = "Py2Go"  # implemented in python, created by Go
     Go2Py = "Go2Py"  # implemented in Go, created by python

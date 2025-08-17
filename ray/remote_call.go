@@ -125,7 +125,9 @@ func splitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
 		}
 		if obj, ok := objs[idx]; ok {
 			if obj.numReturn() != 1 {
-				panic(fmt.Sprintf("Error: invalid ObjectRef in arguments[%d], only accept ObjectRef with one return value", idx))
+				panic(fmt.Sprintf(
+					"Error: invalid ObjectRef in arguments[%d], only accept ObjectRef with one return value."+
+						"the ObjectRef you provided has %d return value", idx, obj.numReturn()))
 			}
 		}
 	}

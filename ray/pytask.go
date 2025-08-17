@@ -76,6 +76,8 @@ func (r LocalPyCallResult) Get() (any, error) {
 // GetInto decodes the result into the provided pointers.
 // The number of pointers must match the number of return values of the Python function.
 // If the Python function has no return values, no arguments should be provided.
+//
+// For the type conversion from python to golang, see docs/crosslang_types.md
 func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 	if r.code != internal.ErrorCode_Success {
 		return fmt.Errorf("Error: Local Call Python failed: retCode=%v, message=%s", r.code, r.data)
