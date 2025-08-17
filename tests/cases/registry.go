@@ -33,6 +33,14 @@ func RegisterActor(factory any) string {
 	return name
 }
 
+func RegisterNamedActor(name string, factory any) string {
+	if ok := actorFactories[name]; ok != nil {
+		panic(fmt.Sprintf("actor %s already registered", name))
+	}
+	actorFactories[name] = factory
+	return name
+}
+
 func GetTestCases() []testing.InternalTest {
 	return tests
 }
