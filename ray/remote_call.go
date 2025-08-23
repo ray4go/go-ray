@@ -107,6 +107,10 @@ func decodeFuncResult(funcType reflect.Type, rawResult []byte) []any {
 	return decodeWithType(rawResult, nil, funcType.Out)
 }
 
+type ObjectRefGetter interface {
+	ObjectRef() *ObjectRef
+}
+
 func splitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
 	args := make([]any, 0, len(items))
 	objs := make(map[int]ObjectRef)
@@ -119,6 +123,8 @@ func splitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
 				panic("invalid ObjectRef, got nil")
 			}
 			objs[idx] = *v
+		case ObjectRefGetter:
+			objs[idx] = *v.ObjectRef()
 		default:
 			args = append(args, item)
 		}
@@ -133,11 +139,11 @@ func splitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
 	return args, objs
 }
 
-func splitArgsAndOptions(items []any) ([]any, []*option) {
+func splitArgsAndOptions(items []any) ([]any, []*RayOption) {
 	args := make([]any, 0, len(items))
-	opts := make([]*option, 0, len(items))
+	opts := make([]*RayOption, 0, len(items))
 	for _, item := range items {
-		if opt, ok := item.(*option); ok {
+		if opt, ok := item.(*RayOption); ok {
 			opts = append(opts, opt)
 		} else {
 			args = append(args, item)
@@ -146,7 +152,7 @@ func splitArgsAndOptions(items []any) ([]any, []*option) {
 	return args, opts
 }
 
-func encodeOptions(opts []*option, objRefs map[int]ObjectRef) []byte {
+func encodeOptions(opts []*RayOption, objRefs map[int]ObjectRef) []byte {
 	kvs := make(map[string]any)
 	for _, opt := range opts {
 		kvs[opt.Name()] = opt.Value()

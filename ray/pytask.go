@@ -95,7 +95,7 @@ func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 // Noted: [ObjectRef] is not supported as arguments.
 func LocalCallPyTask(name string, args ...any) LocalPyCallResult {
 	log.Debug("[Go] LocalCallPyTask %s %#v\n", name, args)
-	// todo: check no objref and option in args
+	// todo: check no objref and RayOption in args
 	argsAndOpts := append(args, Option(consts.GorayOptionKey_TaskName, name))
 	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
 	resData, retCode := ffi.CallServer(consts.Go2PyCmd_ExePythonLocalTask, argsData)

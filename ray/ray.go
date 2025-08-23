@@ -36,7 +36,9 @@ var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 
 // Init goray environment and register the ray tasks, actors and driver.
 //   - All public methods of the given taskReceiver will be registered as ray tasks.
-//   - actorFactories is a map of actor type name to the actor constructor function. The constructor function can have parameters and must only one return value (the actor instance).
+//   - actorFactories is a map of actor type name to the actor constructor function.
+//     The constructor function can have parameters and must only one return value (the actor instance).
+//     The constructor function should panic or return nil when it fails to create the actor.
 //   - driverFunc is the function to be called when the ray driver starts. The driverFunc should return an integer value as the exit code.
 //
 // This function should be called in the init() function of your ray application.
@@ -120,7 +122,7 @@ func Put(value any) (ObjectRef, error) {
 // See [Ray Core API doc] for more info.
 //
 // [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.cancel.html#ray-cancel
-func (obj ObjectRef) Cancel(opts ...*option) error {
+func (obj ObjectRef) Cancel(opts ...*RayOption) error {
 	data, err := jsonEncodeOptions(opts, Option("object_ref_local_id", obj.id))
 	if err != nil {
 		log.Panicf("Error encoding options to JSON: %v", err)
@@ -138,7 +140,7 @@ func (obj ObjectRef) Cancel(opts ...*option) error {
 // See [Ray Core API doc].
 //
 // [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.wait.html#ray.wait
-func Wait(objRefs []ObjectRef, requestNum int, opts ...*option) ([]ObjectRef, []ObjectRef, error) {
+func Wait(objRefs []ObjectRef, requestNum int, opts ...*RayOption) ([]ObjectRef, []ObjectRef, error) {
 	objIds := make([]int64, 0, len(objRefs))
 	for _, obj := range objRefs {
 		objIds = append(objIds, obj.id)

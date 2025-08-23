@@ -4,25 +4,25 @@ import (
 	"encoding/json"
 )
 
-type option struct {
+type RayOption struct {
 	name  string
 	value any
 }
 
-// Option creates a new ray option with the given name and value.
-// The valid option name and value varies by the ray API being called.
-func Option(name string, value any) *option {
-	return &option{
+// Option creates a new ray RayOption with the given name and value.
+// The valid RayOption name and value varies by the ray API being called.
+func Option(name string, value any) *RayOption {
+	return &RayOption{
 		name:  name,
 		value: value,
 	}
 }
 
-func (opt *option) Name() string {
+func (opt *RayOption) Name() string {
 	return opt.name
 }
 
-func (opt *option) Value() any {
+func (opt *RayOption) Value() any {
 	return opt.value
 }
 

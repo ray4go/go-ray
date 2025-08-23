@@ -11,15 +11,22 @@ type ObjSetter interface {
 	setObjectRef(*ray.ObjectRef)
 }
 
+// retmote task function or actor method
 type RemoteFunc[T ObjSetter] struct {
 	funcName string
 	args     []any
+	actor    *ray.ActorHandle
 }
 
-func NewRemoteFunc[T ObjSetter](funcName string, args []any) *RemoteFunc[T] {
+func NewRemoteFunc[T ObjSetter](funcName string, args []any, actor ...*ray.ActorHandle) *RemoteFunc[T] {
+	var actorHandle *ray.ActorHandle
+	if len(actor) > 0 {
+		actorHandle = actor[0]
+	}
 	return &RemoteFunc[T]{
 		funcName: funcName,
 		args:     args,
+		actor:    actorHandle,
 	}
 }
 
@@ -40,9 +47,14 @@ func NewPointedValue[T any]() T {
 	return ptr.(T)
 }
 
-func (r *RemoteFunc[T]) Remote(options ...*ray.TaskOption) T {
+func (r *RemoteFunc[T]) Remote(options ...*ray.RayOption) T {
 	args := ExpandArgs(r.args, options)
-	obj := ray.RemoteCall(r.funcName, args...)
+	var obj ray.ObjectRef
+	if r.actor == nil {
+		obj = ray.RemoteCall(r.funcName, args...)
+	} else {
+		obj = r.actor.RemoteCall(r.funcName, args...)
+	}
 	t := NewPointedValue[T]()
 	t.setObjectRef(&obj)
 	return t

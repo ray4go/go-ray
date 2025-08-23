@@ -30,9 +30,7 @@ const packageCommentsTPL = `
 // It contains wrappers for the ray tasks and actors in this package.
 //
 // To regenerate this file, run:
-//
-//	goraygen <package-path>
-//
+//	  goraygen <package-path>
 `
 
 func main() {
@@ -74,7 +72,6 @@ func main() {
 
 	// Find struct with // raytasks comment
 	var targetStruct *ast.TypeSpec
-	var structFile *ast.File
 
 	for _, file := range pkg.Syntax {
 		ast.Inspect(file, func(n ast.Node) bool {
@@ -95,7 +92,6 @@ func main() {
 							if typeSpec, ok := spec.(*ast.TypeSpec); ok {
 								if _, ok := typeSpec.Type.(*ast.StructType); ok {
 									targetStruct = typeSpec
-									structFile = file
 									return false
 								}
 							}
@@ -103,7 +99,6 @@ func main() {
 					}
 				}
 			}
-
 			return true
 		})
 	}
@@ -118,7 +113,7 @@ func main() {
 	methods, imports_ := findMethods(pkg, targetStruct.Name.Name)
 
 	// Generate wrapper code
-	code := generateWrapperCode(pkg.Name, targetStruct.Name.Name, methods, pkg, structFile, imports_)
+	code := generateWrapperCode(pkg.Name, targetStruct.Name.Name, methods, imports_)
 
 	os.WriteFile("/tmp/out.go", []byte(code), 0644)
 
@@ -148,7 +143,7 @@ func main() {
 type Method struct {
 	ReceiverType string
 	Name         string
-	Params       []Param
+	Params       []Param // for variadic, the last param.Type will be the slice element type
 	Results      []Result
 	IsVariadic   bool
 }
@@ -177,6 +172,14 @@ func findMethods(pkg *packages.Package, structName string) ([]Method, map[string
 	}
 
 	imports := make(map[string]struct{})
+	getTypeName := func(typ types.Type) string {
+		pkgPath, typeName := GetPackageAndTypeName(typ)
+		if pkgPath != pkg.Types.Path() && len(pkgPath) > 0 {
+			imports[fmt.Sprintf(`"%s"`, pkgPath)] = struct{}{}
+			typeName = fmt.Sprintf("%s.%s", packageName(pkgPath), typeName)
+		}
+		return typeName
+	}
 	// Iterate through all methods
 	for i := 0; i < named.NumMethods(); i++ {
 		method := named.Method(i)
@@ -209,33 +212,33 @@ func findMethods(pkg *packages.Package, structName string) ([]Method, map[string
 		params := sig.Params()
 		for j := 0; j < params.Len(); j++ {
 			param := params.At(j)
-			paramPkgPath, paramTypeName := GetPackageAndTypeName(param.Type())
-			if paramPkgPath != pkg.Types.Path() && len(paramPkgPath) > 0 {
-				imports[fmt.Sprintf(`"%s"`, paramPkgPath)] = struct{}{}
-				paramTypeName = fmt.Sprintf("%s.%s", packageNmae(paramPkgPath), paramTypeName)
-			}
+
 			paramName := param.Name()
 			if paramName == "" {
 				paramName = fmt.Sprintf("arg%d", j)
 			}
 
+			//paramTypeName = types.TypeString(param.Type(), types.RelativeTo(pkg.Types))
+			typeName := getTypeName(param.Type())
+			if j == params.Len()-1 && sig.Variadic() {
+				// If the last parameter is variadic, remove the [] prefix
+				typeName = strings.TrimPrefix(typeName, "[]")
+			}
 			m.Params = append(m.Params, Param{
 				Name: paramName,
-				Type: paramTypeName,
+				Type: typeName,
 			})
 		}
 
 		// Check if the last parameter is variadic
-		if sig.Variadic() {
-			m.IsVariadic = true
-		}
+		m.IsVariadic = sig.Variadic()
 
 		// Process results
 		results := sig.Results()
 		for j := 0; j < results.Len(); j++ {
 			result := results.At(j)
 			m.Results = append(m.Results, Result{
-				Type: types.TypeString(result.Type(), types.RelativeTo(pkg.Types)),
+				Type: getTypeName(result.Type()),
 			})
 		}
 
@@ -245,7 +248,7 @@ func findMethods(pkg *packages.Package, structName string) ([]Method, map[string
 	return methods, imports
 }
 
-func packageNmae(pkgPath string) string {
+func packageName(pkgPath string) string {
 	sep := "/"
 	lastIndex := strings.LastIndex(pkgPath, sep)
 	if lastIndex == -1 {
@@ -278,6 +281,9 @@ func GetPackageAndTypeName(typ types.Type) (packageName string, typeName string)
 	case *types.Basic:
 		// 基本类型 (int, string, bool 等)
 		typeName = t.Name()
+		if t.Kind() == types.UnsafePointer {
+			packageName = "unsafe"
+		}
 	case *types.Pointer:
 		// 指针类型 (*int, *MyStruct)
 		// 类型名是 "ptrTo" + 元素类型名
@@ -332,13 +338,7 @@ func GetPackageAndTypeName(typ types.Type) (packageName string, typeName string)
 	return packageName, typeName
 }
 
-const typeDefTPL = `
-type _rayTasks struct{}
-
-var %sTasks = _rayTasks{}
-`
-
-func generateWrapperCode(packageName, structName string, methods []Method, pkg *packages.Package, structFile *ast.File, imports map[string]struct{}) string {
+func generateWrapperCode(packageName, structName string, methods []Method, imports map[string]struct{}) string {
 	var buf bytes.Buffer
 
 	// Package comments
@@ -359,13 +359,13 @@ func generateWrapperCode(packageName, structName string, methods []Method, pkg *
 		fmt.Fprintf(&buf, ")\n\n")
 	}
 
-	// Global client variable
-	fmt.Fprintf(&buf, typeDefTPL, structName)
-
+	typeConstraints, type2ConstraintId := generateTypeConstraints(methods)
 	// Generate wrapper functions
 	for _, method := range methods {
-		generateWrapperFunction(&buf, method)
+		generateWrapperFunction(&buf, method, type2ConstraintId)
 	}
+
+	buf.WriteString(typeConstraints)
 
 	return buf.String()
 }
@@ -386,40 +386,66 @@ func collectImports(methods []Method, pkg *packages.Package, structFile *ast.Fil
 	return imports
 }
 
+const typeConstraintTpl = `
+type T%d interface {
+	%s | *Future1[%s]
+}
+`
+
+func generateTypeConstraints(methods []Method) (string, map[string]int) {
+	var buf bytes.Buffer
+	type2ConstraintId := make(map[string]int)
+	for _, method := range methods {
+		for _, param := range method.Params {
+			if _, ok := type2ConstraintId[param.Type]; !ok {
+				typeConstraintId := len(type2ConstraintId)
+				typeConstraint := fmt.Sprintf(typeConstraintTpl, typeConstraintId, param.Type, param.Type)
+				buf.WriteString(typeConstraint)
+				type2ConstraintId[param.Type] = typeConstraintId
+			}
+		}
+	}
+	return buf.String(), type2ConstraintId
+}
+
 const funcDefTpl = `
-func (_ _rayTasks){{.FuncName}}({{.ParamList}}) *RemoteFunc[*Future{{.ResLen}}{{.ResTypes}}] {
-	_ = ({{.ReceiverType}}).{{.FuncName}}  // help you to find the original method
+func {{.FuncName}} {{.TypeConstraints}} ( {{.ParamList}} ) *RemoteFunc[*Future{{.ResLen}}{{.ResTypes}}] {
+	_ = ({{.ReceiverType}}).{{.FuncName}}  // help you to find the original task
 	return NewRemoteFunc[*Future{{.ResLen}}{{.ResTypes}}]("{{.FuncName}}", {{.ArgsStatement}})
 }
 `
 
 type FuncDef struct {
-	FuncName      string
-	ParamList     string
-	ResLen        int
-	ResTypes      string
-	ArgsStatement string
-	ReceiverType  string
+	FuncName        string
+	TypeConstraints string
+	ParamList       string
+	ResLen          int
+	ResTypes        string
+	ArgsStatement   string
+	ReceiverType    string
 }
 
-func generateWrapperFunction(buf *bytes.Buffer, method Method) {
+func generateWrapperFunction(buf *bytes.Buffer, method Method, type2ConstraintId map[string]int) {
 	paramNames := make([]string, len(method.Params))
-	paramList := ""
+	paramList := make([]string, len(method.Params))
+	typeConstraintList := make([]string, len(method.Params))
 	for i, param := range method.Params {
-		if i > 0 {
-			paramList += ", "
-		}
 		paramNames[i] = param.Name
+
+		paramTypeName := typeFriendlyName(param.Type)
+		paramTypeName = fmt.Sprintf("%s_%d", paramTypeName, i)
+		typeConstraintList[i] = fmt.Sprintf("%s T%d", paramTypeName, type2ConstraintId[param.Type])
+
 		if i == len(method.Params)-1 && method.IsVariadic {
 			// For variadic parameter, we need to remove the [] prefix
-			variadicType := param.Type
-			if strings.HasPrefix(variadicType, "[]") {
-				variadicType = strings.TrimPrefix(variadicType, "[]")
-			}
-			paramList += fmt.Sprintf("%s ...%s", param.Name, variadicType)
+			paramList[i] = fmt.Sprintf("%s ...%s", param.Name, paramTypeName)
 		} else {
-			paramList += fmt.Sprintf("%s %s", param.Name, param.Type)
+			paramList[i] = fmt.Sprintf("%s %s", param.Name, paramTypeName)
 		}
+	}
+	typeConstraints := strings.Join(typeConstraintList, ", ")
+	if len(typeConstraints) > 0 {
+		typeConstraints = fmt.Sprintf("[%s]", typeConstraints)
 	}
 
 	resTypes := make([]string, len(method.Results))
@@ -441,12 +467,13 @@ func generateWrapperFunction(buf *bytes.Buffer, method Method) {
 	}
 
 	funcDef := FuncDef{
-		FuncName:      method.Name,
-		ParamList:     paramList,
-		ResLen:        len(method.Results),
-		ResTypes:      resTypesStr,
-		ArgsStatement: argsStatement,
-		ReceiverType:  method.ReceiverType,
+		FuncName:        method.Name,
+		TypeConstraints: typeConstraints,
+		ParamList:       strings.Join(paramList, ", "),
+		ResLen:          len(method.Results),
+		ResTypes:        resTypesStr,
+		ArgsStatement:   argsStatement,
+		ReceiverType:    method.ReceiverType,
 	}
 
 	tmpl, err := template.New("funcDef").Parse(funcDefTpl)
@@ -457,4 +484,16 @@ func generateWrapperFunction(buf *bytes.Buffer, method Method) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// []T -> sliceOfT; *T -> pointerOfT; map[K]V -> mapK2V;
+func typeFriendlyName(typ string) string {
+	typ = strings.ReplaceAll(typ, "*", "pointerOf")
+	typ = strings.ReplaceAll(typ, "[]", "sliceOf")
+
+	typ = strings.ReplaceAll(typ, "map[", "map")
+	typ = strings.ReplaceAll(typ, "]", "")
+
+	typ = strings.ReplaceAll(typ, ".", "_")
+	return typ
 }

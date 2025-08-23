@@ -208,11 +208,11 @@ func handleCloseActor(actorGoInstanceIndex int64, data []byte) (resData []byte, 
 // See [Ray doc] for more details.
 //
 // [Ray doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.kill.html#ray.kill
-func (actor *ActorHandle) Kill(opts ...*option) error {
+func (actor *ActorHandle) Kill(opts ...*RayOption) error {
 	opts = append(opts, Option(consts.GorayOptionKey_PyLocalActorId, actor.pyLocalId))
 	data, err := jsonEncodeOptions(opts)
 	if err != nil {
-		return fmt.Errorf("error to json encode ray option: %w", err)
+		return fmt.Errorf("error to json encode ray RayOption: %w", err)
 	}
 
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_KillActor, data)
@@ -229,10 +229,10 @@ func (actor *ActorHandle) Kill(opts ...*option) error {
 // More supported options can be found in [Ray doc].
 //
 // [Ray doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.get_actor.html#ray.get_actor
-func GetActor(name string, opts ...*option) (*ActorHandle, error) {
+func GetActor(name string, opts ...*RayOption) (*ActorHandle, error) {
 	data, err := jsonEncodeOptions(opts, Option("name", name))
 	if err != nil {
-		return nil, fmt.Errorf("error to json encode ray option: %w", err)
+		return nil, fmt.Errorf("error to json encode ray RayOption: %w", err)
 	}
 	resData, retCode := ffi.CallServer(consts.Go2PyCmd_GetActor, data)
 
