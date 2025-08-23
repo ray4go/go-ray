@@ -1,8 +1,8 @@
 package ray
 
 import (
-	"github.com/ray4go/go-ray/ray/ffi"
-	"github.com/ray4go/go-ray/ray/internal"
+	"github.com/ray4go/go-ray/ray/internal/consts"
+	"github.com/ray4go/go-ray/ray/internal/ffi"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,9 +27,9 @@ func (obj ObjectRef) getRaw(timeout float64) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ObjectRef.Get json.Marshal failed: %w", err)
 	}
-	resultData, retCode := ffi.CallServer(internal.Go2PyCmd_GetObject, data)
+	resultData, retCode := ffi.CallServer(consts.Go2PyCmd_GetObject, data)
 
-	if retCode != internal.ErrorCode_Success {
+	if retCode != consts.ErrorCode_Success {
 		return nil, fmt.Errorf("ObjectRef.Get failed, reason: %w, detail: %s", newError(retCode), resultData)
 	}
 	return resultData, nil
@@ -91,20 +91,4 @@ func (obj ObjectRef) GetInto(ptrs ...any) error {
 		return nil
 	}
 	return decodeInto(resultData, ptrs)
-}
-
-// get the result of ObjectRef with n return value, with optional timeout.
-func getN(obj ObjectRef, n int, timeout ...float64) ([]any, error) {
-	timeoutVal := float64(-1)
-	if len(timeout) > 0 {
-		if len(timeout) != 1 {
-			panic(fmt.Sprintf("ObjectRef Get%d: at most 1 timeout value is allowed, got %v", n, len(timeout)))
-		}
-		timeoutVal = timeout[0]
-	}
-	res, err := obj.GetAll(timeoutVal)
-	if err == nil && len(res) < n {
-		panic(fmt.Sprintf("ObjectRef Get%d: the number of return values mismatch, expect %d but got %v", n, n, len(res)))
-	}
-	return res, err
 }

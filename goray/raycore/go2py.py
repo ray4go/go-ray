@@ -72,7 +72,7 @@ def run_task(
     return msgpack.packb(res, use_bin_type=True), ErrCode.Success
 
 
-def handle_run_py_task(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_run_py_task(data: bytes) -> tuple[bytes, int]:
     args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
     )
@@ -136,7 +136,7 @@ class PyActorWrapper:
         return msgpack.packb(res, use_bin_type=True), ErrCode.Success
 
 
-def handle_new_py_actor(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_new_py_actor(data: bytes) -> tuple[bytes, int]:
     args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
     )
@@ -158,4 +158,4 @@ def handle_new_py_actor(data: bytes, _: int) -> tuple[bytes, int]:
         class_name, args_data, object_positions, *object_refs
     )
     actor_local_id = state.actors.add(actor_handle)
-    return str(actor_local_id).encode(), 0
+    return str(actor_local_id).encode(), ErrCode.Success

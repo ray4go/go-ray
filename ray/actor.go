@@ -1,9 +1,9 @@
 package ray
 
 import (
-	"github.com/ray4go/go-ray/ray/ffi"
-	"github.com/ray4go/go-ray/ray/internal"
-	"github.com/ray4go/go-ray/ray/utils/log"
+	"github.com/ray4go/go-ray/ray/internal/consts"
+	"github.com/ray4go/go-ray/ray/internal/ffi"
+	"github.com/ray4go/go-ray/ray/internal/log"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -69,16 +69,16 @@ func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 		panic(fmt.Sprintf("Actor type '%v' not found", typeName))
 	}
 	callable := newCallableType(reflect.TypeOf(actor.newFunc), false)
-	argsAndOpts = append(argsAndOpts, Option(internal.GorayOptionKey_ActorName, typeName))
+	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_ActorName, typeName))
 
 	methodNames := make([]string, 0)
 	for name := range actor.methods {
 		methodNames = append(methodNames, name)
 	}
-	argsAndOpts = append(argsAndOpts, Option(internal.GorayOptionKey_ActorMethodList, methodNames))
+	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_ActorMethodList, methodNames))
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
-	res, retCode := ffi.CallServer(internal.Go2PyCmd_NewActor, argsData)
+	res, retCode := ffi.CallServer(consts.Go2PyCmd_NewActor, argsData)
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: NewActor failed: retCode=%v, message=%s", retCode, res))
 	}
@@ -142,11 +142,11 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 		log.Debug("[Go] RemoteCallPyActor %s() %#v\n", methodName, argsAndOpts)
 		originFunc = dummyPyFunc
 	}
-	argsAndOpts = append(argsAndOpts, Option(internal.GorayOptionKey_TaskName, methodName))
-	argsAndOpts = append(argsAndOpts, Option(internal.GorayOptionKey_PyLocalActorId, actor.pyLocalId))
+	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_TaskName, methodName))
+	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_PyLocalActorId, actor.pyLocalId))
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
-	res, retCode := ffi.CallServer(internal.Go2PyCmd_ActorMethodCall, argsData)
+	res, retCode := ffi.CallServer(consts.Go2PyCmd_ActorMethodCall, argsData)
 	if retCode != 0 {
 		// todo: pass error to ObjectRef
 		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
@@ -165,7 +165,7 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 func handleGetActorMethods(_ int64, methodName []byte) ([]byte, int64) {
 	actorTyp, ok := actorTypes[string(methodName)]
 	if !ok {
-		return []byte(fmt.Sprintf("Error: golang actor %s not found", methodName)), internal.ErrorCode_Failed
+		return []byte(fmt.Sprintf("Error: golang actor %s not found", methodName)), consts.ErrorCode_Failed
 	}
 	methodNames := make([]string, 0, len(actorTyp.methods))
 	for name := range actorTyp.methods {
@@ -173,7 +173,7 @@ func handleGetActorMethods(_ int64, methodName []byte) ([]byte, int64) {
 	}
 	data, err := json.Marshal(methodNames)
 	if err != nil {
-		return []byte(fmt.Sprintf("Error: handleGetActorMethods json.Marshal failed: %v", err)), internal.ErrorCode_Failed
+		return []byte(fmt.Sprintf("Error: handleGetActorMethods json.Marshal failed: %v", err)), consts.ErrorCode_Failed
 	}
 	return data, 0
 }
@@ -183,24 +183,24 @@ func handleActorMethodCall(actorGoInstanceIndex int64, data []byte) (resData []b
 	actorIns := actorInstances[actorGoInstanceIndex]
 
 	if actorIns == nil {
-		return []byte("the actor is died"), internal.ErrorCode_Failed
+		return []byte("the actor is died"), consts.ErrorCode_Failed
 	}
 	method := actorIns.typ.methods[methodName]
 	args := decodeWithType(rawArgs, posArgs, newCallableType(method.Type, true).InType)
 	receiverVal := reflect.ValueOf(actorIns.receiver)
 	res := funcCall(&receiverVal, method.Func, args)
 	resData = encodeSlice(res)
-	return resData, internal.ErrorCode_Success
+	return resData, consts.ErrorCode_Success
 }
 
 func handleCloseActor(actorGoInstanceIndex int64, data []byte) (resData []byte, retCode int64) {
 	log.Debug("handleCloseActor %d\n", actorGoInstanceIndex)
 	actorIns := actorInstances[actorGoInstanceIndex]
 	if actorIns == nil {
-		return []byte("the actor is already closed"), internal.ErrorCode_Failed
+		return []byte("the actor is already closed"), consts.ErrorCode_Failed
 	}
 	actorInstances[actorGoInstanceIndex] = nil
-	return []byte(""), internal.ErrorCode_Success
+	return []byte(""), consts.ErrorCode_Success
 }
 
 // Kill an actor forcefully.
@@ -209,15 +209,15 @@ func handleCloseActor(actorGoInstanceIndex int64, data []byte) (resData []byte, 
 //
 // [Ray doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.kill.html#ray.kill
 func (actor *ActorHandle) Kill(opts ...*option) error {
+	opts = append(opts, Option(consts.GorayOptionKey_PyLocalActorId, actor.pyLocalId))
 	data, err := jsonEncodeOptions(opts)
 	if err != nil {
 		return fmt.Errorf("error to json encode ray option: %w", err)
 	}
 
-	request := internal.Go2PyCmd_KillActor | int64(actor.pyLocalId)<<internal.CmdBitsLen
-	res, retCode := ffi.CallServer(request, data)
+	res, retCode := ffi.CallServer(consts.Go2PyCmd_KillActor, data)
 
-	if retCode != internal.ErrorCode_Success {
+	if retCode != consts.ErrorCode_Success {
 		return fmt.Errorf("actor.Kill failed, reason: %w, detail: %s", newError(retCode), res)
 	}
 	return nil
@@ -234,9 +234,9 @@ func GetActor(name string, opts ...*option) (*ActorHandle, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error to json encode ray option: %w", err)
 	}
-	resData, retCode := ffi.CallServer(internal.Go2PyCmd_GetActor, data)
+	resData, retCode := ffi.CallServer(consts.Go2PyCmd_GetActor, data)
 
-	if retCode != internal.ErrorCode_Success {
+	if retCode != consts.ErrorCode_Success {
 		return nil, fmt.Errorf("GetActor failed, reason: %w, detail: %s", newError(retCode), resData)
 	}
 

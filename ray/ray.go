@@ -9,15 +9,15 @@ GoRay provides Golang support for the [Ray Core API] within the Ray distributed 
 package ray
 
 import (
-	"github.com/ray4go/go-ray/ray/internal"
+	"github.com/ray4go/go-ray/ray/internal/consts"
+	"github.com/ray4go/go-ray/ray/internal/log"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"runtime/debug"
 	"strconv"
 
-	"github.com/ray4go/go-ray/ray/ffi"
-	"github.com/ray4go/go-ray/ray/utils/log"
+	"github.com/ray4go/go-ray/ray/internal/ffi"
 )
 
 var (
@@ -25,13 +25,13 @@ var (
 )
 
 var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
-	internal.Py2GoCmd_StartDriver:      handleStartDriver,
-	internal.Py2GoCmd_GetTaskActorList: handleGetTaskAndActorList,
-	internal.Py2GoCmd_GetActorMethods:  handleGetActorMethods,
-	internal.Py2GoCmd_RunTask:          handleRunTask,
-	internal.Py2GoCmd_NewActor:         handleCreateActor,
-	internal.Py2GoCmd_ActorMethodCall:  handleActorMethodCall,
-	internal.Py2GoCmd_CloseActor:       handleCloseActor,
+	consts.Py2GoCmd_StartDriver:      handleStartDriver,
+	consts.Py2GoCmd_GetTaskActorList: handleGetTaskAndActorList,
+	consts.Py2GoCmd_GetActorMethods:  handleGetActorMethods,
+	consts.Py2GoCmd_RunTask:          handleRunTask,
+	consts.Py2GoCmd_NewActor:         handleCreateActor,
+	consts.Py2GoCmd_ActorMethodCall:  handleActorMethodCall,
+	consts.Py2GoCmd_CloseActor:       handleCloseActor,
 }
 
 // Init goray environment and register the ray tasks, actors and driver.
@@ -53,13 +53,13 @@ func Init(taskReceiver any, actorFactories map[string]any, driverFunc func() int
 func handlePythonCmd(request int64, data []byte) (resData []byte, retCode int64) {
 	defer func() {
 		if err := recover(); err != nil {
-			retCode = internal.ErrorCode_Failed
+			retCode = consts.ErrorCode_Failed
 			resData = []byte(fmt.Sprintf("handlePythonCmd panic: %v\n%s\n", err, debug.Stack()))
 		}
 	}()
 
-	cmdId := request & internal.CmdBitsMask
-	index := request >> internal.CmdBitsLen
+	cmdId := request & consts.CmdBitsMask
+	index := request >> consts.CmdBitsLen
 	log.Debug("[Go] handlePythonCmd cmdId:%d, index:%d\n", cmdId, index)
 
 	handler, ok := py2GoCmdHandlers[cmdId]
@@ -71,10 +71,10 @@ func handlePythonCmd(request int64, data []byte) (resData []byte, retCode int64)
 
 func handleStartDriver(_ int64, _ []byte) ([]byte, int64) {
 	if driverFunction == nil {
-		return []byte("Error: driver function not set"), internal.ErrorCode_Failed
+		return []byte("Error: driver function not set"), consts.ErrorCode_Failed
 	}
 	ret := driverFunction()
-	return []byte(fmt.Sprint(ret)), internal.ErrorCode_Success
+	return []byte(fmt.Sprint(ret)), consts.ErrorCode_Success
 }
 
 func handleGetTaskAndActorList(_ int64, _ []byte) ([]byte, int64) {
@@ -88,7 +88,7 @@ func handleGetTaskAndActorList(_ int64, _ []byte) ([]byte, int64) {
 	}
 	data, err := json.Marshal([][]string{taskNames, actorNames})
 	if err != nil {
-		return []byte(fmt.Sprintf("Error: handleGetTaskAndActorList json.Marshal failed: %v", err)), internal.ErrorCode_Failed
+		return []byte(fmt.Sprintf("Error: handleGetTaskAndActorList json.Marshal failed: %v", err)), consts.ErrorCode_Failed
 	}
 	return data, 0
 }
@@ -102,7 +102,7 @@ func Put(value any) (ObjectRef, error) {
 	if err != nil {
 		return ObjectRef{nil, -1}, fmt.Errorf("gob encode type %v error: %v", reflect.TypeOf(value), err)
 	}
-	res, retCode := ffi.CallServer(internal.Go2PyCmd_PutObject, data) // todo: pass error to ObjectRef
+	res, retCode := ffi.CallServer(consts.Go2PyCmd_PutObject, data) // todo: pass error to ObjectRef
 	if retCode != 0 {
 		return ObjectRef{nil, -1}, fmt.Errorf("error: ray.Put() failed: retCode=%v, message=%s", retCode, res)
 	}
@@ -125,8 +125,8 @@ func (obj ObjectRef) Cancel(opts ...*option) error {
 	if err != nil {
 		log.Panicf("Error encoding options to JSON: %v", err)
 	}
-	res, retCode := ffi.CallServer(internal.Go2PyCmd_CancelObject, data)
-	if retCode != internal.ErrorCode_Success {
+	res, retCode := ffi.CallServer(consts.Go2PyCmd_CancelObject, data)
+	if retCode != consts.ErrorCode_Success {
 		return fmt.Errorf("ray.Cancel() failed, reason: %w, detail: %s", newError(retCode), res)
 	}
 	return nil
@@ -147,8 +147,8 @@ func Wait(objRefs []ObjectRef, requestNum int, opts ...*option) ([]ObjectRef, []
 	if err != nil {
 		log.Panicf("Error encoding options to JSON: %v", err)
 	}
-	retData, retCode := ffi.CallServer(internal.Go2PyCmd_WaitObject, data)
-	if retCode != internal.ErrorCode_Success {
+	retData, retCode := ffi.CallServer(consts.Go2PyCmd_WaitObject, data)
+	if retCode != consts.ErrorCode_Success {
 		return nil, nil, fmt.Errorf("ray.Wait() failed, reason: %w, detail: %s", newError(retCode), retData)
 	}
 	var res [][]int

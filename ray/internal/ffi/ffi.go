@@ -22,10 +22,9 @@ static void* invoke_callback(
 import "C"
 
 import (
+	"github.com/ray4go/go-ray/ray/internal/log"
 	"sync"
 	"unsafe"
-
-	"github.com/ray4go/go-ray/ray/utils/log"
 )
 
 var (
@@ -41,25 +40,25 @@ var (
 /*
 硬时序限制：
 - 先 go:RegisterHandler 后 py:Execute
-- 先 py:ResigterCallback 后 go:CallServer
+- 先 py:RegisterCallback 后 go:CallServer
 
 保证：
 由于要求用户程序在 init() 中调用 ray.Init(), 因而调用 RegisterHandler。而，python端需要再 ctypes.CDLL(golibpath) 后，才调用 Execute
 OS保证 Execute 在 RegisterHandler 之后被调用。，
 
-Go 端上层代码保证 CallServer 在 ResigterCallback 触发后再调用：
-理论上，GO ray app的首次CallServer调用在go ray driver中，go ray driver由python端通过 Execute 触发，此时python端已经完成了 ResigterCallback。
+Go 端上层代码保证 CallServer 在 RegisterCallback 触发后再调用：
+理论上，GO ray app的首次CallServer调用在go ray driver中，go ray driver由python端通过 Execute 触发，此时python端已经完成了 RegisterCallback。
 */
 
-func RegisterHandler(handler_ func(int64, []byte) ([]byte, int64)) {
+func RegisterHandler(handler_ func(command int64, data []byte) (res []byte, code int64)) {
 	setHandlerOnce.Do(func() {
 		handler = handler_
 		close(handlerReadyChan)
 	})
 }
 
-//export ResigterCallback
-func ResigterCallback(callback C.ComplexCallbackFunc) {
+//export RegisterCallback
+func RegisterCallback(callback C.ComplexCallbackFunc) {
 	log.Debug("[Go:ffi] Get callback\n")
 	serverCallback = callback
 }

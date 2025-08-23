@@ -11,13 +11,12 @@ package ray
 
 import (
 	"bytes"
+	"github.com/ray4go/go-ray/ray/internal/log"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/ugorji/go/codec"
 	"reflect"
-
-	"github.com/ray4go/go-ray/ray/utils/log"
 )
 
 /*

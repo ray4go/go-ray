@@ -63,7 +63,7 @@ def run_task(
     return msgpack.packb(res, use_bin_type=True), ErrCode.Success
 
 
-def handle_run_py_local_task(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_run_py_local_task(data: bytes) -> tuple[bytes, int]:
     args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
     )
@@ -71,7 +71,7 @@ def handle_run_py_local_task(data: bytes, _: int) -> tuple[bytes, int]:
     return run_task(func_name, args_data, object_positions, *object_refs)
 
 
-def handle_run_python_func_code(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_run_python_func_code(data: bytes) -> tuple[bytes, int]:
     args_data, options, _, _ = funccall.decode_funccall_args(data)
     func_code = options.pop("func_code")
     try:
@@ -107,7 +107,7 @@ handlers = {
 }
 
 
-def handle(cmd: int, index: int, data: bytes) -> tuple[bytes, int]:
+def handle(cmd: int, data: bytes) -> tuple[bytes, int]:
     if cmd not in handlers:
         return (
             utils.error_msg(
@@ -118,7 +118,7 @@ def handle(cmd: int, index: int, data: bytes) -> tuple[bytes, int]:
 
     func = handlers[cmd]
     try:
-        return func(data, index)
+        return func(data)
     except Exception as e:
         error_string = (
             f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()

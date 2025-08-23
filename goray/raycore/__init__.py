@@ -29,15 +29,15 @@ handlers = {
 logger = logging.getLogger(__name__)
 
 
-def handle(cmd: int, index: int, data: bytes) -> tuple[bytes, int]:
+def handle(cmd: int, data: bytes) -> tuple[bytes, int]:
     if cmd in cross_lang_handlers.handlers:
-        return cross_lang_handlers.handle(cmd, index, data)
+        return cross_lang_handlers.handle(cmd, data)
     logger.debug(
-        f"[py] handle {Go2PyCmd(cmd).name}, {index=}, {len(data)=}, {threading.current_thread().name}"
+        f"[py] handle {Go2PyCmd(cmd).name}, {len(data)=}, {threading.current_thread().name}"
     )
     func = handlers[cmd]
     try:
-        return func(data, index)
+        return func(data)
     except Exception as e:
         error_string = (
             f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()

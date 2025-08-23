@@ -1,7 +1,7 @@
 package ray
 
 import (
-	"github.com/ray4go/go-ray/ray/internal"
+	"github.com/ray4go/go-ray/ray/internal/consts"
 	"errors"
 	"fmt"
 )
@@ -14,11 +14,11 @@ var (
 
 func newError(code int64) error {
 	switch code {
-	case internal.ErrorCode_Failed:
+	case consts.ErrorCode_Failed:
 		return errors.New("failed")
-	case internal.ErrorCode_Timeout:
+	case consts.ErrorCode_Timeout:
 		return ErrTimeout
-	case internal.ErrorCode_Cancelled:
+	case consts.ErrorCode_Cancelled:
 		return ErrCancelled
 	default:
 		panic(fmt.Sprintf("unknown error code: %v", code))

@@ -1,4 +1,4 @@
-package internal
+package consts
 
 const CmdBitsLen = 10
 const CmdBitsMask = (1 << CmdBitsLen) - 1

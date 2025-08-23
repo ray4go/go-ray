@@ -1,9 +1,9 @@
 package ray
 
 import (
-	"github.com/ray4go/go-ray/ray/ffi"
-	"github.com/ray4go/go-ray/ray/internal"
-	"github.com/ray4go/go-ray/ray/utils/log"
+	"github.com/ray4go/go-ray/ray/internal/consts"
+	"github.com/ray4go/go-ray/ray/internal/ffi"
+	"github.com/ray4go/go-ray/ray/internal/log"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -40,10 +40,10 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 		panic(fmt.Sprintf("Error: RemoteCall failed: task %s not found", name))
 	}
 	callable := newCallableType(taskFunc.Type, true)
-	argsAndOpts = append(argsAndOpts, Option(internal.GorayOptionKey_TaskName, name))
+	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_TaskName, name))
 	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
 
-	res, retCode := ffi.CallServer(internal.Go2PyCmd_ExeRemoteTask, argsData) // todo: pass error to ObjectRef
+	res, retCode := ffi.CallServer(consts.Go2PyCmd_ExeRemoteTask, argsData) // todo: pass error to ObjectRef
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
 	}

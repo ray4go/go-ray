@@ -8,7 +8,7 @@ from .. import consts, state
 logger = logging.getLogger(__name__)
 
 
-def handle_get_objects(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_get_objects(data: bytes) -> tuple[bytes, int]:
     fut_local_id, timeout = json.loads(data)
     if fut_local_id not in state.futures:
         return b"object_ref not found!", 1
@@ -28,14 +28,14 @@ def handle_get_objects(data: bytes, _: int) -> tuple[bytes, int]:
     return res, code
 
 
-def handle_put_object(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_put_object(data: bytes) -> tuple[bytes, int]:
     fut = ray.put([data, 0])
     # side effect: make future outlive this function (on purpose)
     fut_local_id = state.futures.add(fut)
     return str(fut_local_id).encode(), 0
 
 
-def handle_wait_object(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_wait_object(data: bytes) -> tuple[bytes, int]:
     opts = json.loads(data)
     fut_local_ids = opts.pop("object_ref_local_ids")
 
@@ -56,7 +56,7 @@ def handle_wait_object(data: bytes, _: int) -> tuple[bytes, int]:
     return ret_data, 0
 
 
-def handle_cancel_object(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_cancel_object(data: bytes) -> tuple[bytes, int]:
     opts = json.loads(data)
     fut_local_id = opts.pop("object_ref_local_id")
     if fut_local_id not in state.futures:

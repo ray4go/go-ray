@@ -21,7 +21,7 @@ class Actor:
         return self._actor.call_method(*args, **kwargs)
 
 
-def handle_new_actor(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_new_actor(data: bytes) -> tuple[bytes, int]:
     raw_args, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
     )
@@ -32,7 +32,9 @@ def handle_new_actor(data: bytes, _: int) -> tuple[bytes, int]:
     common.inject_runtime_env(options)
     methods = {name: Actor.call_method for name in actor_methods}
     ActorCls = ray.remote(
-        common.copy_class(Actor, actor_type_name, namespace=TaskActorSource.GO, **methods)
+        common.copy_class(
+            Actor, actor_type_name, namespace=TaskActorSource.GO, **methods
+        )
     )
     actor_handle = ActorCls.options(**options).remote(
         actor_type_name, raw_args, object_positions, *object_refs
@@ -41,7 +43,7 @@ def handle_new_actor(data: bytes, _: int) -> tuple[bytes, int]:
     return str(actor_local_id).encode(), 0
 
 
-def handle_actor_method_call(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_actor_method_call(data: bytes) -> tuple[bytes, int]:
     raw_args, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
     )
@@ -62,12 +64,12 @@ def handle_actor_method_call(data: bytes, _: int) -> tuple[bytes, int]:
     return str(fut_local_id).encode(), 0
 
 
-def handle_kill_actor(data: bytes, actor_local_id: int) -> tuple[bytes, int]:
-    if actor_local_id not in state.actors:
-        return b"actor not found!", ErrCode.Failed
-    actor_handle = state.actors[actor_local_id]
+def handle_kill_actor(data: bytes) -> tuple[bytes, int]:
     options = json.loads(data)
-
+    actor_local_id = options.pop(PY_LOCAL_ACTOR_ID_KEY)
+    if actor_local_id not in state.actors:
+        return utils.error_msg(f"actor id {actor_local_id} not found!"), ErrCode.Failed
+    actor_handle = state.actors[actor_local_id]
     ray.kill(actor_handle, **options)
     return b"", 0
 
@@ -82,7 +84,7 @@ def _actor_class_name(actor_handle: ray.actor.ActorHandle) -> str:
         )
 
 
-def handle_get_actor(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_get_actor(data: bytes) -> tuple[bytes, int]:
     options = json.loads(data)
     actor_handle = ray.get_actor(**options)
     actor_local_id = state.actors.add(actor_handle)
@@ -94,9 +96,12 @@ def handle_get_actor(data: bytes, _: int) -> tuple[bytes, int]:
         source, name = actor_full_name.split(".", 1)
         assert source in (TaskActorSource.GO, TaskActorSource.Py2Go)
     except ValueError:
-        return utils.error_msg(
-            f"Invalid actor {actor_full_name!r}, only support getting actors created from golang for now."
-        ), ErrCode.Failed
+        return (
+            utils.error_msg(
+                f"Invalid actor {actor_full_name!r}, only support getting actors created from golang for now."
+            ),
+            ErrCode.Failed,
+        )
 
     res = json.dumps(
         {

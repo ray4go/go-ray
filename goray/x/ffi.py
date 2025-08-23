@@ -24,7 +24,7 @@ cmdBitsMask = (1 << cmdBitsLen) - 1
 
 def load_go_lib(
     libpath: str,
-    handle_func: typing.Callable[[int, int, bytes], tuple[bytes, int]],
+    handle_func: typing.Callable[[int, bytes], tuple[bytes, int]],
 ) -> cmds.GoCommander:
     if libpath in _loaded_libs:
         return _loaded_libs[libpath]
@@ -61,7 +61,7 @@ def load_go_lib(
         ctypes.POINTER(ctypes.c_longlong),  # 参数4: long long* ret_code
     )
 
-    register_callback_func = go_lib.ResigterCallback
+    register_callback_func = go_lib.RegisterCallback
     register_callback_func.argtypes = [CALLBACK_TYPE]
     register_callback_func.restype = None
 
@@ -73,7 +73,7 @@ def load_go_lib(
     """
 
     def _callback_wrapper(
-        request: int,
+        command: int,
         in_data_ptr: int,
         in_len: int,
         out_len_ptr: ctypes._Pointer[ctypes.c_longlong],
@@ -85,8 +85,7 @@ def load_go_lib(
         """
         received_data = c_pointer_to_bytes(in_data_ptr, in_len, zero_copy=True)
 
-        cmd, index = request & cmdBitsMask, request >> cmdBitsLen
-        response_bytes, ret_code = handle_func(cmd, index, received_data.tobytes())
+        response_bytes, ret_code = handle_func(command, received_data.tobytes())
         response_len = len(response_bytes)
         ret_code_ptr.contents.value = ret_code
 

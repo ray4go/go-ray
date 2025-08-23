@@ -21,7 +21,7 @@ def run_task(
     )
 
 
-def handle_run_remote_task(data: bytes, _: int) -> tuple[bytes, int]:
+def handle_run_remote_task(data: bytes) -> tuple[bytes, int]:
     args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
     )

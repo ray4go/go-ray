@@ -1,9 +1,9 @@
 package ray
 
 import (
-	"github.com/ray4go/go-ray/ray/ffi"
-	"github.com/ray4go/go-ray/ray/internal"
-	"github.com/ray4go/go-ray/ray/utils/log"
+	"github.com/ray4go/go-ray/ray/internal/consts"
+	"github.com/ray4go/go-ray/ray/internal/ffi"
+	"github.com/ray4go/go-ray/ray/internal/log"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -17,8 +17,7 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
 	log.Debug("[Go] RemoteCallPyTask %s %#v\n", name, argsAndOpts)
 	argsAndOpts = append(argsAndOpts, Option("task_name", name))
 	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
-	request := internal.Go2PyCmd_ExePythonRemoteTask
-	res, retCode := ffi.CallServer(int64(request), argsData) // todo: pass error to ObjectRef
+	res, retCode := ffi.CallServer(consts.Go2PyCmd_ExePythonRemoteTask, argsData) // todo: pass error to ObjectRef
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: RemoteCallPyTask failed: retCode=%v, message=%s", retCode, res))
 	}
@@ -37,10 +36,10 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
 // [ObjectRef] can be passed as arguments.
 func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
 	log.Debug("[Go] NewPyActor %s %#v\n", className, argsAndOpts)
-	argsAndOpts = append(argsAndOpts, Option(internal.GorayOptionKey_ActorName, className))
+	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_ActorName, className))
 	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
 
-	res, retCode := ffi.CallServer(internal.Go2PyCmd_NewPythonActor, argsData)
+	res, retCode := ffi.CallServer(consts.Go2PyCmd_NewPythonActor, argsData)
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: NewActor failed: retCode=%v, message=%s", retCode, res))
 	}
@@ -62,7 +61,7 @@ type LocalPyCallResult struct {
 
 // Get returns the result of the local Python call.
 func (r LocalPyCallResult) Get() (any, error) {
-	if r.code != internal.ErrorCode_Success {
+	if r.code != consts.ErrorCode_Success {
 		return nil, fmt.Errorf("Error: Local Call Python failed: retCode=%v, message=%s", r.code, r.data)
 	}
 	res := decodeFuncResult(dummyPyFunc, r.data)
@@ -79,7 +78,7 @@ func (r LocalPyCallResult) Get() (any, error) {
 //
 // For the type conversion from python to golang, see docs/crosslang_types.md
 func (r LocalPyCallResult) GetInto(ptrs ...any) error {
-	if r.code != internal.ErrorCode_Success {
+	if r.code != consts.ErrorCode_Success {
 		return fmt.Errorf("Error: Local Call Python failed: retCode=%v, message=%s", r.code, r.data)
 	}
 	if len(ptrs) == 0 {
@@ -97,10 +96,9 @@ func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 func LocalCallPyTask(name string, args ...any) LocalPyCallResult {
 	log.Debug("[Go] LocalCallPyTask %s %#v\n", name, args)
 	// todo: check no objref and option in args
-	argsAndOpts := append(args, Option(internal.GorayOptionKey_TaskName, name))
+	argsAndOpts := append(args, Option(consts.GorayOptionKey_TaskName, name))
 	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
-	request := internal.Go2PyCmd_ExePythonLocalTask
-	resData, retCode := ffi.CallServer(int64(request), argsData)
+	resData, retCode := ffi.CallServer(consts.Go2PyCmd_ExePythonLocalTask, argsData)
 	return LocalPyCallResult{
 		data: resData,
 		code: retCode,
@@ -120,8 +118,7 @@ func LocalCallPyTask(name string, args ...any) LocalPyCallResult {
 func CallPythonCode(funcCode string, args ...any) LocalPyCallResult {
 	argsAndOpts := append(args, Option("func_code", funcCode))
 	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
-	request := internal.Go2PyCmd_ExePyCode
-	resData, retCode := ffi.CallServer(int64(request), argsData)
+	resData, retCode := ffi.CallServer(consts.Go2PyCmd_ExePyCode, argsData)
 	return LocalPyCallResult{
 		data: resData,
 		code: retCode,

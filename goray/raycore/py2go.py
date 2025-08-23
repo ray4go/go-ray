@@ -16,7 +16,9 @@ def _run_golang_remote_task(func_name: str, *args):
 def get_golang_remote_task(name: str, options: dict) -> "GolangRemoteFunc":
     common.inject_runtime_env(options)
     remote_task = ray.remote(
-        common.copy_function(_run_golang_remote_task, name, consts.TaskActorSource.Go2Py)
+        common.copy_function(
+            _run_golang_remote_task, name, consts.TaskActorSource.Go2Py
+        )
     )
     return GolangRemoteFunc(remote_task, name, **options)
 

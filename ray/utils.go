@@ -2,7 +2,7 @@ package ray
 
 import (
 	"bytes"
-	"github.com/ray4go/go-ray/ray/utils/log"
+	"github.com/ray4go/go-ray/ray/internal/log"
 	"encoding/binary"
 	"fmt"
 	"go/token"
