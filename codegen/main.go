@@ -20,6 +20,7 @@ import (
 const (
 	workspaceRepo     = "github.com/ray4go/go-ray"
 	raytasksComment   = "// raytasks"
+	rayactorsComment  = "// rayactors"
 	generatedFileName = "ray_workloads_wrapper.go"
 )
 
@@ -71,49 +72,66 @@ func main() {
 	}
 
 	// Find struct with // raytasks comment
-	var targetStruct *ast.TypeSpec
-
-	for _, file := range pkg.Syntax {
-		ast.Inspect(file, func(n ast.Node) bool {
-			if targetStruct != nil {
-				return false
-			}
-
-			genDecl, ok := n.(*ast.GenDecl)
-			if !ok || genDecl.Tok != token.TYPE {
-				return true
-			}
-
-			// Check if there's a comment with $raytasksComment
-			if genDecl.Doc != nil {
-				for _, comment := range genDecl.Doc.List {
-					if strings.TrimSpace(comment.Text) == raytasksComment {
-						for _, spec := range genDecl.Specs {
-							if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-								if _, ok := typeSpec.Type.(*ast.StructType); ok {
-									targetStruct = typeSpec
-									return false
-								}
-							}
-						}
-					}
-				}
-			}
-			return true
-		})
-	}
-
-	if targetStruct == nil {
+	var taskHolderStruct = findStruct(pkg, raytasksComment)
+	if taskHolderStruct == nil {
 		log.Fatalf("No struct with '%s' comment found\n", raytasksComment)
 	}
+	fmt.Printf("Found raytasks struct: %s\n", taskHolderStruct.Name.Name)
 
-	fmt.Printf("Found raytasks struct: %s\n", targetStruct.Name.Name)
+	// Find struct with // raytasks comment
+	var actorHolderStruct = findStruct(pkg, rayactorsComment)
+	if actorHolderStruct == nil {
+		log.Fatalf("No struct with '%s' comment found\n", rayactorsComment)
+	}
+	fmt.Printf("Found raytasks struct: %s\n", actorHolderStruct.Name.Name)
 
-	// Find all methods for this struct
-	methods, imports_ := findMethods(pkg, targetStruct.Name.Name)
+	typeConstraints := TypeConstraints{
+		type2ConstraintId: make(map[string]int),
+	}
+	tasks, imports1 := findMethods(pkg, taskHolderStruct.Name.Name)
+	actorFactories, imports2 := findMethods(pkg, actorHolderStruct.Name.Name)
 
-	// Generate wrapper code
-	code := generateWrapperCode(pkg.Name, targetStruct.Name.Name, methods, imports_)
+	typeConstraints.add(tasks)
+	typeConstraints.add(actorFactories)
+
+	importsList := []map[string]struct{}{imports1, imports2}
+
+	actor2Methods := make(map[string][]Method)
+	for _, actorFactory := range actorFactories {
+		actorTypeName := actorFactory.Results[0].Type
+		actorName := strings.TrimPrefix(actorTypeName, "*")
+		actorMethods, imports_ := findMethods(pkg, actorName)
+		typeConstraints.add(actorMethods)
+		fmt.Printf("Actor %s methods: %d\n", actorName, len(actorMethods))
+		actor2Methods[actorTypeName] = actorMethods
+		importsList = append(importsList, imports_)
+	}
+
+	var buf bytes.Buffer
+	// Package comments
+	fmt.Fprintf(&buf, packageCommentsTPL)
+	// Package declaration
+	fmt.Fprintf(&buf, "package %s\n\n", pkg.Name)
+
+	writeImports(&buf, importsList)
+
+	// Generate wrapper functions
+	for _, method := range tasks {
+		generateWrapperFunction(taskDefTpl, &buf, method, typeConstraints.type2ConstraintId, "")
+	}
+	for _, method := range actorFactories {
+		actorTypeName := method.Results[0].Type
+		actorName := method.Name
+		generateWrapperFunction(actorDefTpl, &buf, method, typeConstraints.type2ConstraintId, actorName)
+		actorMethods := actor2Methods[actorTypeName]
+		for _, actorMethod := range actorMethods {
+			generateWrapperFunction(actorMethodDefTpl, &buf, actorMethod, typeConstraints.type2ConstraintId, actorName)
+		}
+	}
+
+	buf.WriteString(typeConstraints.buf.String())
+
+	code := buf.String()
 
 	os.WriteFile("/tmp/out.go", []byte(code), 0644)
 
@@ -138,6 +156,60 @@ func main() {
 	}
 
 	fmt.Printf("Generated wrapper code written to: %s\n", outputFile)
+}
+
+func findStruct(pkg *packages.Package, commentPatten string) *ast.TypeSpec {
+	var targetStruct *ast.TypeSpec
+	for _, file := range pkg.Syntax {
+		ast.Inspect(file, func(n ast.Node) bool {
+			if targetStruct != nil {
+				return false
+			}
+
+			genDecl, ok := n.(*ast.GenDecl)
+			if !ok || genDecl.Tok != token.TYPE {
+				return true
+			}
+
+			// Check if there's a comment with $raytasksComment
+			if genDecl.Doc != nil {
+				for _, comment := range genDecl.Doc.List {
+					if strings.TrimSpace(comment.Text) == commentPatten {
+						for _, spec := range genDecl.Specs {
+							if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+								if _, ok := typeSpec.Type.(*ast.StructType); ok {
+									targetStruct = typeSpec
+									return false
+								}
+							}
+						}
+					}
+				}
+			}
+			return true
+		})
+	}
+	return targetStruct
+}
+
+func writeImports(buf *bytes.Buffer, imports []map[string]struct{}) {
+	// Collect and write imports
+	importSet := make(map[string]struct{})
+	importSet[fmt.Sprintf(`"%s/ray"`, workspaceRepo)] = struct{}{}
+	importSet[fmt.Sprintf(`. "%s/ray/generic"`, workspaceRepo)] = struct{}{}
+	for _, imp := range imports {
+		for imp := range imp {
+			importSet[imp] = struct{}{}
+		}
+	}
+
+	if len(importSet) > 0 {
+		fmt.Fprintf(buf, "import (\n")
+		for imp := range importSet {
+			fmt.Fprintf(buf, "\t%s\n", imp)
+		}
+		fmt.Fprintf(buf, ")\n\n")
+	}
 }
 
 type Method struct {
@@ -338,80 +410,56 @@ func GetPackageAndTypeName(typ types.Type) (packageName string, typeName string)
 	return packageName, typeName
 }
 
-func generateWrapperCode(packageName, structName string, methods []Method, imports map[string]struct{}) string {
-	var buf bytes.Buffer
-
-	// Package comments
-	fmt.Fprintf(&buf, packageCommentsTPL)
-
-	// Package declaration
-	fmt.Fprintf(&buf, "package %s\n\n", packageName)
-
-	// Collect and write imports
-	// imports := collectImports(methods, pkg, structFile)
-	// Add goray generic import
-	imports[fmt.Sprintf(`. "%s/ray/generic"`, workspaceRepo)] = struct{}{}
-	if len(imports) > 0 {
-		fmt.Fprintf(&buf, "import (\n")
-		for imp := range imports {
-			fmt.Fprintf(&buf, "\t%s\n", imp)
-		}
-		fmt.Fprintf(&buf, ")\n\n")
-	}
-
-	typeConstraints, type2ConstraintId := generateTypeConstraints(methods)
-	// Generate wrapper functions
-	for _, method := range methods {
-		generateWrapperFunction(&buf, method, type2ConstraintId)
-	}
-
-	buf.WriteString(typeConstraints)
-
-	return buf.String()
-}
-
-func collectImports(methods []Method, pkg *packages.Package, structFile *ast.File) map[string]bool {
-	imports := make(map[string]bool)
-
-	// Add imports from the original file
-	for _, imp := range structFile.Imports {
-		path := strings.Trim(imp.Path.Value, `"`)
-		if imp.Name != nil && imp.Name.Name != "" && imp.Name.Name != "_" {
-			imports[fmt.Sprintf(`%s "%s"`, imp.Name.Name, path)] = true
-		} else {
-			imports[fmt.Sprintf(`"%s"`, path)] = true
-		}
-	}
-
-	return imports
-}
-
 const typeConstraintTpl = `
 type T%d interface {
 	%s | *Future1[%s]
 }
 `
 
-func generateTypeConstraints(methods []Method) (string, map[string]int) {
-	var buf bytes.Buffer
-	type2ConstraintId := make(map[string]int)
+type TypeConstraints struct {
+	buf               bytes.Buffer
+	type2ConstraintId map[string]int
+}
+
+func (t *TypeConstraints) add(methods []Method) {
 	for _, method := range methods {
 		for _, param := range method.Params {
-			if _, ok := type2ConstraintId[param.Type]; !ok {
-				typeConstraintId := len(type2ConstraintId)
+			if _, ok := t.type2ConstraintId[param.Type]; !ok {
+				typeConstraintId := len(t.type2ConstraintId)
 				typeConstraint := fmt.Sprintf(typeConstraintTpl, typeConstraintId, param.Type, param.Type)
-				buf.WriteString(typeConstraint)
-				type2ConstraintId[param.Type] = typeConstraintId
+				t.buf.WriteString(typeConstraint)
+				t.type2ConstraintId[param.Type] = typeConstraintId
 			}
 		}
 	}
-	return buf.String(), type2ConstraintId
 }
 
-const funcDefTpl = `
+/*
+	func Echo[any_0 T2](args ...any_0) *RemoteFunc[*Future1[[]any]] {
+		_ = (demo).Echo // help you to findStruct the original task
+		return NewRemoteFunc[*Future1[[]any]]("Echo", ExpandArgs([]any{}, args))
+	}
+*/
+const taskDefTpl = `
 func {{.FuncName}} {{.TypeConstraints}} ( {{.ParamList}} ) *RemoteFunc[*Future{{.ResLen}}{{.ResTypes}}] {
-	_ = ({{.ReceiverType}}).{{.FuncName}}  // help you to find the original task
+	_ = ({{.ReceiverType}}).{{.FuncName}}  // help you to findStruct the original task
 	return NewRemoteFunc[*Future{{.ResLen}}{{.ResTypes}}]("{{.FuncName}}", {{.ArgsStatement}})
+}
+`
+
+const actorDefTpl = `
+type Actor{{.ActorName}} ray.ActorHandle
+
+func {{.FuncName}} {{.TypeConstraints}} ( {{.ParamList}} ) *RemoteActor[Actor{{.ActorName}}] {
+	_ = ({{.ReceiverType}}).{{.FuncName}}  // help you to findStruct the original actor constructor
+	return NewRemoteActor[Actor{{.ActorName}}]("{{.FuncName}}", []any{n})
+}
+`
+
+const actorMethodDefTpl = `
+func {{.FuncName}} {{.TypeConstraints}} (actor Actor{{.ActorName}}, {{.ParamList}}) *RemoteFunc[*Future{{.ResLen}}{{.ResTypes}}] {
+	_ = ({{.ReceiverType}}).{{.FuncName}}  // help you to findStruct the original actor method
+	return NewRemoteFunc[*Future{{.ResLen}}{{.ResTypes}}]("{{.FuncName}}", {{.ArgsStatement}}, ray.ActorHandle(actor))
 }
 `
 
@@ -423,9 +471,11 @@ type FuncDef struct {
 	ResTypes        string
 	ArgsStatement   string
 	ReceiverType    string
+
+	ActorName string // only for actor def
 }
 
-func generateWrapperFunction(buf *bytes.Buffer, method Method, type2ConstraintId map[string]int) {
+func generateWrapperFunction(tpl string, buf *bytes.Buffer, method Method, type2ConstraintId map[string]int, actorName string) {
 	paramNames := make([]string, len(method.Params))
 	paramList := make([]string, len(method.Params))
 	typeConstraintList := make([]string, len(method.Params))
@@ -474,9 +524,10 @@ func generateWrapperFunction(buf *bytes.Buffer, method Method, type2ConstraintId
 		ResTypes:        resTypesStr,
 		ArgsStatement:   argsStatement,
 		ReceiverType:    method.ReceiverType,
+		ActorName:       actorName,
 	}
 
-	tmpl, err := template.New("funcDef").Parse(funcDefTpl)
+	tmpl, err := template.New("funcDef").Parse(tpl)
 	if err != nil {
 		panic(err)
 	}

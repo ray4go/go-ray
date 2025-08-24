@@ -18,10 +18,10 @@ type RemoteFunc[T ObjSetter] struct {
 	actor    *ray.ActorHandle
 }
 
-func NewRemoteFunc[T ObjSetter](funcName string, args []any, actor ...*ray.ActorHandle) *RemoteFunc[T] {
+func NewRemoteFunc[T ObjSetter](funcName string, args []any, actor ...ray.ActorHandle) *RemoteFunc[T] {
 	var actorHandle *ray.ActorHandle
 	if len(actor) > 0 {
-		actorHandle = actor[0]
+		actorHandle = &actor[0]
 	}
 	return &RemoteFunc[T]{
 		funcName: funcName,
@@ -65,4 +65,34 @@ func ExpandArgs[T any](s1 []any, s2 []T) []any {
 		s1 = append(s1, v)
 	}
 	return s1
+}
+
+// Convert 将输入类型转换成底层类型相同的目标类型
+func Convert[T any](input any) T {
+	srcVal := reflect.ValueOf(input)
+	var dst T
+	dstType := reflect.TypeOf(dst) // 目标类型
+	if !srcVal.Type().ConvertibleTo(dstType) {
+		panic(fmt.Sprintf("type %s not convertible to %s", srcVal.Type(), dstType))
+	}
+	s2Val := srcVal.Convert(dstType)
+	return s2Val.Interface().(T)
+}
+
+type RemoteActor[T any] struct {
+	factoryName string
+	args        []any
+}
+
+func NewRemoteActor[T any](factoryName string, args []any) *RemoteActor[T] {
+	return &RemoteActor[T]{
+		factoryName: factoryName,
+		args:        args,
+	}
+}
+
+func (r *RemoteActor[T]) Remote(options ...*ray.RayOption) T {
+	args := ExpandArgs(r.args, options)
+	handle := ray.NewActor(r.factoryName, args...)
+	return Convert[T](*handle)
 }
