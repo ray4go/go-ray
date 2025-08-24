@@ -1,7 +1,8 @@
 import os
 import string
 
-max_returns_len = 5
+max_returns_len = 15
+ray_max_get_num = 5
 here_dir = os.path.dirname(os.path.abspath(__file__))
 out_file = os.path.join(here_dir, "futures.go")
 
@@ -57,12 +58,14 @@ func (f *Future${l}[${types}]) setObjectRef(obj *ray.ObjectRef) {
 }
 
 func (f *Future${l}[${types}]) Get() (${types}, error) {
-	return ray.Get${l}[${types}](f.obj)
+	return ${prefix}Get${l}[${types}](f.obj)
 }
 """
 future_tpl = string.Template(_future_tpl)
 
 future1_extra = """
+// ObjectRef returns the underlying ObjectRef of the Future.
+// Used for passing the Future to a remote task / actor method call.
 func (f *Future1[T0]) ObjectRef() *ray.ObjectRef {
 	return f.obj
 }
@@ -79,7 +82,7 @@ def gen_future(num_returns: int):
             l=l,
             types=types,
             type_decls=type_decls,
-
+            prefix="ray." if l <= ray_max_get_num else "",
         )
     )
     if l == 1:

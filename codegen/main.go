@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -47,9 +48,8 @@ func main() {
 
 	// Load the package
 	cfg := &packages.Config{
-		Dir: absTargetDir,
-		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax |
-			packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports,
+		Dir:  absTargetDir,
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes,
 	}
 
 	// "./..." 表示加载指定目录及其所有子目录下的所有包
@@ -71,30 +71,34 @@ func main() {
 		}
 	}
 
-	// Find struct with // raytasks comment
-	var taskHolderStruct = findStruct(pkg, raytasksComment)
-	if taskHolderStruct == nil {
-		log.Fatalf("No struct with '%s' comment found\n", raytasksComment)
-	}
-	fmt.Printf("Found raytasks struct: %s\n", taskHolderStruct.Name.Name)
-
-	// Find struct with // raytasks comment
-	var actorHolderStruct = findStruct(pkg, rayactorsComment)
-	if actorHolderStruct == nil {
-		log.Fatalf("No struct with '%s' comment found\n", rayactorsComment)
-	}
-	fmt.Printf("Found raytasks struct: %s\n", actorHolderStruct.Name.Name)
-
 	typeConstraints := TypeConstraints{
 		type2ConstraintId: make(map[string]int),
 	}
-	tasks, imports1 := findMethods(pkg, taskHolderStruct.Name.Name)
-	actorFactories, imports2 := findMethods(pkg, actorHolderStruct.Name.Name)
+
+	// Find struct with // raytasks comment
+	var taskHolderStruct = findStruct(pkg, raytasksComment)
+	var tasks []Method
+	var taskImports map[string]struct{}
+	if taskHolderStruct == nil {
+		fmt.Printf("No struct with '%s' comment found\n", raytasksComment)
+	} else {
+		fmt.Printf("Found raytasks struct: %s\n", taskHolderStruct.Name.Name)
+		tasks, taskImports = findMethods(pkg, taskHolderStruct.Name.Name)
+	}
+
+	var actorHolderStruct = findStruct(pkg, rayactorsComment)
+	var actorFactories []Method
+	var actorImports map[string]struct{}
+	if actorHolderStruct == nil {
+		fmt.Printf("No struct with '%s' comment found\n", rayactorsComment)
+	} else {
+		fmt.Printf("Found rayactors struct: %s\n", actorHolderStruct.Name.Name)
+		actorFactories, actorImports = findMethods(pkg, actorHolderStruct.Name.Name)
+	}
 
 	typeConstraints.add(tasks)
 	typeConstraints.add(actorFactories)
-
-	importsList := []map[string]struct{}{imports1, imports2}
+	importsList := []map[string]struct{}{taskImports, actorImports}
 
 	actor2Methods := make(map[string][]Method)
 	for _, actorFactory := range actorFactories {
@@ -537,14 +541,43 @@ func generateWrapperFunction(tpl string, buf *bytes.Buffer, method Method, type2
 	}
 }
 
-// []T -> sliceOfT; *T -> pointerOfT; map[K]V -> mapK2V;
+// 将 Go 类型名转换为更友好的标识符名称
+// 例如：[]T -> sliceOfT; *T -> pointerOfT; map[K]V -> mapK2V; [n]T -> arrNT; ...
 func typeFriendlyName(typ string) string {
+	// Handle pointer types
 	typ = strings.ReplaceAll(typ, "*", "pointerOf")
+
+	// Handle slice types
 	typ = strings.ReplaceAll(typ, "[]", "sliceOf")
 
-	typ = strings.ReplaceAll(typ, "map[", "map")
-	typ = strings.ReplaceAll(typ, "]", "")
+	// Handle array types [n]T -> arrNT
+	arrayRegex := regexp.MustCompile(`\[(\d+)\]`)
+	typ = arrayRegex.ReplaceAllString(typ, "arr${1}Of")
 
+	// Handle map types map[K]V -> mapKToV
+	mapRegex := regexp.MustCompile(`map\[([^\]]+)\](.*)`)
+	typ = mapRegex.ReplaceAllString(typ, "map${1}To${2}")
+
+	// Handle channel types
+	typ = strings.ReplaceAll(typ, "chan<-", "sendChanOf")
+	typ = strings.ReplaceAll(typ, "<-chan", "recvChanOf")
+	typ = strings.ReplaceAll(typ, "chan ", "chanOf")
+
+	// Handle function types (basic case)
+	if strings.HasPrefix(typ, "func(") {
+		typ = strings.ReplaceAll(typ, "func(", "funcWith")
+		typ = strings.ReplaceAll(typ, ")", "")
+	}
+
+	// Handle interface{} -> any
+	typ = strings.ReplaceAll(typ, "interface{}", "any")
+
+	// Replace spaces and dots with underscores
+	typ = strings.ReplaceAll(typ, " ", "_")
 	typ = strings.ReplaceAll(typ, ".", "_")
+
+	// only keep alphanumeric + '_' chars
+	typ = regexp.MustCompile(`[^a-zA-Z0-9_]`).ReplaceAllString(typ, "")
+
 	return typ
 }

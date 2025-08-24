@@ -32,6 +32,8 @@ func (f *Future1[T0]) Get() (T0, error) {
 	return ray.Get1[T0](f.obj)
 }
 
+// ObjectRef returns the underlying ObjectRef of the Future.
+// Used for passing the Future to a remote task / actor method call.
 func (f *Future1[T0]) ObjectRef() *ray.ObjectRef {
 	return f.obj
 }
@@ -82,4 +84,124 @@ func (f *Future5[T0, T1, T2, T3, T4]) setObjectRef(obj *ray.ObjectRef) {
 
 func (f *Future5[T0, T1, T2, T3, T4]) Get() (T0, T1, T2, T3, T4, error) {
 	return ray.Get5[T0, T1, T2, T3, T4](f.obj)
+}
+
+type Future6[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any] struct {
+	obj *ray.ObjectRef
+}
+
+func (f *Future6[T0, T1, T2, T3, T4, T5]) setObjectRef(obj *ray.ObjectRef) {
+	f.obj = obj
+}
+
+func (f *Future6[T0, T1, T2, T3, T4, T5]) Get() (T0, T1, T2, T3, T4, T5, error) {
+	return Get6[T0, T1, T2, T3, T4, T5](f.obj)
+}
+
+type Future7[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any] struct {
+	obj *ray.ObjectRef
+}
+
+func (f *Future7[T0, T1, T2, T3, T4, T5, T6]) setObjectRef(obj *ray.ObjectRef) {
+	f.obj = obj
+}
+
+func (f *Future7[T0, T1, T2, T3, T4, T5, T6]) Get() (T0, T1, T2, T3, T4, T5, T6, error) {
+	return Get7[T0, T1, T2, T3, T4, T5, T6](f.obj)
+}
+
+type Future8[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any] struct {
+	obj *ray.ObjectRef
+}
+
+func (f *Future8[T0, T1, T2, T3, T4, T5, T6, T7]) setObjectRef(obj *ray.ObjectRef) {
+	f.obj = obj
+}
+
+func (f *Future8[T0, T1, T2, T3, T4, T5, T6, T7]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, error) {
+	return Get8[T0, T1, T2, T3, T4, T5, T6, T7](f.obj)
+}
+
+type Future9[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any] struct {
+	obj *ray.ObjectRef
+}
+
+func (f *Future9[T0, T1, T2, T3, T4, T5, T6, T7, T8]) setObjectRef(obj *ray.ObjectRef) {
+	f.obj = obj
+}
+
+func (f *Future9[T0, T1, T2, T3, T4, T5, T6, T7, T8]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, error) {
+	return Get9[T0, T1, T2, T3, T4, T5, T6, T7, T8](f.obj)
+}
+
+type Future10[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any, T9 any] struct {
+	obj *ray.ObjectRef
+}
+
+func (f *Future10[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9]) setObjectRef(obj *ray.ObjectRef) {
+	f.obj = obj
+}
+
+func (f *Future10[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, error) {
+	return Get10[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9](f.obj)
+}
+
+type Future11[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any, T9 any, T10 any] struct {
+	obj *ray.ObjectRef
+}
+
+func (f *Future11[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]) setObjectRef(obj *ray.ObjectRef) {
+	f.obj = obj
+}
+
+func (f *Future11[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, error) {
+	return Get11[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10](f.obj)
+}
+
+type Future12[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any, T9 any, T10 any, T11 any] struct {
+	obj *ray.ObjectRef
+}
+
+func (f *Future12[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11]) setObjectRef(obj *ray.ObjectRef) {
+	f.obj = obj
+}
+
+func (f *Future12[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, error) {
+	return Get12[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11](f.obj)
+}
+
+type Future13[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any, T9 any, T10 any, T11 any, T12 any] struct {
+	obj *ray.ObjectRef
+}
+
+func (f *Future13[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12]) setObjectRef(obj *ray.ObjectRef) {
+	f.obj = obj
+}
+
+func (f *Future13[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, error) {
+	return Get13[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12](f.obj)
+}
+
+type Future14[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any, T9 any, T10 any, T11 any, T12 any, T13 any] struct {
+	obj *ray.ObjectRef
+}
+
+func (f *Future14[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13]) setObjectRef(obj *ray.ObjectRef) {
+	f.obj = obj
+}
+
+func (f *Future14[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, error) {
+	return Get14[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13](f.obj)
+}
+
+type Future15[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any, T9 any, T10 any, T11 any, T12 any, T13 any, T14 any] struct {
+	obj *ray.ObjectRef
+}
+
+func (f *Future15[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14]) setObjectRef(obj *ray.ObjectRef) {
+	f.obj = obj
+}
+
+func (f *Future15[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, error) {
+	return Get15[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14](f.obj)
 }

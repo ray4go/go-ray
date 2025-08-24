@@ -1,12 +1,12 @@
 import string
 import textwrap
 
-max_returns_len = 5
+max_returns_len = 16
 
 TPL = """
 // Get${l} is used to get the result of task / actor method with ${l} return value.
 // The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get${l}[${T_any_list}](obj decodable, timeout ...float64) (${T_list}, error) {
+func Get${l}[${T_any_list}](obj Decodable, timeout ...float64) (${T_list}, error) {
 	var (
 ${var_list}
 	)
