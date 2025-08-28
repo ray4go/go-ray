@@ -25,7 +25,7 @@ type AggregationResult struct {
 }
 
 // Struct definitions for machine learning workflow
-type DatasetSplit struct {
+type DatasetSplitData struct {
 	TrainData [][]float64 `json:"train_data"`
 	TestData  [][]float64 `json:"test_data"`
 	TrainSize int         `json:"train_size"`
@@ -150,13 +150,13 @@ func (_ testTask) ReportGeneration(aggregatedData AggregationResult) string {
 }
 
 // Simulate a machine learning workflow
-func (_ testTask) DatasetSplit(data [][]float64, trainRatio float64) DatasetSplit {
+func (_ testTask) DatasetSplit(data [][]float64, trainRatio float64) DatasetSplitData {
 	trainSize := int(float64(len(data)) * trainRatio)
 
 	trainData := data[:trainSize]
 	testData := data[trainSize:]
 
-	return DatasetSplit{
+	return DatasetSplitData{
 		TrainData: trainData,
 		TestData:  testData,
 		TrainSize: len(trainData),
@@ -433,7 +433,7 @@ func init() {
 		splitResult, err := splitRef.GetAll()
 		assert.NoError(err)
 
-		splitData := splitResult[0].(DatasetSplit)
+		splitData := splitResult[0].(DatasetSplitData)
 		assert.Equal(800, splitData.TrainSize)
 		assert.Equal(200, splitData.TestSize)
 

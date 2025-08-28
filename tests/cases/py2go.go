@@ -83,7 +83,9 @@ func (_ testTask) BusySleep(second int) {
 func init() {
 	RegisterNamedActor("GoNewCounter", NewCounter)
 	AddTestCase("TestPyCallGo", func(assert *require.Assertions) {
-		err := ray.LocalCallPyTask("start_python_tests").GetInto()
+		var ret int
+		err := ray.LocalCallPyTask("start_python_tests").GetInto(&ret)
 		assert.NoError(err)
+		assert.Equal(0, ret)
 	})
 }

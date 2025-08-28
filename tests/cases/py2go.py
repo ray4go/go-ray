@@ -59,7 +59,7 @@ def test_remote_task():
     tasks = [sleep.remote(1) for _ in range(6)]
     start = time.time()
     ray.get(tasks)
-    assert time.time() - start < 6
+    assert time.time() - start < 6, f"task should take at most 6 seconds, but got {time.time() - start}"
 
 
 def test_local_actor():
@@ -365,4 +365,4 @@ def test_actor_no_return_method():
 
 @goray.remote
 def start_python_tests():
-    pytest.main(["-s", __file__])
+    return pytest.main(["-s", __file__])

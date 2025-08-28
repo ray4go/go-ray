@@ -24,10 +24,10 @@ func (_ testTask) FibonacciTask(n int) int {
 	if n <= 1 {
 		return n
 	}
-	return FibonacciTask(n-1) + FibonacciTask(n-2)
+	return LocalFibonacciTask(n-1) + LocalFibonacciTask(n-2)
 }
 
-func FibonacciTask(n int) int {
+func LocalFibonacciTask(n int) int {
 	if n <= 1 {
 		return n
 	}
@@ -267,8 +267,8 @@ func init() {
 		start := time.Now()
 
 		// Mix of different task types
-		cpuRef1 := ray.RemoteCall("FibonacciTask", 18, ray.Option("num_cpus", 1))
-		cpuRef2 := ray.RemoteCall("FibonacciTask", 19, ray.Option("num_cpus", 1))
+		cpuRef1 := ray.RemoteCall("LocalFibonacciTask", 18, ray.Option("num_cpus", 1))
+		cpuRef2 := ray.RemoteCall("LocalFibonacciTask", 19, ray.Option("num_cpus", 1))
 
 		memRef1 := ray.RemoteCall("ProcessLargeData", 15000, ray.Option("memory", 100*1024*1024))
 		memRef2 := ray.RemoteCall("ProcessLargeData", 12000, ray.Option("memory", 80*1024*1024))
