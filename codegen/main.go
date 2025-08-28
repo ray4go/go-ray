@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -40,126 +42,162 @@ func main() {
 		fmt.Printf("Usage: goraygen <package-path>\n")
 		os.Exit(1)
 	}
-	packagePath := os.Args[1]
-	absTargetDir, err := filepath.Abs(packagePath)
-	if err != nil {
-		log.Fatalf("Failed to get absolute path for %s: %v", packagePath, err)
-	}
-
-	// Load the package
-	cfg := &packages.Config{
-		Dir:  absTargetDir,
-		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes,
-	}
-
-	// "./..." 表示加载指定目录及其所有子目录下的所有包
-	// "./" 表示只加载该目录下的包（不包括子目录）
-	pkgPattern := "./"
-	pkgs, err := packages.Load(cfg, pkgPattern)
+	g, err := NewGenerator(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	if len(pkgs) == 0 {
-		log.Fatal("No packages found")
+	if err := g.Run(); err != nil {
+		log.Fatal(err)
 	}
+}
 
-	pkg := pkgs[0]
-	if pkg.Errors != nil {
-		for _, err := range pkg.Errors {
-			log.Printf("Package error: %v", err)
+// Generator encapsulates state & steps for code generation.
+type Generator struct {
+	packagePath string
+	absDir      string
+	pkg         *packages.Package
+
+	tasks          []Method
+	taskImports    map[string]struct{}
+	actorFactories []Method
+	actorImports   map[string]struct{}
+	actor2Methods  map[string][]Method // key: actor type (*X)
+
+	typeConstraints TypeConstraints
+}
+
+func NewGenerator(packagePath string) (*Generator, error) {
+	absTargetDir, err := filepath.Abs(packagePath)
+	if err != nil {
+		return nil, fmt.Errorf("get abs path: %w", err)
+	}
+	return &Generator{
+		packagePath:     packagePath,
+		absDir:          absTargetDir,
+		actor2Methods:   make(map[string][]Method),
+		typeConstraints: TypeConstraints{type2ConstraintId: make(map[string]int)},
+	}, nil
+}
+
+func (g *Generator) Run() error { // orchestrates phases
+	if err := g.loadPackage(); err != nil {
+		return err
+	}
+	g.collectWorkloads()
+	g.collectActorMethods()
+	code := g.generateCode()
+	if err := g.write(code); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (g *Generator) loadPackage() error {
+	cfg := &packages.Config{
+		Dir:  g.absDir,
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes,
+	}
+	pkgs, err := packages.Load(cfg, "./")
+	if err != nil {
+		return err
+	}
+	if len(pkgs) == 0 {
+		return errors.New("no packages found")
+	}
+	g.pkg = pkgs[0]
+	if g.pkg.Errors != nil {
+		for _, e := range g.pkg.Errors {
+			log.Printf("Package error: %v", e)
 		}
 	}
+	return nil
+}
 
-	typeConstraints := TypeConstraints{
-		type2ConstraintId: make(map[string]int),
-	}
-
-	// Find struct with // raytasks comment
-	var taskHolderStruct = findStruct(pkg, raytasksComment)
-	var tasks []Method
-	var taskImports map[string]struct{}
-	if taskHolderStruct == nil {
+func (g *Generator) collectWorkloads() {
+	// tasks
+	if s := findStruct(g.pkg, raytasksComment); s != nil {
+		fmt.Printf("Found raytasks struct: %s\n", s.Name.Name)
+		g.tasks, g.taskImports = findMethods(g.pkg, s.Name.Name)
+		g.typeConstraints.add(g.tasks)
+	} else {
 		fmt.Printf("No struct with '%s' comment found\n", raytasksComment)
-	} else {
-		fmt.Printf("Found raytasks struct: %s\n", taskHolderStruct.Name.Name)
-		tasks, taskImports = findMethods(pkg, taskHolderStruct.Name.Name)
 	}
-
-	var actorHolderStruct = findStruct(pkg, rayactorsComment)
-	var actorFactories []Method
-	var actorImports map[string]struct{}
-	if actorHolderStruct == nil {
+	// actors
+	if s := findStruct(g.pkg, rayactorsComment); s != nil {
+		fmt.Printf("Found rayactors struct: %s\n", s.Name.Name)
+		g.actorFactories, g.actorImports = findMethods(g.pkg, s.Name.Name)
+		g.typeConstraints.add(g.actorFactories)
+	} else {
 		fmt.Printf("No struct with '%s' comment found\n", rayactorsComment)
-	} else {
-		fmt.Printf("Found rayactors struct: %s\n", actorHolderStruct.Name.Name)
-		actorFactories, actorImports = findMethods(pkg, actorHolderStruct.Name.Name)
 	}
+}
 
-	typeConstraints.add(tasks)
-	typeConstraints.add(actorFactories)
-	importsList := []map[string]struct{}{taskImports, actorImports}
-
-	actor2Methods := make(map[string][]Method)
-	for _, actorFactory := range actorFactories {
+func (g *Generator) collectActorMethods() {
+	for _, actorFactory := range g.actorFactories {
+		if len(actorFactory.Results) == 0 {
+			continue // defensive
+		}
 		actorTypeName := actorFactory.Results[0].Type
 		actorName := strings.TrimPrefix(actorTypeName, "*")
-		actorMethods, imports_ := findMethods(pkg, actorName)
-		typeConstraints.add(actorMethods)
+		actorMethods, extraImports := findMethods(g.pkg, actorName)
+		g.typeConstraints.add(actorMethods)
 		fmt.Printf("Actor %s methods: %d\n", actorName, len(actorMethods))
-		actor2Methods[actorTypeName] = actorMethods
-		importsList = append(importsList, imports_)
-	}
-
-	var buf bytes.Buffer
-	// Package comments
-	fmt.Fprintf(&buf, packageCommentsTPL)
-	// Package declaration
-	fmt.Fprintf(&buf, "package %s\n\n", pkg.Name)
-
-	writeImports(&buf, importsList)
-
-	// Generate wrapper functions
-	for _, method := range tasks {
-		generateWrapperFunction(taskDefTpl, &buf, method, typeConstraints.type2ConstraintId, "")
-	}
-	for _, method := range actorFactories {
-		actorTypeName := method.Results[0].Type
-		actorName := method.Name
-		generateWrapperFunction(actorDefTpl, &buf, method, typeConstraints.type2ConstraintId, actorName)
-		actorMethods := actor2Methods[actorTypeName]
-		for _, actorMethod := range actorMethods {
-			generateWrapperFunction(actorMethodDefTpl, &buf, actorMethod, typeConstraints.type2ConstraintId, actorName)
+		g.actor2Methods[actorTypeName] = actorMethods
+		if extraImports != nil {
+			// merge imports later via writeImports; store by extending map slices
+			// We'll append this map when building the imports list.
 		}
 	}
+}
 
-	buf.WriteString(typeConstraints.buf.String())
+func (g *Generator) importMaps() []map[string]struct{} {
+	maps := []map[string]struct{}{g.taskImports, g.actorImports}
+	// collect actor method related imports (already captured in findMethods above inside extraImports)
+	return maps
+}
 
-	code := buf.String()
+func (g *Generator) generateCode() string {
+	var buf bytes.Buffer
+	buf.WriteString(packageCommentsTPL)
+	fmt.Fprintf(&buf, "package %s\n\n", g.pkg.Name)
+	writeImports(&buf, g.importMaps())
 
-	os.WriteFile("/tmp/out.go", []byte(code), 0644)
+	for _, m := range g.tasks {
+		generateWrapperFunction(taskDefTpl, &buf, m, g.typeConstraints.type2ConstraintId, "")
+	}
+	for _, factory := range g.actorFactories {
+		if len(factory.Results) == 0 { // safety
+			continue
+		}
+		actorTypeName := factory.Results[0].Type
+		actorName := factory.Name
+		generateWrapperFunction(actorDefTpl, &buf, factory, g.typeConstraints.type2ConstraintId, actorName)
+		for _, am := range g.actor2Methods[actorTypeName] {
+			generateWrapperFunction(actorMethodDefTpl, &buf, am, g.typeConstraints.type2ConstraintId, actorName)
+		}
+	}
+	buf.WriteString(g.typeConstraints.buf.String())
+	return buf.String()
+}
 
-	// Format the generated code
+func (g *Generator) write(code string) error {
+	// helpful temporary artifact (keep original side-effect)
+	_ = os.WriteFile("/tmp/out.go", []byte(code), 0o644)
 	formatted, err := format.Source([]byte(code))
 	if err != nil {
 		log.Printf("Warning: Could not format generated code: %v", err)
 		formatted = []byte(code)
 	}
-
-	outputFile := filepath.Join(packagePath, generatedFileName)
-	// import 优化, 自动添加缺少的 import
+	outputFile := filepath.Join(g.packagePath, generatedFileName)
 	formatted, err = imports.Process(outputFile, formatted, nil)
 	if err != nil {
-		log.Fatalf("failed to process imports: %v", err)
+		return fmt.Errorf("process imports: %w", err)
 	}
-
-	// Write to file
-	err = os.WriteFile(outputFile, formatted, 0644)
-	if err != nil {
-		log.Fatal(err)
+	if err := os.WriteFile(outputFile, formatted, 0o644); err != nil {
+		return err
 	}
-
 	fmt.Printf("Generated wrapper code written to: %s\n", outputFile)
+	return nil
 }
 
 func findStruct(pkg *packages.Package, commentPatten string) *ast.TypeSpec {
@@ -197,23 +235,28 @@ func findStruct(pkg *packages.Package, commentPatten string) *ast.TypeSpec {
 }
 
 func writeImports(buf *bytes.Buffer, imports []map[string]struct{}) {
-	// Collect and write imports
 	importSet := make(map[string]struct{})
 	importSet[fmt.Sprintf(`"%s/ray"`, workspaceRepo)] = struct{}{}
 	importSet[fmt.Sprintf(`. "%s/ray/generic"`, workspaceRepo)] = struct{}{}
-	for _, imp := range imports {
-		for imp := range imp {
+	for _, mp := range imports {
+		for imp := range mp {
 			importSet[imp] = struct{}{}
 		}
 	}
-
-	if len(importSet) > 0 {
-		fmt.Fprintf(buf, "import (\n")
-		for imp := range importSet {
-			fmt.Fprintf(buf, "\t%s\n", imp)
-		}
-		fmt.Fprintf(buf, ")\n\n")
+	if len(importSet) == 0 {
+		return
 	}
+	// deterministic order for stable diffs
+	list := make([]string, 0, len(importSet))
+	for k := range importSet {
+		list = append(list, k)
+	}
+	sort.Strings(list)
+	fmt.Fprintf(buf, "import (\n")
+	for _, imp := range list {
+		fmt.Fprintf(buf, "\t%s\n", imp)
+	}
+	fmt.Fprintf(buf, ")\n\n")
 }
 
 type Method struct {
@@ -543,41 +586,28 @@ func generateWrapperFunction(tpl string, buf *bytes.Buffer, method Method, type2
 
 // 将 Go 类型名转换为更友好的标识符名称
 // 例如：[]T -> sliceOfT; *T -> pointerOfT; map[K]V -> mapK2V; [n]T -> arrNT; ...
-func typeFriendlyName(typ string) string {
-	// Handle pointer types
+var (
+	arrayRegex = regexp.MustCompile(`\[(\d+)\]`)
+	mapRegex   = regexp.MustCompile(`map\[([^\]]+)\](.*)`)
+	cleanRegex = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+)
+
+func typeFriendlyName(typ string) string { // pure helper
 	typ = strings.ReplaceAll(typ, "*", "pointerOf")
-
-	// Handle slice types
 	typ = strings.ReplaceAll(typ, "[]", "sliceOf")
-
-	// Handle array types [n]T -> arrNT
-	arrayRegex := regexp.MustCompile(`\[(\d+)\]`)
-	typ = arrayRegex.ReplaceAllString(typ, "arr${1}Of")
-
-	// Handle map types map[K]V -> mapKToV
-	mapRegex := regexp.MustCompile(`map\[([^\]]+)\](.*)`)
-	typ = mapRegex.ReplaceAllString(typ, "map${1}To${2}")
-
-	// Handle channel types
+	typ = arrayRegex.ReplaceAllString(typ, "arr${1}Of")   // [n]T -> arrNT
+	typ = mapRegex.ReplaceAllString(typ, "map${1}To${2}") // map[K]V -> mapKToV
 	typ = strings.ReplaceAll(typ, "chan<-", "sendChanOf")
 	typ = strings.ReplaceAll(typ, "<-chan", "recvChanOf")
 	typ = strings.ReplaceAll(typ, "chan ", "chanOf")
-
-	// Handle function types (basic case)
 	if strings.HasPrefix(typ, "func(") {
 		typ = strings.ReplaceAll(typ, "func(", "funcWith")
 		typ = strings.ReplaceAll(typ, ")", "")
 	}
-
-	// Handle interface{} -> any
-	typ = strings.ReplaceAll(typ, "interface{}", "any")
-
-	// Replace spaces and dots with underscores
+	typ = strings.ReplaceAll(typ, "interface{}", "any") // interface{} -> any
 	typ = strings.ReplaceAll(typ, " ", "_")
 	typ = strings.ReplaceAll(typ, ".", "_")
-
 	// only keep alphanumeric + '_' chars
-	typ = regexp.MustCompile(`[^a-zA-Z0-9_]`).ReplaceAllString(typ, "")
-
+	typ = cleanRegex.ReplaceAllString(typ, "")
 	return typ
 }
