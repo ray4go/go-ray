@@ -206,3 +206,18 @@ func (m *callableType) InType(idx int) reflect.Type {
 	}
 	return m.Type.In(idx + m.argOffset)
 }
+
+// IsNilTypePointer checks if the given value is nil custom type pointer or interface.
+func IsNilTypePointer(i any) bool {
+	if i == nil {
+		return true
+	}
+	value := reflect.ValueOf(i)
+	kind := value.Kind()
+	switch kind {
+	case reflect.Ptr, reflect.Interface:
+		return value.IsNil()
+	default:
+		return false
+	}
+}

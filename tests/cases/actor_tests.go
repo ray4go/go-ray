@@ -479,3 +479,16 @@ func init() {
 		assert.Equal(items, result)
 	})
 }
+
+func (_ actorFactories) ErrorTest() *StatefulActor {
+	return nil
+}
+
+func init() {
+	AddTestCase("NewActorError", func(assert *require.Assertions) {
+		// Test actor constructor that returns nil
+		actor := ray.NewActor("ErrorTest")
+		_, err := actor.RemoteCall("GetValue").GetAll()
+		assert.Error(err)
+	})
+}

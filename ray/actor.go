@@ -45,7 +45,7 @@ func registerActors(actorFactories any) {
 
 	for _, method := range actorFactoriesList {
 		if method.Type.NumOut() != 1 {
-			panic(fmt.Sprintf("Error: actor factory %s must return only one value", method.Name))
+			panic(fmt.Sprintf("Error: constructor of actor %s must return only one value, get %d", method.Name, method.Type.NumOut()))
 		}
 		actorTyp := method.Type.Out(0)
 		methods := make(map[string]reflect.Method)
@@ -108,6 +108,9 @@ func handleCreateActor(_ int64, data []byte) (resData []byte, retCode int64) {
 	}
 	args := decodeWithType(rawArgs, posArgs, newCallableType(reflect.TypeOf(actor.newFunc), true).InType)
 	res := funcCall(&actor.newFuncReceiver, reflect.ValueOf(actor.newFunc), args)
+	if IsNilTypePointer(res[0]) {
+		panic(fmt.Sprintf("Error: create %s actor failed, constructor return nil", typeName))
+	}
 	log.Debug("create actor %v -> %v\n", actor.name, res)
 
 	instance := &actorInstance{
