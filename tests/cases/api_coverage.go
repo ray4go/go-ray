@@ -101,7 +101,7 @@ type AdvancedOptionsActor struct {
 	callCount int
 }
 
-func NewAdvancedOptionsActor(id string) *AdvancedOptionsActor {
+func (_ actorFactories) NewAdvancedOptionsActor(id string) *AdvancedOptionsActor {
 	return &AdvancedOptionsActor{
 		id:        id,
 		startTime: time.Now(),
@@ -146,8 +146,6 @@ func (a *AdvancedOptionsActor) MemoryIntensiveOperation(size int) int {
 }
 
 func init() {
-	advancedActorName := RegisterActor(NewAdvancedOptionsActor)
-
 	AddTestCase("TestCallPythonCodeInTask", func(assert *require.Assertions) {
 		// Test calling Python code from within a task
 		ref := ray.RemoteCall("GetPythonEnvironment")
@@ -263,7 +261,7 @@ func init() {
 	AddTestCase("TestActorWithAdvancedOptions", func(assert *require.Assertions) {
 		return // todo msgpack
 		// Test actor creation with various options
-		actor := ray.NewActor(advancedActorName, "advanced_test",
+		actor := ray.NewActor("NewAdvancedOptionsActor", "advanced_test",
 			ray.Option("num_cpus", 1),
 			ray.Option("memory", 200*1024*1024), // 200MB
 			ray.Option("max_restarts", 2),
@@ -282,7 +280,7 @@ func init() {
 
 	AddTestCase("TestActorMemoryIntensiveWithOptions", func(assert *require.Assertions) {
 		// Test memory-intensive actor operations
-		actor := ray.NewActor(advancedActorName, "memory_test",
+		actor := ray.NewActor("NewAdvancedOptionsActor", "memory_test",
 			ray.Option("num_cpus", 2),
 			ray.Option("memory", 500*1024*1024), // 500MB
 		)

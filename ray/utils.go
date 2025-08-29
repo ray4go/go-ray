@@ -61,7 +61,7 @@ func appendBytesUnit(buffer *bytes.Buffer, data []byte) {
 	buffer.Write(data)
 }
 
-func getExportedMethods(typ reflect.Type) []reflect.Method {
+func getExportedMethods(typ reflect.Type, allowReturnPrivateVal bool) []reflect.Method {
 	methods := make([]reflect.Method, 0)
 	for i := 0; i < typ.NumMethod(); i++ {
 		method := typ.Method(i) // deterministic: sort in lexicographic order.
@@ -77,12 +77,14 @@ func getExportedMethods(typ reflect.Type) []reflect.Method {
 				break
 			}
 		}
-		// all return values must be exported or builtin types.
-		for j := 0; j < mtype.NumOut(); j++ {
-			argType := mtype.Out(j)
-			if !isExportedOrBuiltinType(argType) {
-				ok = false
-				break
+		if !allowReturnPrivateVal {
+			// all return values must be exported or builtin types.
+			for j := 0; j < mtype.NumOut(); j++ {
+				argType := mtype.Out(j)
+				if !isExportedOrBuiltinType(argType) {
+					ok = false
+					break
+				}
 			}
 		}
 		if ok {

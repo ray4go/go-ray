@@ -105,7 +105,7 @@ type EdgeCaseActor struct {
 	errorCount  int
 }
 
-func NewEdgeCaseActor() *EdgeCaseActor {
+func (_ actorFactories) NewEdgeCaseActor() *EdgeCaseActor {
 	return &EdgeCaseActor{
 		state:       make(map[string]interface{}),
 		callHistory: make([]string, 0),
@@ -169,7 +169,7 @@ type ResourceCleanupActor struct {
 	isActive  bool
 }
 
-func NewResourceCleanupActor() *ResourceCleanupActor {
+func (_ actorFactories) NewResourceCleanupActor() *ResourceCleanupActor {
 	return &ResourceCleanupActor{
 		resources: make([]string, 0),
 		isActive:  true,
@@ -199,9 +199,6 @@ func (a *ResourceCleanupActor) Deactivate() {
 }
 
 func init() {
-	edgeCaseActorName := RegisterActor(NewEdgeCaseActor)
-	resourceActorName := RegisterActor(NewResourceCleanupActor)
-
 	AddTestCase("TestEmptyAndNilInputs", func(assert *require.Assertions) {
 		// Test empty slice
 		ref1 := ray.RemoteCall("EmptySliceTask", []int{})
@@ -315,7 +312,7 @@ func init() {
 
 	AddTestCase("TestActorEdgeCases", func(assert *require.Assertions) {
 		return // todo
-		actor := ray.NewActor(edgeCaseActorName)
+		actor := ray.NewActor("NewEdgeCaseActor")
 
 		// Test storing nil values
 		actor.RemoteCall("StoreNil", "test_key").GetAll()
@@ -333,7 +330,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorInterruption", func(assert *require.Assertions) {
-		actor := ray.NewActor(edgeCaseActorName)
+		actor := ray.NewActor("NewEdgeCaseActor")
 
 		// Start a long-running operation
 		ref := actor.RemoteCall("InterruptibleOperation", 50) // 1 second operation
@@ -345,7 +342,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorErrorRecovery", func(assert *require.Assertions) {
-		actor := ray.NewActor(edgeCaseActorName)
+		actor := ray.NewActor("NewEdgeCaseActor")
 
 		// Call that should succeed
 		ref1 := actor.RemoteCall("SimulateError", false)
@@ -368,7 +365,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorResourceCleanup", func(assert *require.Assertions) {
-		actor := ray.NewActor(resourceActorName)
+		actor := ray.NewActor("NewResourceCleanupActor")
 
 		// Allocate some resources
 		actor.RemoteCall("AllocateResource", "resource1").GetAll()
@@ -400,7 +397,7 @@ func init() {
 	AddTestCase("TestRapidActorCreationDestruction", func(assert *require.Assertions) {
 		// Create and destroy multiple actors rapidly
 		for i := 0; i < 10; i++ {
-			actor := ray.NewActor(edgeCaseActorName)
+			actor := ray.NewActor("NewEdgeCaseActor")
 
 			// Use the actor briefly
 			ref := actor.RemoteCall("GetCallHistory")

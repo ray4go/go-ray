@@ -17,7 +17,7 @@ var (
 func registerTasks(taskReceiver any) {
 	taskReceiverVal = reflect.ValueOf(taskReceiver)
 	// TODO: check taskRcvr's underlying type is pointer of struct{} (make sure it's stateless)
-	taskFuncsList := getExportedMethods(reflect.TypeOf(taskReceiver))
+	taskFuncsList := getExportedMethods(reflect.TypeOf(taskReceiver), false)
 	taskFuncs = make(map[string]reflect.Method, len(taskFuncsList))
 	for _, taskFunc := range taskFuncsList {
 		taskFuncs[taskFunc.Name] = taskFunc

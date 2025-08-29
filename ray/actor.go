@@ -11,9 +11,10 @@ import (
 )
 
 type actorType struct {
-	name    string
-	newFunc any
-	methods map[string]reflect.Method
+	name            string
+	newFunc         any
+	newFuncReceiver reflect.Value
+	methods         map[string]reflect.Method
 }
 
 type actorInstance struct {
@@ -38,21 +39,28 @@ var (
 
 // 传入actor类型的指针
 // todo: 考虑使用 New(...) (pointer, error) 签名作为构造函数
-func registerActors(actorFactories map[string]any) {
-	mapOrderedIterate(actorFactories, func(name string, actorNewFunc any) {
-		typ := getFuncReturnType(actorNewFunc)
+func registerActors(actorFactories any) {
+	actorFactoriesVal := reflect.ValueOf(actorFactories)
+	actorFactoriesList := getExportedMethods(reflect.TypeOf(actorFactories), true)
 
-		methods := make(map[string]reflect.Method)
-		for _, method := range getExportedMethods(typ) {
-			methods[method.Name] = method
+	for _, method := range actorFactoriesList {
+		if method.Type.NumOut() != 1 {
+			panic(fmt.Sprintf("Error: actor factory %s must return only one value", method.Name))
 		}
+		actorTyp := method.Type.Out(0)
+		methods := make(map[string]reflect.Method)
+		for _, actorMethod := range getExportedMethods(actorTyp, false) {
+			methods[actorMethod.Name] = actorMethod
+		}
+
 		actor := &actorType{
-			name:    name,
-			newFunc: actorNewFunc,
-			methods: methods,
+			name:            method.Name,
+			newFuncReceiver: actorFactoriesVal,
+			newFunc:         method.Func.Interface(),
+			methods:         methods,
 		}
 		actorTypes[actor.name] = actor
-	})
+	}
 }
 
 // NewActor creates a remote actor instance of the given type with the provided arguments.
@@ -68,7 +76,7 @@ func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 	if !ok {
 		panic(fmt.Sprintf("Actor type '%v' not found", typeName))
 	}
-	callable := newCallableType(reflect.TypeOf(actor.newFunc), false)
+	callable := newCallableType(reflect.TypeOf(actor.newFunc), true)
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_ActorName, typeName))
 
 	methodNames := make([]string, 0)
@@ -98,8 +106,8 @@ func handleCreateActor(_ int64, data []byte) (resData []byte, retCode int64) {
 	if !ok {
 		panic(fmt.Sprintf("Actor type '%v' not found", typeName))
 	}
-	args := decodeWithType(rawArgs, posArgs, newCallableType(reflect.TypeOf(actor.newFunc), false).InType)
-	res := funcCall(nil, reflect.ValueOf(actor.newFunc), args)
+	args := decodeWithType(rawArgs, posArgs, newCallableType(reflect.TypeOf(actor.newFunc), true).InType)
+	res := funcCall(&actor.newFuncReceiver, reflect.ValueOf(actor.newFunc), args)
 	log.Debug("create actor %v -> %v\n", actor.name, res)
 
 	instance := &actorInstance{

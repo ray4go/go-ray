@@ -36,14 +36,14 @@ var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 
 // Init goray environment and register the ray tasks, actors and driver.
 //   - All public methods of the given taskReceiver will be registered as ray tasks.
-//   - actorFactories is a map of actor type name to the actor constructor function.
-//     The constructor function can have parameters and must only one return value (the actor instance).
-//     The constructor function should panic or return nil when it fails to create the actor.
+//   - All public methods of the given actorFactories will be registered as actor constructor functions.
+//     Each method name becomes the actor type name, and the method must return only one value (the actor instance).
+//     The constructor method should panic or return nil when it fails to create the actor.
 //   - driverFunc is the function to be called when the ray driver starts. The driverFunc should return an integer value as the exit code.
 //
 // This function should be called in the init() function of your ray application.
 // All other goray APIs MUST be called after this function.
-func Init(taskReceiver any, actorFactories map[string]any, driverFunc func() int) {
+func Init(taskReceiver any, actorFactories any, driverFunc func() int) {
 	driverFunction = driverFunc
 
 	registerTasks(taskReceiver)

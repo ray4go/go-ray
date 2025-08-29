@@ -17,7 +17,9 @@ type cnt struct {
 	num int
 }
 
-func NewActor(n int) *cnt {
+type actors struct{}
+
+func (_ actors) Counter(n int) *cnt {
 	fmt.Println("New actor, pid", os.Getpid())
 	return &cnt{num: n}
 }
@@ -179,7 +181,7 @@ func (_ demo) RemoteCallPython() {
 }
 
 func init() {
-	ray.Init(demo{}, map[string]any{"Counter": NewActor}, driver)
+	ray.Init(demo{}, actors{}, driver)
 }
 
 func driver() int {

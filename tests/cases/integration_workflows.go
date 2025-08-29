@@ -259,7 +259,7 @@ type WorkflowCoordinator struct {
 	results   map[string]WorkflowResults
 }
 
-func NewWorkflowCoordinator() *WorkflowCoordinator {
+func (_ actorFactories) NewWorkflowCoordinator() *WorkflowCoordinator {
 	return &WorkflowCoordinator{
 		workflows: make(map[string]WorkflowConfig),
 		completed: make(map[string]bool),
@@ -315,7 +315,7 @@ type ResourcePool struct {
 	usage     map[string]int  // usage count per resource
 }
 
-func NewResourcePool(resourceNames []string) *ResourcePool {
+func (_ actorFactories) NewResourcePool(resourceNames []string) *ResourcePool {
 	pool := &ResourcePool{
 		resources: make(map[string]bool),
 		usage:     make(map[string]int),
@@ -369,9 +369,6 @@ func (r *ResourcePool) GetStatus() ResourceStatus {
 }
 
 func init() {
-	coordinatorName := RegisterActor(NewWorkflowCoordinator)
-	resourcePoolName := RegisterActor(NewResourcePool)
-
 	AddTestCase("TestDataProcessingPipeline", func(assert *require.Assertions) {
 		// Simulate a complete data processing pipeline
 		batchCount := 3
@@ -518,7 +515,7 @@ func init() {
 	})
 
 	AddTestCase("TestWorkflowCoordination", func(assert *require.Assertions) {
-		coordinator := ray.NewActor(coordinatorName)
+		coordinator := ray.NewActor("NewWorkflowCoordinator")
 
 		// Start multiple workflows
 		workflowConfigs := []WorkflowConfig{
@@ -575,7 +572,7 @@ func init() {
 
 	AddTestCase("TestResourcePoolManagement", func(assert *require.Assertions) {
 		resources := []string{"gpu_1", "gpu_2", "gpu_3", "cpu_pool_1", "cpu_pool_2"}
-		pool := ray.NewActor(resourcePoolName, resources)
+		pool := ray.NewActor("NewResourcePool", resources)
 
 		// Check initial status
 		statusRef := pool.RemoteCall("GetStatus")
@@ -628,7 +625,7 @@ func init() {
 
 	AddTestCase("TestMixedTaskActorWorkflow", func(assert *require.Assertions) {
 		// Complex workflow mixing tasks and actors
-		coordinator := ray.NewActor(coordinatorName)
+		coordinator := ray.NewActor("NewWorkflowCoordinator")
 
 		// Start a workflow through coordinator
 		config := WorkflowConfig{

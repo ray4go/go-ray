@@ -11,7 +11,7 @@ type cnt struct {
 	num int
 }
 
-func NewCounter(n int) *cnt {
+func (_ actorFactories) GoNewCounter(n int) *cnt {
 	return &cnt{num: n}
 }
 
@@ -81,7 +81,6 @@ func (_ testTask) BusySleep(second int) {
 }
 
 func init() {
-	RegisterNamedActor("GoNewCounter", NewCounter)
 	AddTestCase("TestPyCallGo", func(assert *require.Assertions) {
 		var ret int
 		err := ray.LocalCallPyTask("start_python_tests").GetInto(&ret)

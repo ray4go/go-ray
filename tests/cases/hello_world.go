@@ -129,7 +129,7 @@ type counter struct {
 	num int
 }
 
-func NewActor(n int) *counter {
+func (_ actorFactories) NewActor(n int) *counter {
 	return &counter{num: n}
 }
 
@@ -148,9 +148,8 @@ func (c *counter) Busy(n time.Duration) {
 }
 
 func init() {
-	name := RegisterActor(NewActor)
 	AddTestCase("TestActor", func(assert *require.Assertions) {
-		actor := ray.NewActor(name, 10)
+		actor := ray.NewActor("NewActor", 10)
 		obj1 := actor.RemoteCall("Incr", 1)
 		res1, err1 := ray.Get1[int](obj1)
 		assert.Equal(nil, err1)

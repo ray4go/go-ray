@@ -1,18 +1,19 @@
 package cases
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 var (
-	tests          = make([]testing.InternalTest, 0)
-	actorFactories = make(map[string]any)
+	tests = make([]testing.InternalTest, 0)
 )
 
 // raytasks
 type testTask struct{}
+
+// actorFactories holds all actor constructor methods
+type actorFactories struct{}
 
 func AddTestCase(name string, f func(*require.Assertions)) {
 	testFunc := func(t *testing.T) {
@@ -25,26 +26,10 @@ func AddTestCase(name string, f func(*require.Assertions)) {
 	})
 }
 
-// register an actor and return its name.
-// need to be called in init()
-func RegisterActor(factory any) string {
-	name := fmt.Sprintf("actor_%d", len(actorFactories))
-	actorFactories[name] = factory
-	return name
-}
-
-func RegisterNamedActor(name string, factory any) string {
-	if ok := actorFactories[name]; ok != nil {
-		panic(fmt.Sprintf("actor %s already registered", name))
-	}
-	actorFactories[name] = factory
-	return name
-}
-
 func GetTestCases() []testing.InternalTest {
 	return tests
 }
 
-func RayWorkload() (testTask, map[string]any) {
-	return testTask{}, actorFactories
+func RayWorkload() (testTask, actorFactories) {
+	return testTask{}, actorFactories{}
 }
