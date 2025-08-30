@@ -97,24 +97,38 @@ func handleGetTaskAndActorList(_ int64, _ []byte) ([]byte, int64) {
 	return data, 0
 }
 
+// SharedObject represents a shared object put to ray object store by [Put]
+type SharedObject[T0 any] struct {
+	obj *ObjectRef
+}
+
+// This method is for internal use. Do not call it directly.
+func (s SharedObject[T0]) ObjectRef() *ObjectRef {
+	return s.obj
+}
+
 // Put stores an object in the object store.
-// Noted the returned ObjectRef can only be passed to a remote function (Task) or a remote Actor method (Actor Task).
-// It cannot be used for ObjectRef.GetXXX().
-func Put(value any) (ObjectRef, error) {
+// The returned value can be passed to a remote function (Task) or a remote Actor method (Actor Task).
+func Put[T any](value T) (SharedObject[T], error) {
 	log.Debug("[Go] Put %#v\n", value)
 	data, err := remote_call.EncodeValue(value)
 	if err != nil {
-		return ObjectRef{nil, -1}, fmt.Errorf("gob encode type %v error: %v", reflect.TypeOf(value), err)
+		return SharedObject[T]{}, fmt.Errorf("encode %v error: %v", reflect.TypeOf(value), err)
 	}
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_PutObject, data) // todo: pass error to ObjectRef
-	if retCode != 0 {
-		return ObjectRef{nil, -1}, fmt.Errorf("error: ray.Put() failed: retCode=%v, message=%s", retCode, res)
+	if retCode != consts.ErrorCode_Success {
+		return SharedObject[T]{}, fmt.Errorf("error: ray.Put() failed: retCode=%v, message=%s", retCode, res)
 	}
-	id, _ := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
-	// todo: return *ObjectRef
-	return ObjectRef{
+	id, err := strconv.ParseInt(string(res), 10, 64)
+	if err != nil {
+		panic(fmt.Sprintf("Error response of Go2PyCmd_PutObject: %v", res))
+	}
+	obj := ObjectRef{
 		id:         id,
 		originFunc: nil,
+	}
+	return SharedObject[T]{
+		obj: &obj,
 	}, nil
 }
 

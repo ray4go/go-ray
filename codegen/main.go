@@ -144,8 +144,9 @@ func (g *Generator) collectActorMethods() {
 		fmt.Printf("Actor %s methods: %d\n", actorName, len(actorMethods))
 		g.actor2Methods[actorTypeName] = actorMethods
 		if extraImports != nil {
-			// merge imports later via writeImports; store by extending map slices
-			// We'll append this map when building the imports list.
+			for k := range extraImports {
+				g.actorImports[k] = struct{}{}
+			}
 		}
 	}
 }
@@ -459,7 +460,7 @@ func GetPackageAndTypeName(typ types.Type) (packageName string, typeName string)
 
 const typeConstraintTpl = `
 type T%d interface {
-	%s | *Future1[%s]
+	%s | *Future1[%s] | ray.SharedObject[%s]
 }
 `
 
@@ -473,7 +474,7 @@ func (t *TypeConstraints) add(methods []Method) {
 		for _, param := range method.Params {
 			if _, ok := t.type2ConstraintId[param.Type]; !ok {
 				typeConstraintId := len(t.type2ConstraintId)
-				typeConstraint := fmt.Sprintf(typeConstraintTpl, typeConstraintId, param.Type, param.Type)
+				typeConstraint := fmt.Sprintf(typeConstraintTpl, typeConstraintId, param.Type, param.Type, param.Type)
 				t.buf.WriteString(typeConstraint)
 				t.type2ConstraintId[param.Type] = typeConstraintId
 			}
@@ -504,7 +505,7 @@ func {{.FuncName}} {{.TypeConstraints}} ( {{.ParamList}} ) *RemoteActor[Actor{{.
 `
 
 const actorMethodDefTpl = `
-func {{.FuncName}} {{.TypeConstraints}} (actor Actor{{.ActorName}}, {{.ParamList}}) *RemoteFunc[*Future{{.ResLen}}{{.ResTypes}}] {
+func {{.ActorName}}_{{.FuncName}} {{.TypeConstraints}} (actor Actor{{.ActorName}}, {{.ParamList}}) *RemoteFunc[*Future{{.ResLen}}{{.ResTypes}}] {
 	_ = ({{.ReceiverType}}).{{.FuncName}}  // help you to findStruct the original actor method
 	return NewRemoteFunc[*Future{{.ResLen}}{{.ResTypes}}]("{{.FuncName}}", {{.ArgsStatement}}, ray.ActorHandle(actor))
 }

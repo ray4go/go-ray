@@ -95,7 +95,7 @@ func (obj ObjectRef) GetInto(ptrs ...any) error {
 	return remote_call.DecodeInto(resultData, ptrs)
 }
 
-// generic.Future1 implements this interface
+// [generic.Future1] & [Future] implements this interface
 type objectRefGetter interface {
 	ObjectRef() *ObjectRef
 }
@@ -109,7 +109,7 @@ func remoteCallArgs(args []any) []any {
 			res[i] = &remote_call.RemoteObjectRef{Id: v.id, NumReturn: v.numReturn()}
 		case *RayOption:
 			res[i] = &remote_call.RemoteCallOption{Name: v.name, Value: v.value}
-		case objectRefGetter: // [generic.Future1]
+		case objectRefGetter: // generic.Future1 & Future
 			obj := v.ObjectRef()
 			res[i] = &remote_call.RemoteObjectRef{Id: obj.id, NumReturn: obj.numReturn()}
 		default:
