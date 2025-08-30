@@ -1,4 +1,4 @@
-package ray
+package utils
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 )
 
 // encodeBytesUnitsForTest is a helper function to create test data.
-// It's the inverse of decodeBytesUnits.
+// It's the inverse of DecodeBytesUnits.
 func encodeBytesUnitsForTest(units [][]byte) []byte {
 	var buf bytes.Buffer
 	lenBytes := make([]byte, 8)
@@ -88,7 +88,7 @@ func TestDecodeBytesUnits(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, _ := decodeBytesUnits(tc.input)
+			result, _ := DecodeBytesUnits(tc.input)
 
 			// When expecting an empty slice, check if the result is also empty.
 			if len(tc.expected) == 0 && len(result) == 0 {
@@ -97,7 +97,7 @@ func TestDecodeBytesUnits(t *testing.T) {
 
 			// For non-empty cases, use DeepEqual for a robust comparison.
 			if !reflect.DeepEqual(result, tc.expected) {
-				t.Errorf("decodeBytesUnits() = %v, want %v", result, tc.expected)
+				t.Errorf("DecodeBytesUnits() = %v, want %v", result, tc.expected)
 			}
 		})
 	}

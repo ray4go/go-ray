@@ -11,6 +11,8 @@ package ray
 import (
 	"github.com/ray4go/go-ray/ray/internal/consts"
 	"github.com/ray4go/go-ray/ray/internal/log"
+	"github.com/ray4go/go-ray/ray/internal/remote_call"
+	"github.com/ray4go/go-ray/ray/internal/utils"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -49,7 +51,7 @@ func Init(taskReceiver any, actorFactories any, driverFunc func() int) {
 	registerTasks(taskReceiver)
 	registerActors(actorFactories)
 	ffi.RegisterHandler(handlePythonCmd)
-	go exitWhenCtrlC()
+	go utils.ExitWhenCtrlC()
 }
 
 func handlePythonCmd(request int64, data []byte) (resData []byte, retCode int64) {
@@ -100,7 +102,7 @@ func handleGetTaskAndActorList(_ int64, _ []byte) ([]byte, int64) {
 // It cannot be used for ObjectRef.GetXXX().
 func Put(value any) (ObjectRef, error) {
 	log.Debug("[Go] Put %#v\n", value)
-	data, err := encodeValue(value)
+	data, err := remote_call.EncodeValue(value)
 	if err != nil {
 		return ObjectRef{nil, -1}, fmt.Errorf("gob encode type %v error: %v", reflect.TypeOf(value), err)
 	}

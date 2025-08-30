@@ -4,6 +4,8 @@ import (
 	"github.com/ray4go/go-ray/ray/internal/consts"
 	"github.com/ray4go/go-ray/ray/internal/ffi"
 	"github.com/ray4go/go-ray/ray/internal/log"
+	"github.com/ray4go/go-ray/ray/internal/remote_call"
+	"github.com/ray4go/go-ray/ray/internal/utils"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -17,7 +19,7 @@ var (
 func registerTasks(taskReceiver any) {
 	taskReceiverVal = reflect.ValueOf(taskReceiver)
 	// TODO: check taskRcvr's underlying type is pointer of struct{} (make sure it's stateless)
-	taskFuncsList := getExportedMethods(reflect.TypeOf(taskReceiver), false)
+	taskFuncsList := utils.GetExportedMethods(reflect.TypeOf(taskReceiver), false)
 	taskFuncs = make(map[string]reflect.Method, len(taskFuncsList))
 	for _, taskFunc := range taskFuncsList {
 		taskFuncs[taskFunc.Name] = taskFunc
@@ -39,9 +41,9 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	if !ok {
 		panic(fmt.Sprintf("Error: RemoteCall failed: task %s not found", name))
 	}
-	callable := newCallableType(taskFunc.Type, true)
+	callable := utils.NewCallableType(taskFunc.Type, true)
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_TaskName, name))
-	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
+	argsData := remote_call.EncodeRemoteCallArgs(callable, remoteCallArgs(argsAndOpts))
 
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_ExeRemoteTask, argsData) // todo: pass error to ObjectRef
 	if retCode != 0 {
@@ -59,14 +61,14 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 }
 
 func handleRunTask(_ int64, data []byte) (resData []byte, retCode int64) {
-	funcName, rawArgs, posArgs := unpackRemoteCallArgs(data)
+	funcName, rawArgs, posArgs := remote_call.UnpackRemoteCallArgs(data)
 	taskFunc, ok := taskFuncs[funcName]
 	if !ok {
 		panic(fmt.Sprintf("Error: RemoteCall failed: task %s not found", funcName))
 	}
-	args := decodeWithType(rawArgs, posArgs, newCallableType(taskFunc.Type, true).InType)
-	res := funcCall(&taskReceiverVal, taskFunc.Func, args)
-	resData = encodeFuncResult(res)
-	log.Debug("funcCall %v -> %v\n", taskFunc, res)
+	args := remote_call.DecodeWithType(rawArgs, posArgs, utils.NewCallableType(taskFunc.Type, true).InType)
+	res := remote_call.FuncCall(&taskReceiverVal, taskFunc.Func, args)
+	resData = remote_call.EncodeFuncResult(res)
+	log.Debug("FuncCall %v -> %v\n", taskFunc, res)
 	return resData, 0
 }

@@ -3,6 +3,7 @@ package ray
 import (
 	"github.com/ray4go/go-ray/ray/internal/consts"
 	"github.com/ray4go/go-ray/ray/internal/ffi"
+	"github.com/ray4go/go-ray/ray/internal/remote_call"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,6 +36,7 @@ func (obj ObjectRef) getRaw(timeout float64) ([]byte, error) {
 	return resultData, nil
 }
 
+// NumReturn returns the number of return values of the remote task / actor method.
 func (obj ObjectRef) numReturn() int {
 	if obj.originFunc == nil {
 		return 1 // ray.Put() ObjectRef
@@ -62,7 +64,7 @@ func (obj ObjectRef) GetAll(timeout ...float64) ([]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	res := decodeFuncResult(obj.originFunc, resultData)
+	res := remote_call.DecodeFuncResult(obj.originFunc, resultData)
 	return res, nil
 }
 
@@ -90,5 +92,29 @@ func (obj ObjectRef) GetInto(ptrs ...any) error {
 	if len(ptrs) == 0 {
 		return nil
 	}
-	return decodeInto(resultData, ptrs)
+	return remote_call.DecodeInto(resultData, ptrs)
+}
+
+// generic.Future1 implements this interface
+type objectRefGetter interface {
+	ObjectRef() *ObjectRef
+}
+
+// remoteCallArgs prepare arguments for [remote_call.EncodeRemoteCallArgs]
+func remoteCallArgs(args []any) []any {
+	res := make([]any, len(args))
+	for i, args := range args {
+		switch v := args.(type) {
+		case ObjectRef:
+			res[i] = &remote_call.RemoteObjectRef{Id: v.id, NumReturn: v.numReturn()}
+		case *RayOption:
+			res[i] = &remote_call.RemoteCallOption{Name: v.name, Value: v.value}
+		case objectRefGetter: // [generic.Future1]
+			obj := v.ObjectRef()
+			res[i] = &remote_call.RemoteObjectRef{Id: obj.id, NumReturn: obj.numReturn()}
+		default:
+			res[i] = v
+		}
+	}
+	return res
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/ray4go/go-ray/ray/internal/consts"
 	"github.com/ray4go/go-ray/ray/internal/ffi"
 	"github.com/ray4go/go-ray/ray/internal/log"
+	"github.com/ray4go/go-ray/ray/internal/remote_call"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -16,7 +17,7 @@ var dummyPyFunc = reflect.TypeOf(func() any { return nil })
 func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
 	log.Debug("[Go] RemoteCallPyTask %s %#v\n", name, argsAndOpts)
 	argsAndOpts = append(argsAndOpts, Option("task_name", name))
-	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
+	argsData := remote_call.EncodeRemoteCallArgs(nil, remoteCallArgs(argsAndOpts))
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_ExePythonRemoteTask, argsData) // todo: pass error to ObjectRef
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: RemoteCallPyTask failed: retCode=%v, message=%s", retCode, res))
@@ -37,7 +38,7 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
 func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
 	log.Debug("[Go] NewPyActor %s %#v\n", className, argsAndOpts)
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_ActorName, className))
-	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
+	argsData := remote_call.EncodeRemoteCallArgs(nil, remoteCallArgs(argsAndOpts))
 
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_NewPythonActor, argsData)
 	if retCode != 0 {
@@ -64,7 +65,7 @@ func (r LocalPyCallResult) Get() (any, error) {
 	if r.code != consts.ErrorCode_Success {
 		return nil, fmt.Errorf("Error: Local Call Python failed: retCode=%v, message=%s", r.code, r.data)
 	}
-	res := decodeFuncResult(dummyPyFunc, r.data)
+	res := remote_call.DecodeFuncResult(dummyPyFunc, r.data)
 	if len(res) == 0 {
 		return nil, nil
 	} else {
@@ -87,7 +88,7 @@ func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 	if len(ptrs) > 1 {
 		return fmt.Errorf("GetInto error: the max number of pointer for local Python call is 1, got %v", len(ptrs))
 	}
-	return decodeInto(r.data, ptrs)
+	return remote_call.DecodeInto(r.data, ptrs)
 }
 
 // LocalCallPyTask executes a Python task locally (in current process) by name with the provided arguments.
@@ -97,7 +98,7 @@ func LocalCallPyTask(name string, args ...any) LocalPyCallResult {
 	log.Debug("[Go] LocalCallPyTask %s %#v\n", name, args)
 	// todo: check no objref and RayOption in args
 	argsAndOpts := append(args, Option(consts.GorayOptionKey_TaskName, name))
-	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
+	argsData := remote_call.EncodeRemoteCallArgs(nil, remoteCallArgs(argsAndOpts))
 	resData, retCode := ffi.CallServer(consts.Go2PyCmd_ExePythonLocalTask, argsData)
 	return LocalPyCallResult{
 		data: resData,
@@ -117,7 +118,7 @@ func LocalCallPyTask(name string, args ...any) LocalPyCallResult {
 //	err := ray.CallPythonCode(code, 3.8).GetInto(&perimeter)
 func CallPythonCode(funcCode string, args ...any) LocalPyCallResult {
 	argsAndOpts := append(args, Option("func_code", funcCode))
-	argsData := encodeRemoteCallArgs(nil, argsAndOpts)
+	argsData := remote_call.EncodeRemoteCallArgs(nil, remoteCallArgs(argsAndOpts))
 	resData, retCode := ffi.CallServer(consts.Go2PyCmd_ExePyCode, argsData)
 	return LocalPyCallResult{
 		data: resData,

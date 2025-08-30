@@ -7,17 +7,28 @@ Remote call flow:
 5. decode result
 */
 
-package ray
+package remote_call
 
 import (
 	"bytes"
 	"github.com/ray4go/go-ray/ray/internal/log"
+	"github.com/ray4go/go-ray/ray/internal/utils"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/ugorji/go/codec"
 	"reflect"
 )
+
+type RemoteCallOption struct {
+	Name  string
+	Value any
+}
+
+type RemoteObjectRef struct {
+	Id        int64
+	NumReturn int
+}
 
 /*
 remote call args 包含
@@ -29,21 +40,21 @@ encode result: 2 bytes units
   - first unit is raw args data;
   - second unit is json encoded options and ObjectRef info.
 */
-func encodeRemoteCallArgs(callable *callableType, argsAndOpts []any) []byte {
+func EncodeRemoteCallArgs(callable *utils.CallableType, argsAndOpts []any) []byte {
 	argsAndObjs, opts := splitArgsAndOptions(argsAndOpts)
-	args, objRefs := splitArgsAndObjectRefs(argsAndObjs)
-	if callable != nil && !(callable.IsValidArgNum(len(args) + len(objRefs))) {
+	if callable != nil && !(callable.IsValidArgNum(len(argsAndObjs))) {
 		panic(fmt.Sprintf(
-			"encodeArgs: func/method args length not match, given %v, callableType: %s",
-			len(args)+len(objRefs), callable.Type,
+			"encodeArgs: func/method args length not match, given %v, CallableType: %s",
+			len(argsAndObjs), callable.Type,
 		))
 	}
 
-	argData := encodeSlice(args)
+	args, objRefs := splitArgsAndObjectRefs(argsAndObjs)
+	argData := EncodeSlice(args)
 	buffer := bytes.NewBuffer(nil)
-	appendBytesUnit(buffer, argData)
+	utils.AppendBytesUnit(buffer, argData)
 	optData := encodeOptions(opts, objRefs)
-	appendBytesUnit(buffer, optData)
+	utils.AppendBytesUnit(buffer, optData)
 	return buffer.Bytes()
 }
 
@@ -56,8 +67,8 @@ bytes unit format: | length:8byte:int64 | data:${length}byte:[]byte |
 - other units are objectRefs resolved data;
   - resolved data format: | arg_pos:8byte:int64 | data:[]byte |
 */
-func unpackRemoteCallArgs(data []byte) (string, []byte, map[int][]byte) {
-	args, ok := decodeBytesUnits(data)
+func UnpackRemoteCallArgs(data []byte) (string, []byte, map[int][]byte) {
+	args, ok := utils.DecodeBytesUnits(data)
 	if !ok || len(args) == 0 {
 		panic("Error: decode args of remote call failed")
 	}
@@ -75,8 +86,8 @@ func unpackRemoteCallArgs(data []byte) (string, []byte, map[int][]byte) {
 	return funcName, rawArgs, posArgs
 }
 
-func funcCall(receiverVal *reflect.Value, funcVal reflect.Value, args []any) []any {
-	log.Debug("[Go] funcCall: %v", funcVal)
+func FuncCall(receiverVal *reflect.Value, funcVal reflect.Value, args []any) []any {
+	log.Debug("[Go] FuncCall: %v", funcVal)
 	argVals := make([]reflect.Value, 0, len(args)+1)
 	if receiverVal != nil {
 		argVals = append(argVals, *receiverVal)
@@ -97,51 +108,45 @@ func funcCall(receiverVal *reflect.Value, funcVal reflect.Value, args []any) []a
 	return results
 }
 
-func encodeFuncResult(results []any) []byte {
-	return encodeSlice(results)
+func EncodeFuncResult(results []any) []byte {
+	return EncodeSlice(results)
 }
 
-func decodeFuncResult(funcType reflect.Type, rawResult []byte) []any {
-	return decodeWithType(rawResult, nil, funcType.Out)
+func DecodeFuncResult(funcType reflect.Type, rawResult []byte) []any {
+	return DecodeWithType(rawResult, nil, funcType.Out)
 }
 
-type ObjectRefGetter interface {
-	ObjectRef() *ObjectRef
-}
-
-func splitArgsAndObjectRefs(items []any) ([]any, map[int]ObjectRef) {
+func splitArgsAndObjectRefs(items []any) ([]any, map[int]RemoteObjectRef) {
 	args := make([]any, 0, len(items))
-	objs := make(map[int]ObjectRef)
+	objs := make(map[int]RemoteObjectRef)
 	for idx, item := range items {
 		switch v := item.(type) {
-		case ObjectRef:
+		case RemoteObjectRef:
 			objs[idx] = v
-		case *ObjectRef:
+		case *RemoteObjectRef:
 			if v == nil {
 				panic("invalid ObjectRef, got nil")
 			}
 			objs[idx] = *v
-		case ObjectRefGetter:
-			objs[idx] = *v.ObjectRef()
 		default:
 			args = append(args, item)
 		}
 		if obj, ok := objs[idx]; ok {
-			if obj.numReturn() != 1 {
+			if obj.NumReturn != 1 {
 				panic(fmt.Sprintf(
 					"Error: invalid ObjectRef in arguments[%d], only accept ObjectRef with one return value."+
-						"the ObjectRef you provided has %d return value", idx, obj.numReturn()))
+						"the ObjectRef you provided has %d return value", idx, obj.NumReturn))
 			}
 		}
 	}
 	return args, objs
 }
 
-func splitArgsAndOptions(items []any) ([]any, []*RayOption) {
+func splitArgsAndOptions(items []any) ([]any, []*RemoteCallOption) {
 	args := make([]any, 0, len(items))
-	opts := make([]*RayOption, 0, len(items))
+	opts := make([]*RemoteCallOption, 0, len(items))
 	for _, item := range items {
-		if opt, ok := item.(*RayOption); ok {
+		if opt, ok := item.(*RemoteCallOption); ok {
 			opts = append(opts, opt)
 		} else {
 			args = append(args, item)
@@ -150,14 +155,14 @@ func splitArgsAndOptions(items []any) ([]any, []*RayOption) {
 	return args, opts
 }
 
-func encodeOptions(opts []*RayOption, objRefs map[int]ObjectRef) []byte {
+func encodeOptions(opts []*RemoteCallOption, objRefs map[int]RemoteObjectRef) []byte {
 	kvs := make(map[string]any)
 	for _, opt := range opts {
-		kvs[opt.Name()] = opt.Value()
+		kvs[opt.Name] = opt.Value
 	}
 	objIdx2Ids := make(map[int]int64)
 	for idx, obj := range objRefs {
-		objIdx2Ids[idx] = obj.id
+		objIdx2Ids[idx] = obj.Id
 	}
 	kvs["go_ray_object_pos_to_local_id"] = objIdx2Ids
 	data, err := json.Marshal(kvs)
@@ -169,7 +174,7 @@ func encodeOptions(opts []*RayOption, objRefs map[int]ObjectRef) []byte {
 
 var msgpackHandle = codec.MsgpackHandle{WriteExt: true}
 
-func encodeValue(v any) ([]byte, error) {
+func EncodeValue(v any) ([]byte, error) {
 	var buffer bytes.Buffer
 	enc := codec.NewEncoder(&buffer, &msgpackHandle)
 	err := enc.Encode(v)
@@ -179,7 +184,7 @@ func encodeValue(v any) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func encodeSlice(items []any) []byte {
+func EncodeSlice(items []any) []byte {
 	var buffer bytes.Buffer
 	enc := codec.NewEncoder(&buffer, &msgpackHandle)
 	for _, item := range items {
@@ -191,11 +196,11 @@ func encodeSlice(items []any) []byte {
 	return buffer.Bytes()
 }
 
-func decodeWithType(args []byte, posArgs map[int][]byte, typeGetter func(int) reflect.Type) []any {
+func DecodeWithType(args []byte, posArgs map[int][]byte, typeGetter func(int) reflect.Type) []any {
 	buf := bytes.NewBuffer(args)
 	argsDec := codec.NewDecoder(buf, &msgpackHandle)
 	outs := make([]any, 0)
-	posArgs = copyMap(posArgs)
+	posArgs = utils.CopyMap(posArgs)
 	for idx := 0; buf.Len() > 0 || len(posArgs) > 0; idx++ {
 		argData, ok := posArgs[idx]
 		var dec *codec.Decoder
@@ -216,7 +221,7 @@ func decodeWithType(args []byte, posArgs map[int][]byte, typeGetter func(int) re
 	return outs
 }
 
-func decodeInto(data []byte, ptrs []any) error {
+func DecodeInto(data []byte, ptrs []any) error {
 	vals := make([]reflect.Value, len(ptrs))
 	for i, ptr := range ptrs {
 		val := reflect.ValueOf(ptr)
@@ -225,7 +230,7 @@ func decodeInto(data []byte, ptrs []any) error {
 		}
 		vals[i] = val
 	}
-	res := decodeWithType(data, nil, func(i int) reflect.Type {
+	res := DecodeWithType(data, nil, func(i int) reflect.Type {
 		return reflect.TypeOf(ptrs[i]).Elem()
 	})
 	for i, val := range vals {

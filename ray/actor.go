@@ -4,6 +4,8 @@ import (
 	"github.com/ray4go/go-ray/ray/internal/consts"
 	"github.com/ray4go/go-ray/ray/internal/ffi"
 	"github.com/ray4go/go-ray/ray/internal/log"
+	"github.com/ray4go/go-ray/ray/internal/remote_call"
+	"github.com/ray4go/go-ray/ray/internal/utils"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -41,7 +43,7 @@ var (
 // todo: 考虑使用 New(...) (pointer, error) 签名作为构造函数
 func registerActors(actorFactories any) {
 	actorFactoriesVal := reflect.ValueOf(actorFactories)
-	actorFactoriesList := getExportedMethods(reflect.TypeOf(actorFactories), true)
+	actorFactoriesList := utils.GetExportedMethods(reflect.TypeOf(actorFactories), true)
 
 	for _, method := range actorFactoriesList {
 		if method.Type.NumOut() != 1 {
@@ -49,7 +51,7 @@ func registerActors(actorFactories any) {
 		}
 		actorTyp := method.Type.Out(0)
 		methods := make(map[string]reflect.Method)
-		for _, actorMethod := range getExportedMethods(actorTyp, false) {
+		for _, actorMethod := range utils.GetExportedMethods(actorTyp, false) {
 			methods[actorMethod.Name] = actorMethod
 		}
 
@@ -76,7 +78,7 @@ func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 	if !ok {
 		panic(fmt.Sprintf("Actor type '%v' not found", typeName))
 	}
-	callable := newCallableType(reflect.TypeOf(actor.newFunc), true)
+	callable := utils.NewCallableType(reflect.TypeOf(actor.newFunc), true)
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_ActorName, typeName))
 
 	methodNames := make([]string, 0)
@@ -84,7 +86,7 @@ func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 		methodNames = append(methodNames, name)
 	}
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_ActorMethodList, methodNames))
-	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
+	argsData := remote_call.EncodeRemoteCallArgs(callable, remoteCallArgs(argsAndOpts))
 
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_NewActor, argsData)
 	if retCode != 0 {
@@ -101,14 +103,14 @@ func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 }
 
 func handleCreateActor(_ int64, data []byte) (resData []byte, retCode int64) {
-	typeName, rawArgs, posArgs := unpackRemoteCallArgs(data)
+	typeName, rawArgs, posArgs := remote_call.UnpackRemoteCallArgs(data)
 	actor, ok := actorTypes[typeName]
 	if !ok {
 		panic(fmt.Sprintf("Actor type '%v' not found", typeName))
 	}
-	args := decodeWithType(rawArgs, posArgs, newCallableType(reflect.TypeOf(actor.newFunc), true).InType)
-	res := funcCall(&actor.newFuncReceiver, reflect.ValueOf(actor.newFunc), args)
-	if IsNilTypePointer(res[0]) {
+	args := remote_call.DecodeWithType(rawArgs, posArgs, utils.NewCallableType(reflect.TypeOf(actor.newFunc), true).InType)
+	res := remote_call.FuncCall(&actor.newFuncReceiver, reflect.ValueOf(actor.newFunc), args)
+	if utils.IsNilTypePointer(res[0]) {
 		panic(fmt.Sprintf("Error: create %s actor failed, constructor return nil", typeName))
 	}
 	log.Debug("create actor %v -> %v\n", actor.name, res)
@@ -136,7 +138,7 @@ func (actor *ActorHandle) isGoActor() bool {
 //
 // [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.method.html#ray.method
 func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) ObjectRef {
-	var callable *callableType
+	var callable *utils.CallableType
 	var originFunc reflect.Type
 	if actor.isGoActor() {
 		method, ok := actor.typ.methods[methodName]
@@ -147,7 +149,7 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 			))
 		}
 		log.Debug("[Go] RemoteCall %s.%s()\n", actor.typ.name, methodName)
-		callable = newCallableType(method.Type, true)
+		callable = utils.NewCallableType(method.Type, true)
 		originFunc = method.Type
 	} else {
 		log.Debug("[Go] RemoteCallPyActor %s() %#v\n", methodName, argsAndOpts)
@@ -155,7 +157,7 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 	}
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_TaskName, methodName))
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_PyLocalActorId, actor.pyLocalId))
-	argsData := encodeRemoteCallArgs(callable, argsAndOpts)
+	argsData := remote_call.EncodeRemoteCallArgs(callable, remoteCallArgs(argsAndOpts))
 
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_ActorMethodCall, argsData)
 	if retCode != 0 {
@@ -190,17 +192,17 @@ func handleGetActorMethods(_ int64, methodName []byte) ([]byte, int64) {
 }
 
 func handleActorMethodCall(actorGoInstanceIndex int64, data []byte) (resData []byte, retCode int64) {
-	methodName, rawArgs, posArgs := unpackRemoteCallArgs(data)
+	methodName, rawArgs, posArgs := remote_call.UnpackRemoteCallArgs(data)
 	actorIns := actorInstances[actorGoInstanceIndex]
 
 	if actorIns == nil {
 		return []byte("the actor is died"), consts.ErrorCode_Failed
 	}
 	method := actorIns.typ.methods[methodName]
-	args := decodeWithType(rawArgs, posArgs, newCallableType(method.Type, true).InType)
+	args := remote_call.DecodeWithType(rawArgs, posArgs, utils.NewCallableType(method.Type, true).InType)
 	receiverVal := reflect.ValueOf(actorIns.receiver)
-	res := funcCall(&receiverVal, method.Func, args)
-	resData = encodeSlice(res)
+	res := remote_call.FuncCall(&receiverVal, method.Func, args)
+	resData = remote_call.EncodeSlice(res)
 	return resData, consts.ErrorCode_Success
 }
 

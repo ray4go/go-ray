@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 )
 
+// RayOption represents a single option to be passed to a Ray API call.
 type RayOption struct {
 	name  string
 	value any
@@ -18,26 +19,13 @@ func Option(name string, value any) *RayOption {
 	}
 }
 
-func (opt *RayOption) Name() string {
-	return opt.name
-}
-
-func (opt *RayOption) Value() any {
-	return opt.value
-}
-
-type kv interface {
-	Name() string
-	Value() any
-}
-
-func jsonEncodeOptions[T kv](opts []T, extra ...T) ([]byte, error) {
+func jsonEncodeOptions(opts []*RayOption, extra ...*RayOption) ([]byte, error) {
 	kvs := make(map[string]any)
 	for _, opt := range opts {
-		kvs[opt.Name()] = opt.Value()
+		kvs[opt.name] = opt.value
 	}
 	for _, opt := range extra {
-		kvs[opt.Name()] = opt.Value()
+		kvs[opt.name] = opt.value
 	}
 	return json.Marshal(kvs)
 }

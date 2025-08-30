@@ -1,4 +1,4 @@
-package ray
+package remote_call
 
 import (
 	"github.com/stretchr/testify/require"
@@ -14,10 +14,10 @@ func TestSomething(t *testing.T) {
 		C []byte
 	}
 	t1 := T1{A: 1, B: "str", C: []byte("bytes")}
-	data := encodeSlice([]any{t1})
+	data := EncodeSlice([]any{t1})
 
 	var t2 T1
-	err := decodeInto(data, []any{&t2})
+	err := DecodeInto(data, []any{&t2})
 	assert.Nil(err)
 	assert.Equal(t1, t2)
 }
