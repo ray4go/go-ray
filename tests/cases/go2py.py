@@ -1,6 +1,7 @@
 import threading
 import time
 import os
+import struct
 
 import goray
 
@@ -192,6 +193,12 @@ def timeout_task(sleep_time: float):
 def large_data_task():
     """Test large data transfer"""
     return list(range(10000))
+
+
+@goray.remote
+def pack_uint64(n) -> bytes:
+    """Pack a uint64 number into bytes"""
+    return struct.pack("<Q", n)
 
 
 @goray.remote

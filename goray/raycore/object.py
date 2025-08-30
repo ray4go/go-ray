@@ -3,6 +3,7 @@ import logging
 
 import ray
 
+from . import common
 from .. import consts, state
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ def handle_put_object(data: bytes) -> tuple[bytes, int]:
     fut = ray.put([data, 0])
     # side effect: make future outlive this function (on purpose)
     fut_local_id = state.futures.add(fut)
-    return str(fut_local_id).encode(), 0
+    return common.uint64_le_packer.pack(fut_local_id), 0
 
 
 def handle_wait_object(data: bytes) -> tuple[bytes, int]:

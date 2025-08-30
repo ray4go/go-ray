@@ -1,8 +1,10 @@
 package cases
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"sync"
 	"time"
@@ -943,4 +945,21 @@ def runtime_error():
 		assert.NotNil(result4["level1"])
 	})
 
+	AddTestCase("TestGoCallPy-Uint64", func(assertions *require.Assertions) {
+		random := rand.New(rand.NewSource(time.Now().UnixNano()))
+		for i := 0; i < 100; i++ {
+			num := random.Uint64()
+			obj := ray.RemoteCallPyTask("pack_uint64", num)
+			data, err := ray.Get1[[]byte](obj)
+			res := binary.LittleEndian.Uint64(data)
+			assertions.NoError(err)
+			assertions.Equal(num, res)
+
+			obj2 := ray.LocalCallPyTask("pack_uint64", num)
+			data, err = ray.Get1[[]byte](obj2)
+			res = binary.LittleEndian.Uint64(data)
+			assertions.NoError(err)
+			assertions.Equal(num, res)
+		}
+	})
 }

@@ -5,9 +5,9 @@ import (
 	"github.com/ray4go/go-ray/ray/internal/ffi"
 	"github.com/ray4go/go-ray/ray/internal/log"
 	"github.com/ray4go/go-ray/ray/internal/remote_call"
+	"encoding/binary"
 	"fmt"
 	"reflect"
-	"strconv"
 )
 
 var dummyPyFunc = reflect.TypeOf(func() any { return nil })
@@ -22,13 +22,8 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: RemoteCallPyTask failed: retCode=%v, message=%s", retCode, res))
 	}
-	id, err := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
-	if err != nil {
-		panic(fmt.Sprintf("Error: RemoteCall invald return: %s, expect a number", res))
-	}
-
 	return ObjectRef{
-		id:         id,
+		id:         int64(binary.LittleEndian.Uint64(res)),
 		originFunc: dummyPyFunc,
 	}
 }
@@ -44,12 +39,8 @@ func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: NewActor failed: retCode=%v, message=%s", retCode, res))
 	}
-	id, err := strconv.ParseInt(string(res), 10, 64)
-	if err != nil {
-		panic(fmt.Sprintf("Error: NewActor invald return: %s, expect a number", res))
-	}
 	return &ActorHandle{
-		pyLocalId: id,
+		pyLocalId: int64(binary.LittleEndian.Uint64(res)),
 		typ:       nil,
 	}
 }

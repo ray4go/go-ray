@@ -6,10 +6,10 @@ import (
 	"github.com/ray4go/go-ray/ray/internal/log"
 	"github.com/ray4go/go-ray/ray/internal/remote_call"
 	"github.com/ray4go/go-ray/ray/internal/utils"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strconv"
 )
 
 type actorType struct {
@@ -92,12 +92,8 @@ func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: NewActor failed: retCode=%v, message=%s", retCode, res))
 	}
-	id, err := strconv.ParseInt(string(res), 10, 64)
-	if err != nil {
-		panic(fmt.Sprintf("Error: NewActor invald return: %s, expect a number", res))
-	}
 	return &ActorHandle{
-		pyLocalId: id,
+		pyLocalId: int64(binary.LittleEndian.Uint64(res)),
 		typ:       actor,
 	}
 }
@@ -164,13 +160,8 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 		// todo: pass error to ObjectRef
 		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
 	}
-	id, err := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
-	if err != nil {
-		panic(fmt.Sprintf("Error: RemoteCall invald return: %s, expect a number", res))
-	}
-
 	return ObjectRef{
-		id:         id,
+		id:         int64(binary.LittleEndian.Uint64(res)),
 		originFunc: originFunc,
 	}
 }

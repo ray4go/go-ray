@@ -6,9 +6,9 @@ import (
 	"github.com/ray4go/go-ray/ray/internal/log"
 	"github.com/ray4go/go-ray/ray/internal/remote_call"
 	"github.com/ray4go/go-ray/ray/internal/utils"
+	"encoding/binary"
 	"fmt"
 	"reflect"
-	"strconv"
 )
 
 var (
@@ -49,13 +49,8 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
 	}
-	id, err := strconv.ParseInt(string(res), 10, 64) // todo: pass error to ObjectRef
-	if err != nil {
-		panic(fmt.Sprintf("Error: RemoteCall invald return: %s, expect a number", res))
-	}
-
 	return ObjectRef{
-		id:         id,
+		id:         int64(binary.LittleEndian.Uint64(res)),
 		originFunc: taskFunc.Type,
 	}
 }

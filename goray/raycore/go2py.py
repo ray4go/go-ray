@@ -93,7 +93,7 @@ def handle_run_py_task(data: bytes) -> tuple[bytes, int]:
         func_name, args_data, object_positions, *object_refs
     )
     fut_local_id = state.futures.add(fut)
-    return str(fut_local_id).encode(), 0
+    return common.uint64_le_packer.pack(fut_local_id), 0
 
 
 class PyActorWrapper:
@@ -158,4 +158,4 @@ def handle_new_py_actor(data: bytes) -> tuple[bytes, int]:
         class_name, args_data, object_positions, *object_refs
     )
     actor_local_id = state.actors.add(actor_handle)
-    return str(actor_local_id).encode(), ErrCode.Success
+    return common.uint64_le_packer.pack(actor_local_id), ErrCode.Success

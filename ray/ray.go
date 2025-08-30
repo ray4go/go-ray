@@ -10,16 +10,15 @@ package ray
 
 import (
 	"github.com/ray4go/go-ray/ray/internal/consts"
+	"github.com/ray4go/go-ray/ray/internal/ffi"
 	"github.com/ray4go/go-ray/ray/internal/log"
 	"github.com/ray4go/go-ray/ray/internal/remote_call"
 	"github.com/ray4go/go-ray/ray/internal/utils"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"runtime/debug"
-	"strconv"
-
-	"github.com/ray4go/go-ray/ray/internal/ffi"
 )
 
 var (
@@ -115,16 +114,12 @@ func Put[T any](value T) (SharedObject[T], error) {
 	if err != nil {
 		return SharedObject[T]{}, fmt.Errorf("encode %v error: %v", reflect.TypeOf(value), err)
 	}
-	res, retCode := ffi.CallServer(consts.Go2PyCmd_PutObject, data) // todo: pass error to ObjectRef
+	objIdBytes, retCode := ffi.CallServer(consts.Go2PyCmd_PutObject, data) // todo: pass error to ObjectRef
 	if retCode != consts.ErrorCode_Success {
-		return SharedObject[T]{}, fmt.Errorf("error: ray.Put() failed: retCode=%v, message=%s", retCode, res)
-	}
-	id, err := strconv.ParseInt(string(res), 10, 64)
-	if err != nil {
-		panic(fmt.Sprintf("Error response of Go2PyCmd_PutObject: %v", res))
+		return SharedObject[T]{}, fmt.Errorf("error: ray.Put() failed: retCode=%v, message=%s", retCode, objIdBytes)
 	}
 	obj := ObjectRef{
-		id:         id,
+		id:         int64(binary.LittleEndian.Uint64(objIdBytes)),
 		originFunc: nil,
 	}
 	return SharedObject[T]{

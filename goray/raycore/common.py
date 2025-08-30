@@ -1,5 +1,8 @@
+import struct
 from .. import consts, state, utils
 from ..x import ffi
+
+uint64_le_packer = struct.Struct("<Q")
 
 
 def load_go_lib():

@@ -37,5 +37,4 @@ def handle_run_remote_task(data: bytes) -> tuple[bytes, int]:
         task_name, args_data, object_positions, *object_refs
     )
     fut_local_id = state.futures.add(fut)
-    # show.remote(fut)
-    return str(fut_local_id).encode(), 0
+    return common.uint64_le_packer.pack(fut_local_id), 0

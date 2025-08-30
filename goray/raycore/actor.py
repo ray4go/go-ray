@@ -40,7 +40,7 @@ def handle_new_actor(data: bytes) -> tuple[bytes, int]:
         actor_type_name, raw_args, object_positions, *object_refs
     )
     actor_local_id = state.actors.add(actor_handle)
-    return str(actor_local_id).encode(), 0
+    return common.uint64_le_packer.pack(actor_local_id), 0
 
 
 def handle_actor_method_call(data: bytes) -> tuple[bytes, int]:
@@ -61,7 +61,7 @@ def handle_actor_method_call(data: bytes) -> tuple[bytes, int]:
         method_name, raw_args, object_positions, *object_refs
     )
     fut_local_id = state.futures.add(fut)
-    return str(fut_local_id).encode(), 0
+    return common.uint64_le_packer.pack(fut_local_id), 0
 
 
 def handle_kill_actor(data: bytes) -> tuple[bytes, int]:

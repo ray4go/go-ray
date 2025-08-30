@@ -28,7 +28,6 @@ func DecodeBytesUnits(data []byte) ([][]byte, bool) {
 			break
 		}
 
-		// Convert 8 bytes to an integer. We use LittleEndian
 		length := int(binary.LittleEndian.Uint64(data[offset : offset+8]))
 
 		// Move offset past the length prefix.
