@@ -45,7 +45,7 @@ class GoCommander:
             raise Exception(
                 f"execute golang task {func_name} error: {res.decode('utf-8')}"
             )
-        returns = list(msgpack.Unpacker(io.BytesIO(res)))
+        returns = list(msgpack.Unpacker(io.BytesIO(res), strict_map_key=False))
         if len(returns) == 1:
             return returns[0]
         elif len(returns) == 0:

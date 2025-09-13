@@ -22,8 +22,7 @@ def decode_args(
     object_positions: list[int],
     object_refs: typing.Sequence[tuple[bytes, int]],
 ) -> list:
-    reader = io.BytesIO(raw_args)
-    unpacker = msgpack.Unpacker(reader)
+    unpacker = msgpack.Unpacker(io.BytesIO(raw_args), strict_map_key=False)
     args = []
     for unpacked in unpacker:
         args.append(unpacked)
@@ -33,7 +32,7 @@ def decode_args(
             origin_err_msg = raw_res.decode("utf-8")
             err_msg = f"ray task for the object in {idx}th argument error[{ErrCode(code).name}]: {origin_err_msg}"
             raise Exception(err_msg)
-        args.insert(idx, msgpack.unpackb(raw_res))
+        args.insert(idx, msgpack.unpackb(raw_res, strict_map_key=False))
     return args
 
 

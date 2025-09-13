@@ -3,7 +3,7 @@
 GoRay 跨语言调用的参数和返回值在python和go之间转换使用 [msgpack](https://msgpack.org/) 进行序列化和反序列化。
 
 支持的类型包括： 整型、浮点型、布尔型、字符串、二进制、列表(golang切片)、字典、nil。
-其中**字典key仅支持字符串类型**(不支持整型)。
+其中字典key仅支持字符串类型和整型
 Golang端还额外支持结构体和指针类型，golang结构体会转换成python中的dict类型。
 
 ## Golang -> Python 类型转换

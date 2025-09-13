@@ -53,6 +53,21 @@ func init() {
 				`[{"a":"1", "b":"2"}, {"c":"3", "d":"4"}]`,
 			},
 			{
+				map[int]string{
+					1: "one",
+					2: "two",
+					3: "three",
+				},
+				`{1:"one", 2:"two", 3:"three"}`,
+			},
+			{
+				map[bool]string{
+					true:  "true",
+					false: "false",
+				},
+				`{True:"true", False:"false"}`,
+			},
+			{
 				[]map[string]int{
 					{"a": 1, "b": 2},
 					{"c": 3, "d": 4},
@@ -181,7 +196,9 @@ func init() {
 		testPyTypes2Go[bool](`None`, false, assert)
 		testPyTypes2Go[*bool](`None`, nil, assert)
 
-		testPyTypes2Go[map[string]int](`{b"key": 1}`, map[string]int{"key": 1}, assert)
+		testPyTypes2Go(`{b"key": 1}`, map[string]int{"key": 1}, assert)
+		testPyTypes2Go(`{"key": 1}`, map[string]int{"key": 1}, assert)
+		testPyTypes2Go(`{1: "one"}`, map[int]string{1: "one"}, assert)
 
 		testPyTypes2Go[int64](`2**63-1`, 9223372036854775807, assert)
 		testPyTypes2Go[uint64](`2**64-1`, 18446744073709551615, assert)

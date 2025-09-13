@@ -46,7 +46,7 @@ class GolangLocalActor:
             raise Exception(
                 f"golang actor method {method_name} error: {res.decode('utf-8')}"
             )
-        returns = list(msgpack.Unpacker(io.BytesIO(res)))
+        returns = list(msgpack.Unpacker(io.BytesIO(res), strict_map_key=False))
         if len(returns) == 1:
             return returns[0]
         if len(returns) == 0:
