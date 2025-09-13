@@ -1,11 +1,10 @@
 import logging
-import os
 import threading
 import traceback
 
+from . import actor, go2py, object, task
 from ..consts import *
 from ..x import handlers as cross_lang_handlers
-from . import actor, go2py, object, task
 
 handlers = {
     # Go2PyCmd.CMD_INIT: handle_init,

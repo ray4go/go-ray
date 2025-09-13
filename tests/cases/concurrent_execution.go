@@ -8,21 +8,21 @@ import (
 )
 
 // Test concurrent execution and ObjectRef chaining
-func (_ testTask) SlowAdd(a, b int) int {
+func (testTask) SlowAdd(a, b int) int {
 	time.Sleep(100 * time.Millisecond)
 	return a + b
 }
 
-func (_ testTask) SlowMultiply(a, b int) int {
+func (testTask) SlowMultiply(a, b int) int {
 	time.Sleep(150 * time.Millisecond)
 	return a * b
 }
 
-func (_ testTask) CombineResults(x, y, z int) int {
+func (testTask) CombineResults(x, y, z int) int {
 	return x + y + z
 }
 
-func (_ testTask) ComputeSum(numbers []int) int {
+func (testTask) ComputeSum(numbers []int) int {
 	sum := 0
 	for _, n := range numbers {
 		sum += n
@@ -30,7 +30,7 @@ func (_ testTask) ComputeSum(numbers []int) int {
 	return sum
 }
 
-func (_ testTask) GenerateSequence(start, end int) []int {
+func (testTask) GenerateSequence(start, end int) []int {
 	result := make([]int, 0, end-start+1)
 	for i := start; i <= end; i++ {
 		result = append(result, i)

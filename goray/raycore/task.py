@@ -2,9 +2,9 @@ import logging
 
 import ray
 
+from . import common
 from .. import funccall, state
 from ..consts import *
-from . import common
 
 logger = logging.getLogger(__name__)
 

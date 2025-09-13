@@ -1,4 +1,5 @@
 import struct
+
 from .. import consts, state, utils
 from ..x import ffi
 

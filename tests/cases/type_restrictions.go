@@ -6,7 +6,7 @@ import (
 )
 
 // Test basic types support
-func (_ testTask) ProcessBasicTypes(
+func (testTask) ProcessBasicTypes(
 	intVal int,
 	int32Val int32,
 	int64Val int64,
@@ -22,7 +22,7 @@ func (_ testTask) ProcessBasicTypes(
 }
 
 // Test slice and array types
-func (_ testTask) ProcessSliceAndArray(
+func (testTask) ProcessSliceAndArray(
 	intSlice []int,
 	stringSlice []string,
 	intArray [3]int,
@@ -48,7 +48,7 @@ func (_ testTask) ProcessSliceAndArray(
 }
 
 // Test map types
-func (_ testTask) ProcessMaps(
+func (testTask) ProcessMaps(
 	stringIntMap map[string]int,
 	intStringMap map[int]string,
 ) (map[string]int, map[int]string) {
@@ -66,7 +66,7 @@ func (_ testTask) ProcessMaps(
 }
 
 // Test pointer types (should work for non-nil pointers)
-func (_ testTask) ProcessPointers(
+func (testTask) ProcessPointers(
 	intPtr *int,
 	stringPtr *string,
 ) (*int, *string) {
@@ -89,7 +89,7 @@ type ValidStruct struct {
 	Metadata map[string]string // Only string values, no interface{}
 }
 
-func (_ testTask) ProcessValidStruct(s ValidStruct) ValidStruct {
+func (testTask) ProcessValidStruct(s ValidStruct) ValidStruct {
 	s.ID *= 2
 	s.Name = "processed_" + s.Name
 	for i := range s.Values {
@@ -104,7 +104,7 @@ func (_ testTask) ProcessValidStruct(s ValidStruct) ValidStruct {
 }
 
 // Test empty/zero values (should work)
-func (_ testTask) ProcessEmptyValues(
+func (testTask) ProcessEmptyValues(
 	emptyString string,
 	zeroInt int,
 	emptySlice []int,
@@ -126,14 +126,14 @@ func (_ testTask) ProcessEmptyValues(
 }
 
 // Test channel types (should work but be careful with usage)
-func (_ testTask) ProcessChannelType(ch chan int) chan int {
+func (testTask) ProcessChannelType(ch chan int) chan int {
 	// Note: In practice, channels might not serialize well across ray workers
 	// This is more of a test to see if the type system allows it
 	return ch
 }
 
 // Test function types (might not work well in distributed context)
-func (_ testTask) ProcessFunctionType(fn func(int) int) func(int) int {
+func (testTask) ProcessFunctionType(fn func(int) int) func(int) int {
 	// Note: Function types might not serialize well
 	return fn
 }
@@ -141,12 +141,12 @@ func (_ testTask) ProcessFunctionType(fn func(int) int) func(int) int {
 // Tasks that should cause panics when called with invalid arguments
 // These are tested in separate test cases with panic recovery
 
-func (_ testTask) TaskExpectingNonNilPointer(ptr *int) int {
+func (testTask) TaskExpectingNonNilPointer(ptr *int) int {
 	// This should panic if ptr is nil
 	return *ptr
 }
 
-func (_ testTask) TaskWithInterfaceParam(val interface{}) interface{} {
+func (testTask) TaskWithInterfaceParam(val interface{}) interface{} {
 	// This should panic due to interface{} usage
 	return val
 }
@@ -156,7 +156,7 @@ type StructWithInterface struct {
 	Data interface{} // This should cause issues
 }
 
-func (_ testTask) TaskWithStructContainingInterface(s StructWithInterface) StructWithInterface {
+func (testTask) TaskWithStructContainingInterface(s StructWithInterface) StructWithInterface {
 	// This should panic due to interface{} in struct
 	return s
 }
@@ -167,22 +167,22 @@ type StructWithNilPointer struct {
 	Data string
 }
 
-func (_ testTask) TaskWithNilInStruct(s StructWithNilPointer) StructWithNilPointer {
+func (testTask) TaskWithNilInStruct(s StructWithNilPointer) StructWithNilPointer {
 	// This should work fine even if Ptr is nil
 	return s
 }
 
 // Additional test types and tasks for comprehensive testing
 
-func (_ testTask) TaskWithMultipleInterfaceParams(a interface{}, b interface{}, c interface{}) (interface{}, interface{}, interface{}) {
+func (testTask) TaskWithMultipleInterfaceParams(a interface{}, b interface{}, c interface{}) (interface{}, interface{}, interface{}) {
 	return a, b, c
 }
 
-func (_ testTask) TaskWithMapContainingInterface(m map[string]interface{}) map[string]interface{} {
+func (testTask) TaskWithMapContainingInterface(m map[string]interface{}) map[string]interface{} {
 	return m
 }
 
-func (_ testTask) TaskWithSliceContainingInterface(s []interface{}) []interface{} {
+func (testTask) TaskWithSliceContainingInterface(s []interface{}) []interface{} {
 	return s
 }
 
@@ -191,7 +191,7 @@ type NestedStructWithInterface struct {
 	Inner StructWithInterface
 }
 
-func (_ testTask) TaskWithNestedStructContainingInterface(nested NestedStructWithInterface) NestedStructWithInterface {
+func (testTask) TaskWithNestedStructContainingInterface(nested NestedStructWithInterface) NestedStructWithInterface {
 	return nested
 }
 
@@ -202,7 +202,7 @@ type StructWithValidPointers struct {
 	Data      string
 }
 
-func (_ testTask) TaskWithValidPointers(s StructWithValidPointers) StructWithValidPointers {
+func (testTask) TaskWithValidPointers(s StructWithValidPointers) StructWithValidPointers {
 	// Process the struct, handling potential nil pointers
 	if s.StringPtr != nil {
 		newStr := *s.StringPtr + "_processed"
@@ -216,7 +216,7 @@ func (_ testTask) TaskWithValidPointers(s StructWithValidPointers) StructWithVal
 	return s
 }
 
-func (_ testTask) TaskWithValidMap(m map[string]string) map[string]string {
+func (testTask) TaskWithValidMap(m map[string]string) map[string]string {
 	result := make(map[string]string)
 	for k, v := range m {
 		result[k] = v + "_processed"
@@ -224,7 +224,7 @@ func (_ testTask) TaskWithValidMap(m map[string]string) map[string]string {
 	return result
 }
 
-func (_ testTask) TaskWithValidSlice(s []string) []string {
+func (testTask) TaskWithValidSlice(s []string) []string {
 	result := make([]string, len(s))
 	for i, v := range s {
 		result[i] = v + "_processed"

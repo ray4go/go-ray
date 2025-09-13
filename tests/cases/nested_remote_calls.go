@@ -11,7 +11,7 @@ import (
 // Test nested remote calls - calling remote tasks/actors from within tasks/actors
 
 // Task that calls other remote tasks
-func (_ testTask) CoordinatorTask(taskCount int) []int {
+func (testTask) CoordinatorTask(taskCount int) []int {
 	var refs []ray.ObjectRef
 
 	// Launch multiple remote tasks from within this task
@@ -33,12 +33,12 @@ func (_ testTask) CoordinatorTask(taskCount int) []int {
 	return results
 }
 
-func (_ testTask) WorkerTask(id, multiplier int) int {
+func (testTask) WorkerTask(id, multiplier int) int {
 	return id * multiplier
 }
 
 // Task that creates and uses actors
-func (_ testTask) ActorCoordinatorTask(actorName string, operations []string) []int {
+func (testTask) ActorCoordinatorTask(actorName string, operations []string) []int {
 	// Get or create actor from within task
 	actor, err := ray.GetActor(actorName)
 	if err != nil {
@@ -70,7 +70,7 @@ func (_ testTask) ActorCoordinatorTask(actorName string, operations []string) []
 }
 
 // Task that chains multiple remote calls
-func (_ testTask) ChainedTask(initial int, depth int) int {
+func (testTask) ChainedTask(initial int, depth int) int {
 	if depth <= 0 {
 		return initial
 	}
@@ -86,7 +86,7 @@ func (_ testTask) ChainedTask(initial int, depth int) int {
 }
 
 // Task that uses Put and Get operations
-func (_ testTask) DataSharingTask(data []int) int {
+func (testTask) DataSharingTask(data []int) int {
 	// Put data into object store from within task
 	objRef, err := ray.Put(data)
 	if err != nil {
@@ -103,7 +103,7 @@ func (_ testTask) DataSharingTask(data []int) int {
 	return result[0].(int)
 }
 
-func (_ testTask) ProcessStoredData(data []int) int {
+func (testTask) ProcessStoredData(data []int) int {
 	sum := 0
 	for _, v := range data {
 		sum += v
@@ -112,7 +112,7 @@ func (_ testTask) ProcessStoredData(data []int) int {
 }
 
 // Task that uses Wait functionality
-func (_ testTask) BatchCoordinatorTask(batchSize int) []int {
+func (testTask) BatchCoordinatorTask(batchSize int) []int {
 	var refs []ray.ObjectRef
 
 	// Launch batch of tasks
@@ -145,7 +145,7 @@ func (_ testTask) BatchCoordinatorTask(batchSize int) []int {
 	return results
 }
 
-func (_ testTask) SlowWorkerTask(id, delayMs int) int {
+func (testTask) SlowWorkerTask(id, delayMs int) int {
 	time.Sleep(time.Duration(delayMs) * time.Millisecond)
 	return id * 10
 }
@@ -155,7 +155,7 @@ type TaskCallingActor struct {
 	id int
 }
 
-func (_ actorFactories) NewTaskCallingActor(id int) *TaskCallingActor {
+func (actorFactories) NewTaskCallingActor(id int) *TaskCallingActor {
 	return &TaskCallingActor{id: id}
 }
 
@@ -193,7 +193,7 @@ type ActorCallingActor struct {
 	id int
 }
 
-func (_ actorFactories) NewActorCallingActor(id int) *ActorCallingActor {
+func (actorFactories) NewActorCallingActor(id int) *ActorCallingActor {
 	return &ActorCallingActor{id: id}
 }
 

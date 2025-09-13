@@ -3,10 +3,10 @@ import logging
 
 import ray
 
-from ..x import actor
 from . import common
 from .. import funccall, state, utils
 from ..consts import *
+from ..x import actor
 
 logger = logging.getLogger(__name__)
 

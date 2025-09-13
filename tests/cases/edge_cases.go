@@ -12,18 +12,18 @@ import (
 // Test edge cases, error recovery, and robustness scenarios
 
 // Tasks for testing boundary conditions
-func (_ testTask) EmptySliceTask(data []int) int {
+func (testTask) EmptySliceTask(data []int) int {
 	return len(data)
 }
 
-func (_ testTask) NilMapTask(data map[string]int) int {
+func (testTask) NilMapTask(data map[string]int) int {
 	if data == nil {
 		return -1
 	}
 	return len(data)
 }
 
-func (_ testTask) ZeroValueTask(s string, i int, f float64, b bool) map[string]interface{} {
+func (testTask) ZeroValueTask(s string, i int, f float64, b bool) map[string]interface{} {
 	return map[string]interface{}{
 		"string_empty": s == "",
 		"int_zero":     i == 0,
@@ -32,7 +32,7 @@ func (_ testTask) ZeroValueTask(s string, i int, f float64, b bool) map[string]i
 	}
 }
 
-func (_ testTask) LargeStringTask(size int) string {
+func (testTask) LargeStringTask(size int) string {
 	// Create a large string
 	result := make([]byte, size)
 	for i := range result {
@@ -41,7 +41,7 @@ func (_ testTask) LargeStringTask(size int) string {
 	return string(result)
 }
 
-func (_ testTask) DeepNestedStructTask() map[string]interface{} {
+func (testTask) DeepNestedStructTask() map[string]interface{} {
 	return map[string]interface{}{
 		"level1": map[string]interface{}{
 			"level2": map[string]interface{}{
@@ -57,7 +57,7 @@ func (_ testTask) DeepNestedStructTask() map[string]interface{} {
 }
 
 // Tasks that test numeric edge cases
-func (_ testTask) NumericBoundaryTask(maxInt int, minInt int, largeFloat float64) map[string]interface{} {
+func (testTask) NumericBoundaryTask(maxInt int, minInt int, largeFloat float64) map[string]interface{} {
 	return map[string]interface{}{
 		"max_plus_one":   maxInt + 1,
 		"min_minus_one":  minInt - 1,
@@ -66,7 +66,7 @@ func (_ testTask) NumericBoundaryTask(maxInt int, minInt int, largeFloat float64
 	}
 }
 
-func (_ testTask) SlowIncrementerTask(initial int, steps int, delayMs int) int {
+func (testTask) SlowIncrementerTask(initial int, steps int, delayMs int) int {
 	current := initial
 	for i := 0; i < steps; i++ {
 		time.Sleep(time.Duration(delayMs) * time.Millisecond)
@@ -76,7 +76,7 @@ func (_ testTask) SlowIncrementerTask(initial int, steps int, delayMs int) int {
 }
 
 // Tasks for testing concurrency edge cases
-func (_ testTask) SharedStateSimulator(id int, iterations int) []int {
+func (testTask) SharedStateSimulator(id int, iterations int) []int {
 	results := make([]int, iterations)
 	for i := 0; i < iterations; i++ {
 		// Simulate some computation
@@ -86,7 +86,7 @@ func (_ testTask) SharedStateSimulator(id int, iterations int) []int {
 	return results
 }
 
-func (_ testTask) MemoryLeakTest(allocations int) int {
+func (testTask) MemoryLeakTest(allocations int) int {
 	// Allocate and release memory in a loop
 	totalAllocated := 0
 	for i := 0; i < allocations; i++ {
@@ -105,7 +105,7 @@ type EdgeCaseActor struct {
 	errorCount  int
 }
 
-func (_ actorFactories) NewEdgeCaseActor() *EdgeCaseActor {
+func (actorFactories) NewEdgeCaseActor() *EdgeCaseActor {
 	return &EdgeCaseActor{
 		state:       make(map[string]interface{}),
 		callHistory: make([]string, 0),
@@ -169,7 +169,7 @@ type ResourceCleanupActor struct {
 	isActive  bool
 }
 
-func (_ actorFactories) NewResourceCleanupActor() *ResourceCleanupActor {
+func (actorFactories) NewResourceCleanupActor() *ResourceCleanupActor {
 	return &ResourceCleanupActor{
 		resources: make([]string, 0),
 		isActive:  true,

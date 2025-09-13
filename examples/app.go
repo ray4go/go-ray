@@ -17,9 +17,11 @@ type cnt struct {
 	num int
 }
 
+// rayactors
 type actors struct{}
 
-func (_ actors) Counter(n int) *cnt {
+// 匿名接收器
+func (actors) Counter(n int) *cnt {
 	fmt.Println("New actor, pid", os.Getpid())
 	return &cnt{num: n}
 }
@@ -39,7 +41,7 @@ func (actor *cnt) Decr(n int) int {
 // raytasks
 type demo struct{}
 
-func (_ demo) BatchTask(batchId int, items []string) []string {
+func (demo) BatchTask(batchId int, items []string) []string {
 	result := make([]string, len(items))
 	for i, item := range items {
 		result[i] = item + "_batch_" + string(rune(batchId+'0'))
@@ -47,23 +49,23 @@ func (_ demo) BatchTask(batchId int, items []string) []string {
 	return result
 }
 
-func (_ demo) Echo(args ...any) []any {
+func (demo) Echo(args ...any) []any {
 	fmt.Println("Echo", args)
 	return args
 }
 
-func (_ demo) Hello(name string) string {
+func (demo) Hello(name string) string {
 	return fmt.Sprintf("Hello %s", name)
 }
 
-func (_ demo) Busy(name string, duration time.Duration) string {
+func (demo) Busy(name string, duration time.Duration) string {
 	fmt.Println("BusyTask", name, "started at", time.Now())
 	time.Sleep(duration * time.Second)
 	fmt.Println("BusyTask", name, "finished at", time.Now())
 	return fmt.Sprintf("BusyTask %s success", name)
 }
 
-func (_ demo) Nest(name string, duration time.Duration) string {
+func (demo) Nest(name string, duration time.Duration) string {
 	obj := ray.RemoteCall("Busy", name, duration)
 	res, err := ray.Get1[string](obj)
 	fmt.Println("Nest: ", res, err)
@@ -71,7 +73,7 @@ func (_ demo) Nest(name string, duration time.Duration) string {
 }
 
 // 传递自定义类型的slice
-func (_ demo) AddPointSlice(ps []Point) Point {
+func (demo) AddPointSlice(ps []Point) Point {
 	fmt.Printf("PointAddSlice %#v\n", ps)
 	res := Point{}
 	for _, p := range ps {
@@ -82,7 +84,7 @@ func (_ demo) AddPointSlice(ps []Point) Point {
 }
 
 // 2参数
-func (_ demo) Add2Points(p1, p2 Point) Point {
+func (demo) Add2Points(p1, p2 Point) Point {
 	fmt.Println("PointAdd2", p1, p2)
 	return Point{
 		X: p1.X + p2.X,
@@ -91,7 +93,7 @@ func (_ demo) Add2Points(p1, p2 Point) Point {
 }
 
 // 可变参数
-func (_ demo) AddPointsVar(ps ...Point) Point {
+func (demo) AddPointsVar(ps ...Point) Point {
 	fmt.Printf("PointAddVar %#v\n", ps)
 	res := Point{}
 	for _, p := range ps {
@@ -102,16 +104,16 @@ func (_ demo) AddPointsVar(ps ...Point) Point {
 }
 
 // 无返回值
-func (_ demo) NoReturnVal(a, b int64) {
+func (demo) NoReturnVal(a, b int64) {
 	return
 }
 
 // 多返回值
-func (_ demo) MultiReturn(i int, s string) (int, string) {
+func (demo) MultiReturn(i int, s string) (int, string) {
 	return i, s
 }
 
-func (_ demo) CallPython() {
+func (demo) CallPython() {
 	{
 		var res []any
 		err := ray.LocalCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3}).GetInto(&res)
@@ -128,7 +130,7 @@ func (_ demo) CallPython() {
 	}
 }
 
-func (_ demo) RemoteCallPython() {
+func (demo) RemoteCallPython() {
 	{
 		obj := ray.RemoteCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3})
 		res, err := obj.GetAll()

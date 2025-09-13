@@ -1,13 +1,12 @@
-import io
 import logging
-import typing
 
 import msgpack
 import ray
 
+from . import common, registry
 from .. import funccall, state, utils
 from ..consts import *
-from . import common, registry
+from ..x import handlers as x_handlers
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
@@ -29,25 +28,6 @@ def ray_run_task_from_go(
     )
 
 
-def decode_args(
-    raw_args: bytes,
-    object_positions: list[int],
-    object_refs: typing.Sequence[tuple[bytes, int]],
-) -> list:
-    reader = io.BytesIO(raw_args)
-    unpacker = msgpack.Unpacker(reader)
-    args = []
-    for unpacked in unpacker:
-        args.append(unpacked)
-
-    for idx, (raw_res, code) in zip(object_positions, object_refs):
-        if code != 0:  # ray task for this object failed
-            origin_err_msg = raw_res.decode("utf-8")
-            err_msg = f"ray task for the object in {idx}th argument error[{ErrCode(code).name}]: {origin_err_msg}"
-            raise Exception(err_msg)
-        args.insert(idx, msgpack.unpackb(raw_res))
-    return args
-
 
 def run_task(
     func_name: str,
@@ -58,7 +38,7 @@ def run_task(
     func, _ = registry.get_py_task(func_name)
     if func is None:
         return f"[py] task {func_name} not found".encode("utf-8"), ErrCode.Failed
-    args = decode_args(raw_args, object_positions, object_refs)
+    args = x_handlers.decode_args(raw_args, object_positions, object_refs)
 
     try:
         res = func(*args)
@@ -114,7 +94,7 @@ class PyActorWrapper:
                 f"python actor {class_name} not found, all py actors: {registry.all_py_actors()}"
             )
 
-        args = decode_args(raw_args, object_positions, object_refs)
+        args = x_handlers.decode_args(raw_args, object_positions, object_refs)
         self._actor = cls(*args)
 
     def call_method(
@@ -124,7 +104,7 @@ class PyActorWrapper:
         object_positions: list[int],
         *object_refs: tuple[bytes, int],
     ) -> tuple[bytes, int]:
-        args = decode_args(raw_args, object_positions, object_refs)
+        args = x_handlers.decode_args(raw_args, object_positions, object_refs)
         try:
             res = getattr(self._actor, method_name)(*args)
         except Exception as e:

@@ -3,10 +3,7 @@ import logging
 import sys
 import typing
 
-import ray
-
 from . import consts, state, utils, x
-from .raycore import common, go2py, py2go, registry
 
 
 def init(
@@ -36,8 +33,11 @@ def init(
     if debug:
         ray_init_args["runtime_env"]["env_vars"]["GORAY_DEBUG_LOGGING"] = "1"
 
-    ray.init(**ray_init_args)
+    # when user only want to use goray.x module, it's not necessary to install ray
+    import ray
+    from .raycore import common
 
+    ray.init(**ray_init_args)
     lib = common.load_go_lib()
 
     try:
@@ -55,6 +55,9 @@ def remote(*args, **kwargs):
     """
     Same as @ray.remote, but with registering the task or actor in goray, which you can call from go.
     """
+    # when user only want to use goray.x module, it's not necessary to install ray
+    from .raycore import registry
+
     if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
         # This is the case where the decorator is just @remote.
         # "args[0]" is the class or function under the decorator.
@@ -62,7 +65,7 @@ def remote(*args, **kwargs):
     return functools.partial(registry.make_remote, options=kwargs)
 
 
-def golang_actor_class(name: str, **options) -> py2go.GolangActorClass:
+def golang_actor_class(name: str, **options):
     """
     Get a golang actor class, which you can use to create a golang actor.
     The usage of returned class is same as python actor class.
@@ -78,6 +81,9 @@ def golang_actor_class(name: str, **options) -> py2go.GolangActorClass:
     :param options: ray.actor.ActorClass.options, see
        https://docs.ray.io/en/latest/ray-core/api/doc/ray.actor.ActorClass.options.html#ray.actor.ActorClass.options
     """
+    # when user only want to use goray.x module, it's not necessary to install ray
+    from .raycore import py2go
+
     return py2go.GolangActorClass(name, **options)
 
 
@@ -87,10 +93,14 @@ def get_golang_actor(name: str, namespace: typing.Optional[str] = None):
 
     The actor must be created from python via `golang_actor_class(name).remote(...)`
     """
+    # when user only want to use goray.x module, it's not necessary to install ray
+    import ray
+    from .raycore import py2go
+
     return py2go.GolangRemoteActorHandle(ray.get_actor(name, namespace=namespace))
 
 
-def golang_task(name: str, **options) -> py2go.GolangRemoteFunc:
+def golang_task(name: str, **options):
     """
     Get a golang task, which you can run the task remotely.
 
@@ -100,6 +110,9 @@ def golang_task(name: str, **options) -> py2go.GolangRemoteFunc:
         obj = task.remote(...)
         print(ray.get(obj))
     """
+    # when user only want to use goray.x module, it's not necessary to install ray
+    from .raycore import py2go
+
     return py2go.get_golang_remote_task(name, options)
 
 
@@ -108,6 +121,9 @@ def golang_local_run_task(name: str, *args):
     Run a golang task locally (in current process).
     Unlike remote tasks, this function is blocking and returns the result directly.
     """
+    # when user only want to use goray.x module, it's not necessary to install ray
+    from .raycore import common
+
     lib = common.load_go_lib()
     return x.CrossLanguageClient(lib).func_call(name, *args)
 
@@ -122,5 +138,7 @@ def golang_local_new_actor(name: str, *args) -> x.GolangLocalActor:
         actor.Inc(1)
         print(actor.Get())
     """
+    from .raycore import common
+
     lib = common.load_go_lib()
     return x.CrossLanguageClient(lib).new_type(name, *args)

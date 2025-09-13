@@ -11,7 +11,9 @@ type counter struct {
 	num int
 }
 
-func NewCounter(n int) *counter {
+type exportClass struct{}
+
+func (exportClass) Counter(n int) *counter {
 	return &counter{num: n}
 }
 
@@ -27,28 +29,28 @@ func (c *counter) Decr(n int) int {
 	return c.num
 }
 
-type export struct{}
+type exportFunc struct{}
 
-func (_ export) Echo(args ...any) []any {
+func (exportFunc) Echo(args ...any) []any {
 	return args
 }
 
-func (_ export) Hello(name string) string {
+func (exportFunc) Hello(name string) string {
 	return fmt.Sprintf("Hello %s", name)
 }
 
-func (_ export) Busy(name string, duration time.Duration) string {
+func (exportFunc) Busy(name string, duration time.Duration) string {
 	fmt.Println("BusyTask", name, "started at", time.Now())
 	time.Sleep(duration * time.Second)
 	fmt.Println("BusyTask", name, "finished at", time.Now())
 	return fmt.Sprintf("BusyTask %s success", name)
 }
 
-func (_ export) NoReturnVal(a, b int64) {
+func (exportFunc) NoReturnVal(a, b int64) {
 	return
 }
 
-func (_ export) CallPython() {
+func (exportFunc) CallPython() {
 	res, err := ray.LocalCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3}).Get()
 	fmt.Println("go call python: echo", res, err)
 	res, err = ray.LocalCallPyTask("hello", "from go").Get()
@@ -58,7 +60,7 @@ func (_ export) CallPython() {
 }
 
 func init() {
-	ray.Init(export{}, map[string]any{"Counter": NewCounter}, nil)
+	ray.Init(exportFunc{}, exportClass{}, nil)
 }
 
 // main 函数不会被调用，但不可省略

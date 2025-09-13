@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (_ testTask) Divide(a, b int64) (int64, int64) {
+func (testTask) Divide(a, b int64) (int64, int64) {
 	return a / b, a % b
 }
 
@@ -28,7 +28,7 @@ func init() {
 	})
 }
 
-func (_ testTask) NoReturnVal(a, b int64) {
+func (testTask) NoReturnVal(a, b int64) {
 	return
 }
 
@@ -40,7 +40,7 @@ func init() {
 	})
 }
 
-func (_ testTask) Busy(name string, duration time.Duration) string {
+func (testTask) Busy(name string, duration time.Duration) string {
 	time.Sleep(duration * time.Second)
 	return fmt.Sprintf("BusyTask %s success", name)
 }
@@ -72,7 +72,7 @@ type Point struct {
 }
 
 // 传递自定义类型的slice
-func (_ testTask) AddPointSlice(ps []Point) Point {
+func (testTask) AddPointSlice(ps []Point) Point {
 	fmt.Printf("PointAddSlice %#v\n", ps)
 	res := Point{}
 	for _, p := range ps {
@@ -83,7 +83,7 @@ func (_ testTask) AddPointSlice(ps []Point) Point {
 }
 
 // 2参数
-func (_ testTask) Add2Points(p1, p2 Point) Point {
+func (testTask) Add2Points(p1, p2 Point) Point {
 	fmt.Println("PointAdd2", p1, p2)
 	return Point{
 		X: p1.X + p2.X,
@@ -92,7 +92,7 @@ func (_ testTask) Add2Points(p1, p2 Point) Point {
 }
 
 // 可变参数
-func (_ testTask) AddPointsVar(ps ...Point) Point {
+func (testTask) AddPointsVar(ps ...Point) Point {
 	fmt.Printf("PointAddVar %#v\n", ps)
 	res := Point{}
 	for _, p := range ps {
@@ -129,7 +129,7 @@ type counter struct {
 	num int
 }
 
-func (_ actorFactories) NewActor(n int) *counter {
+func (actorFactories) NewActor(n int) *counter {
 	return &counter{num: n}
 }
 
@@ -168,11 +168,11 @@ func init() {
 	})
 }
 
-func (_ testTask) MultipleReturns(arg1 any, arg2 any) (any, any) {
+func (testTask) MultipleReturns(arg1 any, arg2 any) (any, any) {
 	return arg1, arg2
 }
 
-func (_ testTask) SingleReturns(arg any) any {
+func (testTask) SingleReturns(arg any) any {
 	return arg
 }
 

@@ -16,7 +16,7 @@ type StatefulActor struct {
 	history []int
 }
 
-func (_ actorFactories) NewStatefulActor(initialValue int) *StatefulActor {
+func (actorFactories) NewStatefulActor(initialValue int) *StatefulActor {
 	return &StatefulActor{
 		value:   initialValue,
 		history: make([]int, 0),
@@ -56,7 +56,7 @@ type ComplexActor struct {
 	items    []string
 }
 
-func (_ actorFactories) NewComplexActor(id string) *ComplexActor {
+func (actorFactories) NewComplexActor(id string) *ComplexActor {
 	return &ComplexActor{
 		id:       id,
 		counters: make(map[string]int),
@@ -120,7 +120,7 @@ type SlowActor struct {
 	id int
 }
 
-func (_ actorFactories) NewSlowActor(id int) *SlowActor {
+func (actorFactories) NewSlowActor(id int) *SlowActor {
 	return &SlowActor{id: id}
 }
 
@@ -143,7 +143,7 @@ type ErrorActor struct {
 	shouldFail bool
 }
 
-func (_ actorFactories) NewErrorActor(shouldFail bool) *ErrorActor {
+func (actorFactories) NewErrorActor(shouldFail bool) *ErrorActor {
 	return &ErrorActor{shouldFail: shouldFail}
 }
 
@@ -168,7 +168,7 @@ type ResourceActor struct {
 	data [][]int
 }
 
-func (_ actorFactories) NewResourceActor(size int) *ResourceActor {
+func (actorFactories) NewResourceActor(size int) *ResourceActor {
 	data := make([][]int, size)
 	for i := range data {
 		data[i] = make([]int, size)
@@ -480,7 +480,7 @@ func init() {
 	})
 }
 
-func (_ actorFactories) ErrorTest() *StatefulActor {
+func (actorFactories) ErrorTest() *StatefulActor {
 	return nil
 }
 

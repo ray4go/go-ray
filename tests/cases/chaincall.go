@@ -28,7 +28,7 @@ def ray_nodes():
 `
 
 // 返回剩余 step 后的 hostname 列表
-func (_ testTask) ChainCall(nodeIds []string, currIdx int, remainStep int, cross bool) map[string]struct{} {
+func (testTask) ChainCall(nodeIds []string, currIdx int, remainStep int, cross bool) map[string]struct{} {
 	hostName, _ := os.Hostname()
 	fmt.Println("Go task", currIdx, hostName)
 	nextNodeId := nodeIds[currIdx%len(nodeIds)]
@@ -57,7 +57,7 @@ type actor struct {
 	actorTypeName string
 }
 
-func (_ actorFactories) NewActorFromChain(cross bool, actorTypeName string) *actor {
+func (actorFactories) NewActorFromChain(cross bool, actorTypeName string) *actor {
 	return &actor{cross, actorTypeName}
 }
 func (actor *actor) ChainCall(nodeIds []string, currIdx int, remainStep int) map[string]struct{} {

@@ -43,7 +43,9 @@ type counter struct {
 	num int
 }
 
-func NewCounter(n int) *counter {
+type exportClass struct{}
+
+func (exportClass) Counter(n int) *counter {
 	return &counter{num: n}
 }
 
@@ -59,18 +61,18 @@ func (c *counter) Decr(n int) int {
 	return c.num
 }
 
-type export struct{}
+type exportFunc struct{}
 
-func (_ export) Echo(args ...any) []any {
+func (exportFunc) Echo(args ...any) []any {
 	return args
 }
 
-func (_ export) Hello(name string) string {
+func (exportFunc) Hello(name string) string {
 	return fmt.Sprintf("Hello %s", name)
 }
 
 func init() {
-	ray.Init(export{}, map[string]any{"Counter": NewCounter}, nil)
+	ray.Init(exportFunc{}, exportClass{}, nil)
 }
 
 // main function will not be called, but cannot be omitted

@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import logging
 
 import ray
 
-from .. import utils, x, consts
 from . import common
+from .. import utils, x, consts
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
@@ -13,7 +15,7 @@ def _run_golang_remote_task(func_name: str, *args):
     return common.load_go_lib().call_golang_func(func_name, args)
 
 
-def get_golang_remote_task(name: str, options: dict) -> "GolangRemoteFunc":
+def get_golang_remote_task(name: str, options: dict) -> GolangRemoteFunc:
     common.inject_runtime_env(options)
     remote_task = ray.remote(
         common.copy_function(
@@ -34,7 +36,7 @@ class GolangRemoteFunc:
         self._bind_arg = bind_arg
         self._options = options
 
-    def options(self, **kwargs) -> "GolangRemoteFunc":
+    def options(self, **kwargs) -> GolangRemoteFunc:
         options = dict(self._options)
         options.update(kwargs)
         # todo: make sure user didn't overwrite runtime_env/env_vars
@@ -90,7 +92,7 @@ class GolangActorClass:
         options.update(kwargs)
         return GolangActorClass(self._class_name, **options)
 
-    def remote(self, *args) -> "GolangRemoteActorHandle":
+    def remote(self, *args) -> GolangRemoteActorHandle:
         method_names = common.load_go_lib().get_golang_actor_methods(self._class_name)
         methods = {name: Go4PyRemoteActor.call_method for name in method_names}
         ActorCls = ray.remote(

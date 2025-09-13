@@ -11,7 +11,7 @@ import (
 // Test coverage for APIs not covered by other test files
 
 // Task for testing CallPythonCode
-func (_ testTask) GetPythonEnvironment() string {
+func (testTask) GetPythonEnvironment() string {
 	var result string
 	err := ray.CallPythonCode(`
 import sys
@@ -26,12 +26,12 @@ def foo():
 }
 
 // Tasks for testing advanced Wait scenarios
-func (_ testTask) VariableDelayTask(taskId int, delayMs int) int {
+func (testTask) VariableDelayTask(taskId int, delayMs int) int {
 	time.Sleep(time.Duration(delayMs) * time.Millisecond)
 	return taskId * 100
 }
 
-func (_ testTask) RandomFailureTask(taskId int, shouldFail bool) int {
+func (testTask) RandomFailureTask(taskId int, shouldFail bool) int {
 	if shouldFail {
 		panic(fmt.Sprintf("Task %d failed intentionally", taskId))
 	}
@@ -40,7 +40,7 @@ func (_ testTask) RandomFailureTask(taskId int, shouldFail bool) int {
 }
 
 // Task for testing ObjectRef edge cases
-func (_ testTask) ReturnComplexObjectRef() map[string]interface{} {
+func (testTask) ReturnComplexObjectRef() map[string]interface{} {
 	return map[string]interface{}{
 		"id":      12345,
 		"name":    "complex_object",
@@ -50,25 +50,25 @@ func (_ testTask) ReturnComplexObjectRef() map[string]interface{} {
 	}
 }
 
-func (_ testTask) ProcessComplexObjectRef(obj map[string]interface{}) string {
+func (testTask) ProcessComplexObjectRef(obj map[string]interface{}) string {
 	id := int(obj["id"].(float64)) // JSON numbers come as float64
 	name := obj["name"].(string)
 	return fmt.Sprintf("Processed object %d: %s", id, name)
 }
 
 // Tasks for testing various option combinations
-func (_ testTask) TaskWithAllOptions(value int) int {
+func (testTask) TaskWithAllOptions(value int) int {
 	time.Sleep(100 * time.Millisecond)
 	return value * 3
 }
 
-func (_ testTask) LongRunningTask(duration int, value string) string {
+func (testTask) LongRunningTask(duration int, value string) string {
 	time.Sleep(time.Duration(duration) * time.Second)
 	return fmt.Sprintf("long_task_%s_completed", value)
 }
 
 // Tasks for testing edge cases with various data types
-func (_ testTask) ProcessMixedTypes(
+func (testTask) ProcessMixedTypes(
 	intVal int,
 	floatVal float64,
 	stringVal string,
@@ -101,7 +101,7 @@ type AdvancedOptionsActor struct {
 	callCount int
 }
 
-func (_ actorFactories) NewAdvancedOptionsActor(id string) *AdvancedOptionsActor {
+func (actorFactories) NewAdvancedOptionsActor(id string) *AdvancedOptionsActor {
 	return &AdvancedOptionsActor{
 		id:        id,
 		startTime: time.Now(),
