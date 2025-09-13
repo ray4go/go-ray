@@ -13,18 +13,18 @@ import (
 )
 
 type actorType struct {
-	name            string
-	newFunc         any
-	newFuncReceiver reflect.Value
-	methods         map[string]reflect.Method
+	name                string
+	constructorFunc     any
+	constructorReceiver reflect.Value             // the actor constructor func is actually a method of this receiver
+	methods             map[string]reflect.Method // actor methods
 }
 
 type actorInstance struct {
-	receiver any
+	receiver reflect.Value
 	typ      *actorType
 }
 
-// A handle to an actor.
+// ActorHandle represents a handle to an actor.
 //
 // Noted, currently, you can't pass an actor handle into a task.
 // Workaround: create a named actor via [NewActor](typeName, [ray.Option]("name", name))
@@ -56,10 +56,10 @@ func registerActors(actorFactories any) {
 		}
 
 		actor := &actorType{
-			name:            method.Name,
-			newFuncReceiver: actorFactoriesVal,
-			newFunc:         method.Func.Interface(),
-			methods:         methods,
+			name:                method.Name,
+			constructorReceiver: actorFactoriesVal,
+			constructorFunc:     method.Func.Interface(),
+			methods:             methods,
 		}
 		actorTypes[actor.name] = actor
 	}
@@ -78,7 +78,7 @@ func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 	if !ok {
 		panic(fmt.Sprintf("Actor type '%v' not found", typeName))
 	}
-	callable := utils.NewCallableType(reflect.TypeOf(actor.newFunc), true)
+	callable := utils.NewCallableType(reflect.TypeOf(actor.constructorFunc), true)
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_ActorName, typeName))
 
 	methodNames := make([]string, 0)
@@ -104,15 +104,15 @@ func handleCreateActor(_ int64, data []byte) (resData []byte, retCode int64) {
 	if !ok {
 		panic(fmt.Sprintf("Actor type '%v' not found", typeName))
 	}
-	args := remote_call.DecodeWithType(rawArgs, posArgs, utils.NewCallableType(reflect.TypeOf(actor.newFunc), true).InType)
-	res := remote_call.FuncCall(&actor.newFuncReceiver, reflect.ValueOf(actor.newFunc), args)
+	args := remote_call.DecodeWithType(rawArgs, posArgs, utils.NewCallableType(reflect.TypeOf(actor.constructorFunc), true).InType)
+	res := remote_call.FuncCall(reflect.ValueOf(actor.constructorFunc), &actor.constructorReceiver, args)
 	if utils.IsNilTypePointer(res[0]) {
 		panic(fmt.Sprintf("Error: create %s actor failed, constructor return nil", typeName))
 	}
 	log.Debug("create actor %v -> %v\n", actor.name, res)
 
 	instance := &actorInstance{
-		receiver: res[0],
+		receiver: reflect.ValueOf(res[0]),
 		typ:      actor,
 	}
 	// instanceId should always be 0 when created from ray.NewActor(),
@@ -135,7 +135,7 @@ func (actor *ActorHandle) isGoActor() bool {
 // [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.method.html#ray.method
 func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) ObjectRef {
 	var callable *utils.CallableType
-	var originFunc reflect.Type
+	var returnTypes []reflect.Type
 	if actor.isGoActor() {
 		method, ok := actor.typ.methods[methodName]
 		if !ok {
@@ -146,10 +146,13 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 		}
 		log.Debug("[Go] RemoteCall %s.%s()\n", actor.typ.name, methodName)
 		callable = utils.NewCallableType(method.Type, true)
-		originFunc = method.Type
+		returnTypes = make([]reflect.Type, 0, method.Type.NumOut())
+		for i := 0; i < method.Type.NumOut(); i++ {
+			returnTypes = append(returnTypes, method.Type.Out(i))
+		}
 	} else {
 		log.Debug("[Go] RemoteCallPyActor %s() %#v\n", methodName, argsAndOpts)
-		originFunc = dummyPyFunc
+		returnTypes = []reflect.Type{anyType}
 	}
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_TaskName, methodName))
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_PyLocalActorId, actor.pyLocalId))
@@ -161,8 +164,8 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
 	}
 	return ObjectRef{
-		id:         int64(binary.LittleEndian.Uint64(res)),
-		originFunc: originFunc,
+		id:    int64(binary.LittleEndian.Uint64(res)),
+		types: returnTypes,
 	}
 }
 
@@ -191,8 +194,7 @@ func handleActorMethodCall(actorGoInstanceIndex int64, data []byte) (resData []b
 	}
 	method := actorIns.typ.methods[methodName]
 	args := remote_call.DecodeWithType(rawArgs, posArgs, utils.NewCallableType(method.Type, true).InType)
-	receiverVal := reflect.ValueOf(actorIns.receiver)
-	res := remote_call.FuncCall(&receiverVal, method.Func, args)
+	res := remote_call.FuncCall(method.Func, &actorIns.receiver, args)
 	resData = remote_call.EncodeSlice(res)
 	return resData, consts.ErrorCode_Success
 }

@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	enableLog bool = false
+	enableLog = false
 	logger    *log.Logger
 
 	Printf  func(format string, v ...any)

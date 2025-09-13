@@ -202,10 +202,10 @@ func TestIsNilPointer(t *testing.T) {
 
 	// 指向接口的指针
 	var val any = "hello"
-	var ptrToAny *any = &val
+	var ptrToAny = &val
 	testCase("PtrToAnyWithNonNullValue", ptrToAny, false) // 是 *any -> Ptr
 	var nilVal any
-	var ptrToNilAny *any = &nilVal
+	var ptrToNilAny = &nilVal
 	testCase("PtrToAnyWithNilValue", ptrToNilAny, false) // 是 *any -> Ptr
 	var nilPtrToAny *any                                 // nil pointer to any
 	testCase("NilPtrToAny", nilPtrToAny, true)           // 是 *any -> Ptr

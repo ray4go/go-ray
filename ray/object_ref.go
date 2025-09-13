@@ -4,8 +4,8 @@ import (
 	"github.com/ray4go/go-ray/ray/internal/consts"
 	"github.com/ray4go/go-ray/ray/internal/ffi"
 	"github.com/ray4go/go-ray/ray/internal/remote_call"
+	"github.com/ray4go/go-ray/ray/internal/utils"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 )
@@ -13,17 +13,13 @@ import (
 // ObjectRef is a reference to an object in Ray's object store.
 // It serves as a future for the result of a remote task execution, an actor method call or [ray.Put]().
 type ObjectRef struct {
-	originFunc reflect.Type // used to decode result, nil for ray.Put() ObjectRef
-	id         int64
+	id    int64
+	types []reflect.Type // the types of the object values
 }
 
 // getRaw is used to get the raw result in bytes of the ObjectRef.
 // timeout: -1 means wait indefinitely, 0 means return immediately if the object is available.
 func (obj ObjectRef) getRaw(timeout float64) ([]byte, error) {
-	if obj.originFunc == nil {
-		return nil, errors.New("cannot call Get on an ObjectRef of ray.Put(), pass it to a remote task or actor method instead")
-	}
-
 	data, err := json.Marshal([]any{obj.id, timeout})
 	if err != nil {
 		return nil, fmt.Errorf("ObjectRef.Get json.Marshal failed: %w", err)
@@ -38,10 +34,7 @@ func (obj ObjectRef) getRaw(timeout float64) ([]byte, error) {
 
 // NumReturn returns the number of return values of the remote task / actor method.
 func (obj ObjectRef) numReturn() int {
-	if obj.originFunc == nil {
-		return 1 // ray.Put() ObjectRef
-	}
-	return obj.originFunc.NumOut()
+	return len(obj.types)
 }
 
 // GetAll returns all return values of the ObjectRefs in []any, with optional timeout.
@@ -64,7 +57,7 @@ func (obj ObjectRef) GetAll(timeout ...float64) ([]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	res := remote_call.DecodeFuncResult(obj.originFunc, resultData)
+	res := remote_call.DecodeWithType(resultData, nil, utils.SliceIndexGetter(obj.types))
 	return res, nil
 }
 
@@ -102,16 +95,26 @@ type objectRefGetter interface {
 
 // remoteCallArgs prepare arguments for [remote_call.EncodeRemoteCallArgs]
 func remoteCallArgs(args []any) []any {
+	checkObjectRef := func(obj ObjectRef, argIdx int) {
+		if obj.numReturn() != 1 {
+			panic(fmt.Sprintf(
+				"Error: invalid ObjectRef in arguments[%d], only accept ObjectRef with one return value."+
+					"the ObjectRef you provided has %d return value", argIdx, obj.numReturn()))
+		}
+	}
+
 	res := make([]any, len(args))
 	for i, args := range args {
 		switch v := args.(type) {
 		case ObjectRef:
-			res[i] = &remote_call.RemoteObjectRef{Id: v.id, NumReturn: v.numReturn()}
-		case *RayOption:
-			res[i] = &remote_call.RemoteCallOption{Name: v.name, Value: v.value}
+			checkObjectRef(v, i)
+			res[i] = remote_call.RemoteObjectRefId(v.id)
 		case objectRefGetter: // generic.Future1 & Future
 			obj := v.ObjectRef()
-			res[i] = &remote_call.RemoteObjectRef{Id: obj.id, NumReturn: obj.numReturn()}
+			checkObjectRef(*obj, i)
+			res[i] = remote_call.RemoteObjectRefId(obj.id)
+		case *RayOption:
+			res[i] = &remote_call.RemoteCallOption{Name: v.name, Value: v.value}
 		default:
 			res[i] = v
 		}

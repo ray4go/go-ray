@@ -25,10 +25,7 @@ type RemoteCallOption struct {
 	Value any
 }
 
-type RemoteObjectRef struct {
-	Id        int64
-	NumReturn int
-}
+type RemoteObjectRefId int64
 
 /*
 remote call args 包含
@@ -86,7 +83,9 @@ func UnpackRemoteCallArgs(data []byte) (string, []byte, map[int][]byte) {
 	return funcName, rawArgs, posArgs
 }
 
-func FuncCall(receiverVal *reflect.Value, funcVal reflect.Value, args []any) []any {
+// FuncCall calls a function or method with the given arguments.
+// when receiverVal is not nil, it's a method call; otherwise it's a function call.
+func FuncCall(funcVal reflect.Value, receiverVal *reflect.Value, args []any) []any {
 	log.Debug("[Go] FuncCall: %v", funcVal)
 	argVals := make([]reflect.Value, 0, len(args)+1)
 	if receiverVal != nil {
@@ -95,6 +94,7 @@ func FuncCall(receiverVal *reflect.Value, funcVal reflect.Value, args []any) []a
 	for _, arg := range args {
 		if arg == nil {
 			// funcVal.Call requires the argument type to be non-nil,
+			// noted (*T)(nil) is not nil.
 			panic("passing nil to interface{} type parameter is not allowed")
 		}
 		argVals = append(argVals, reflect.ValueOf(arg))
@@ -112,31 +112,20 @@ func EncodeFuncResult(results []any) []byte {
 	return EncodeSlice(results)
 }
 
-func DecodeFuncResult(funcType reflect.Type, rawResult []byte) []any {
-	return DecodeWithType(rawResult, nil, funcType.Out)
-}
-
-func splitArgsAndObjectRefs(items []any) ([]any, map[int]RemoteObjectRef) {
+func splitArgsAndObjectRefs(items []any) ([]any, map[int]RemoteObjectRefId) {
 	args := make([]any, 0, len(items))
-	objs := make(map[int]RemoteObjectRef)
+	objs := make(map[int]RemoteObjectRefId)
 	for idx, item := range items {
 		switch v := item.(type) {
-		case RemoteObjectRef:
+		case RemoteObjectRefId:
 			objs[idx] = v
-		case *RemoteObjectRef:
+		case *RemoteObjectRefId:
 			if v == nil {
 				panic("invalid ObjectRef, got nil")
 			}
 			objs[idx] = *v
 		default:
 			args = append(args, item)
-		}
-		if obj, ok := objs[idx]; ok {
-			if obj.NumReturn != 1 {
-				panic(fmt.Sprintf(
-					"Error: invalid ObjectRef in arguments[%d], only accept ObjectRef with one return value."+
-						"the ObjectRef you provided has %d return value", idx, obj.NumReturn))
-			}
 		}
 	}
 	return args, objs
@@ -155,14 +144,14 @@ func splitArgsAndOptions(items []any) ([]any, []*RemoteCallOption) {
 	return args, opts
 }
 
-func encodeOptions(opts []*RemoteCallOption, objRefs map[int]RemoteObjectRef) []byte {
+func encodeOptions(opts []*RemoteCallOption, objRefs map[int]RemoteObjectRefId) []byte {
 	kvs := make(map[string]any)
 	for _, opt := range opts {
 		kvs[opt.Name] = opt.Value
 	}
 	objIdx2Ids := make(map[int]int64)
-	for idx, obj := range objRefs {
-		objIdx2Ids[idx] = obj.Id
+	for idx, objId := range objRefs {
+		objIdx2Ids[idx] = int64(objId)
 	}
 	kvs["go_ray_object_pos_to_local_id"] = objIdx2Ids
 	data, err := json.Marshal(kvs)
@@ -196,11 +185,18 @@ func EncodeSlice(items []any) []byte {
 	return buffer.Bytes()
 }
 
-func DecodeWithType(args []byte, posArgs map[int][]byte, typeGetter func(int) reflect.Type) []any {
+// decode func call arguments with given types
+// encoded arguments are given in 2 ways:
+//   - posArgs: the arguments data of ObjectRefs, key is the argument position in the function/method
+//   - args: rest arguments data, concatenated in order
+//
+// argument types are given from a getter function, the getter function takes the argument position as input,
+// and returns the argument type.
+func DecodeWithType(args []byte, posArgs map[int][]byte, typeGetter func(argumentPositionIndex int) reflect.Type) []any {
 	buf := bytes.NewBuffer(args)
 	argsDec := codec.NewDecoder(buf, &msgpackHandle)
 	outs := make([]any, 0)
-	posArgs = utils.CopyMap(posArgs)
+	posArgs = utils.MapShadowCopy(posArgs)
 	for idx := 0; buf.Len() > 0 || len(posArgs) > 0; idx++ {
 		argData, ok := posArgs[idx]
 		var dec *codec.Decoder

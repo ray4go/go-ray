@@ -5,12 +5,13 @@ import (
 	"github.com/ray4go/go-ray/ray/internal/ffi"
 	"github.com/ray4go/go-ray/ray/internal/log"
 	"github.com/ray4go/go-ray/ray/internal/remote_call"
+	"github.com/ray4go/go-ray/ray/internal/utils"
 	"encoding/binary"
 	"fmt"
 	"reflect"
 )
 
-var dummyPyFunc = reflect.TypeOf(func() any { return nil })
+var anyType = reflect.TypeOf((*any)(nil)).Elem()
 
 // RemoteCallPyTask executes a remote Python ray task by name with the provided arguments and options.
 // Like in [RemoteCall], [ObjectRef] instances can be passed as arguments.
@@ -23,8 +24,8 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
 		panic(fmt.Sprintf("Error: RemoteCallPyTask failed: retCode=%v, message=%s", retCode, res))
 	}
 	return ObjectRef{
-		id:         int64(binary.LittleEndian.Uint64(res)),
-		originFunc: dummyPyFunc,
+		id:    int64(binary.LittleEndian.Uint64(res)),
+		types: []reflect.Type{anyType},
 	}
 }
 
@@ -56,7 +57,7 @@ func (r LocalPyCallResult) Get() (any, error) {
 	if r.code != consts.ErrorCode_Success {
 		return nil, fmt.Errorf("Error: Local Call Python failed: retCode=%v, message=%s", r.code, r.data)
 	}
-	res := remote_call.DecodeFuncResult(dummyPyFunc, r.data)
+	res := remote_call.DecodeWithType(r.data, nil, utils.SliceIndexGetter([]reflect.Type{anyType}))
 	if len(res) == 0 {
 		return nil, nil
 	} else {

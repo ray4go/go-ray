@@ -159,11 +159,12 @@ func (m *CallableType) InType(idx int) reflect.Type {
 	return m.Type.In(idx + m.argOffset)
 }
 
-func CopyMap(src map[int][]byte) map[int][]byte {
+// shadow copy a map
+func MapShadowCopy[K comparable, V any](src map[K]V) map[K]V {
 	if src == nil {
 		return nil
 	}
-	dst := make(map[int][]byte, len(src))
+	dst := make(map[K]V, len(src))
 	for k, v := range src {
 		dst[k] = v
 	}
@@ -182,5 +183,11 @@ func IsNilTypePointer(i any) bool {
 		return value.IsNil()
 	default:
 		return false
+	}
+}
+
+func SliceIndexGetter[T any](s []T) func(int) T {
+	return func(i int) T {
+		return s[i]
 	}
 }

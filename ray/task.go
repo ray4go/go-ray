@@ -49,9 +49,13 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
 	}
+	returnTypes := make([]reflect.Type, 0, taskFunc.Type.NumOut())
+	for i := 0; i < taskFunc.Type.NumOut(); i++ {
+		returnTypes = append(returnTypes, taskFunc.Type.Out(i))
+	}
 	return ObjectRef{
-		id:         int64(binary.LittleEndian.Uint64(res)),
-		originFunc: taskFunc.Type,
+		id:    int64(binary.LittleEndian.Uint64(res)),
+		types: returnTypes,
 	}
 }
 
@@ -62,7 +66,7 @@ func handleRunTask(_ int64, data []byte) (resData []byte, retCode int64) {
 		panic(fmt.Sprintf("Error: RemoteCall failed: task %s not found", funcName))
 	}
 	args := remote_call.DecodeWithType(rawArgs, posArgs, utils.NewCallableType(taskFunc.Type, true).InType)
-	res := remote_call.FuncCall(&taskReceiverVal, taskFunc.Func, args)
+	res := remote_call.FuncCall(taskFunc.Func, &taskReceiverVal, args)
 	resData = remote_call.EncodeFuncResult(res)
 	log.Debug("FuncCall %v -> %v\n", taskFunc, res)
 	return resData, 0

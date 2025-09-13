@@ -71,6 +71,7 @@ func (f *Future1[T0]) ObjectRef() *ray.ObjectRef {
 }
 """
 
+
 def gen_future(num_returns: int):
     assert num_returns >= 1
     l = num_returns

@@ -31,8 +31,8 @@ var (
 	serverCallback C.ComplexCallbackFunc
 
 	handler          func(int64, []byte) ([]byte, int64)
-	setHandlerOnce   sync.Once                           // 确保值只被设置一次
-	handlerReadyChan chan struct{} = make(chan struct{}) // 当值被设置后，向此通道发送信号
+	setHandlerOnce   sync.Once             // 确保值只被设置一次
+	handlerReadyChan = make(chan struct{}) // 当值被设置后，向此通道发送信号
 
 	ZeroCopy = true
 )

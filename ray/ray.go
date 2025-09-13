@@ -47,8 +47,12 @@ var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 func Init(taskReceiver any, actorFactories any, driverFunc func() int) {
 	driverFunction = driverFunc
 
-	registerTasks(taskReceiver)
-	registerActors(actorFactories)
+	if taskReceiver != nil {
+		registerTasks(taskReceiver)
+	}
+	if actorFactories != nil {
+		registerActors(actorFactories)
+	}
 	ffi.RegisterHandler(handlePythonCmd)
 	go utils.ExitWhenCtrlC()
 }
@@ -118,9 +122,11 @@ func Put[T any](value T) (SharedObject[T], error) {
 	if retCode != consts.ErrorCode_Success {
 		return SharedObject[T]{}, fmt.Errorf("error: ray.Put() failed: retCode=%v, message=%s", retCode, objIdBytes)
 	}
+
+	var zero T
 	obj := ObjectRef{
-		id:         int64(binary.LittleEndian.Uint64(objIdBytes)),
-		originFunc: nil,
+		id:    int64(binary.LittleEndian.Uint64(objIdBytes)),
+		types: []reflect.Type{reflect.TypeOf(zero)},
 	}
 	return SharedObject[T]{
 		obj: &obj,
