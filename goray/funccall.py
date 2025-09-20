@@ -3,22 +3,32 @@ import json
 from . import state, utils
 
 
-def _get_objects(object_pos_to_local_id: dict[int, int]):
+def _get_objects(arg_pos_to_object: dict[int, dict]):
     object_positions = []
     object_refs = []
-    for pos, local_id in sorted(object_pos_to_local_id.items()):
+    release_obj_ids = set()
+    for pos, obj in sorted(arg_pos_to_object.items()):
         object_positions.append(int(pos))
+        local_id, auto_release = int(obj["id"]), obj["auto_release"]
         if local_id not in state.futures:
-            return b"object_ref not found!", 1
+            raise RuntimeError(
+                "ObjectRef not found! It might be released, see ObjectRef.DisableAutoRelease() doc for more info"
+            )
         object_refs.append(state.futures[local_id])
+        if auto_release:
+            release_obj_ids.add(local_id)
+
+    # todo: release object refs after the remote call
+    for local_id in release_obj_ids:
+        state.futures.release(local_id)
     return object_positions, object_refs
 
 
 def decode_funccall_args(data: bytes):
     raw_args, opts_data = utils.unpack_bytes_units(data)
     options: dict = json.loads(opts_data)
-    object_pos_to_local_id = options.pop("go_ray_object_pos_to_local_id", {})
-    object_positions, object_refs = _get_objects(object_pos_to_local_id)
+    arg_pos_to_object = options.pop("go_ray_arg_pos_to_object", {})
+    object_positions, object_refs = _get_objects(arg_pos_to_object)
     return raw_args, options, object_positions, object_refs
 
 

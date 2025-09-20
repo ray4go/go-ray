@@ -34,7 +34,7 @@ func registerTasks(taskReceiver any) {
 // For complete ray options, see [Ray Core API doc].
 //
 // [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote_function.RemoteFunction.options.html#ray.remote_function.RemoteFunction.options
-func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
+func RemoteCall(name string, argsAndOpts ...any) *ObjectRef {
 	log.Debug("[Go] RemoteCall %s %#v\n", name, argsAndOpts)
 
 	taskFunc, ok := taskFuncs[name]
@@ -53,9 +53,10 @@ func RemoteCall(name string, argsAndOpts ...any) ObjectRef {
 	for i := 0; i < taskFunc.Type.NumOut(); i++ {
 		returnTypes = append(returnTypes, taskFunc.Type.Out(i))
 	}
-	return ObjectRef{
-		id:    int64(binary.LittleEndian.Uint64(res)),
-		types: returnTypes,
+	return &ObjectRef{
+		id:          int64(binary.LittleEndian.Uint64(res)),
+		types:       returnTypes,
+		autoRelease: true,
 	}
 }
 

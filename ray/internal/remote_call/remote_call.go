@@ -25,7 +25,10 @@ type RemoteCallOption struct {
 	Value any
 }
 
-type RemoteObjectRefId int64
+type RemoteObjectRef struct {
+	Id          int64 `json:"id"`
+	AutoRelease bool  `json:"auto_release"`
+}
 
 /*
 remote call args 包含
@@ -112,18 +115,16 @@ func EncodeFuncResult(results []any) []byte {
 	return EncodeSlice(results)
 }
 
-func splitArgsAndObjectRefs(items []any) ([]any, map[int]RemoteObjectRefId) {
+func splitArgsAndObjectRefs(items []any) ([]any, map[int]*RemoteObjectRef) {
 	args := make([]any, 0, len(items))
-	objs := make(map[int]RemoteObjectRefId)
+	objs := make(map[int]*RemoteObjectRef)
 	for idx, item := range items {
 		switch v := item.(type) {
-		case RemoteObjectRefId:
-			objs[idx] = v
-		case *RemoteObjectRefId:
+		case *RemoteObjectRef:
 			if v == nil {
 				panic("invalid ObjectRef, got nil")
 			}
-			objs[idx] = *v
+			objs[idx] = v
 		default:
 			args = append(args, item)
 		}
@@ -144,16 +145,12 @@ func splitArgsAndOptions(items []any) ([]any, []*RemoteCallOption) {
 	return args, opts
 }
 
-func encodeOptions(opts []*RemoteCallOption, objRefs map[int]RemoteObjectRefId) []byte {
+func encodeOptions(opts []*RemoteCallOption, objRefs map[int]*RemoteObjectRef) []byte {
 	kvs := make(map[string]any)
 	for _, opt := range opts {
 		kvs[opt.Name] = opt.Value
 	}
-	objIdx2Ids := make(map[int]int64)
-	for idx, objId := range objRefs {
-		objIdx2Ids[idx] = int64(objId)
-	}
-	kvs["go_ray_object_pos_to_local_id"] = objIdx2Ids
+	kvs["go_ray_arg_pos_to_object"] = objRefs
 	data, err := json.Marshal(kvs)
 	if err != nil {
 		panic(fmt.Sprintf("Error encoding options to JSON: %v", err))

@@ -1,3 +1,4 @@
+import collections
 import contextlib
 import importlib.util
 import logging
@@ -47,44 +48,76 @@ def unpack_bytes_units(data: bytes) -> list[bytes]:
 
 class ThreadSafeLocalStore:
     """
+    A k-v store.
     It's thread safe.
     It's a local store, meaning that when pickle and unpickle this object, the store will be reset.
+
+    When add a new value, it will return an integer key. The key is assigned in a round-robi
+
+
+
+    n fashion.
+    The released key will not be reused in right away, just like the process id generation strategy.
     """
+
+    MAX_SIZE = 2**63 - 1
+
+    _no_set = object()
 
     def __init__(self):
         self._write_lock = threading.Lock()
-        self._store = {}
+        self._kvstore = {}
+        self._reused_keys = (
+            collections.deque()
+        )  # when reused_keys is not empty, it will be used first to assign a new key
 
     def __getstate__(self):
         """used by pickle to serialize the object"""
-        return self._store
+        return {}
 
     def __setstate__(self, state):
         """used by pickle to deserialize the object"""
-        # todo: figure out this
-        # if state:
-        #     logging.warning(
-        #         f"ThreadSafeLocalStore should not be serialized with {state=}, it's a bug in goray"
-        #     )
+        if state:
+            logging.warning(
+                f"ThreadSafeLocalStore should not be serialized with {state=}, it's a bug in goray"
+            )
         self._write_lock = threading.Lock()
-        self._store = {}
+        self._kvstore = {}
         return
 
     def __contains__(self, key: int):
-        return key in self._store
+        return (
+            key in self._kvstore and self._kvstore[key] != ThreadSafeLocalStore._no_set
+        )
 
     def __getitem__(self, key: int):
-        return self._store[key]
+        val = self._kvstore[key]
+        if val == ThreadSafeLocalStore._no_set:
+            raise KeyError(key)
+        return val
 
     def add(self, value) -> int:
+        assert value is not None, "value can't be None"
         with self._write_lock:
-            key = len(self._store)
-            self._store[key] = value
+            if len(self._reused_keys):
+                key = self._reused_keys.popleft()
+            else:
+                key = len(self._kvstore)
+            self._kvstore[key] = value
+            if len(self._kvstore) > ThreadSafeLocalStore.MAX_SIZE:
+                self._reuse_keys()
             return key
 
-    def pop(self, key: int):
+    def _reuse_keys(self):
+        """remove _no_set value and release it's key for reuse"""
+        for k in list(self._kvstore.keys()):
+            if self._kvstore[k] == ThreadSafeLocalStore._no_set:
+                self._kvstore.pop(k)
+                self._reused_keys.append(k)
+
+    def release(self, key: int):
         with self._write_lock:
-            return self._store.pop(key, None)
+            self._kvstore[key] = ThreadSafeLocalStore._no_set
 
 
 def _get_caller_info(frame_index):

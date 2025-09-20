@@ -28,7 +28,6 @@ def ray_run_task_from_go(
     )
 
 
-
 def run_task(
     func_name: str,
     raw_args: bytes,

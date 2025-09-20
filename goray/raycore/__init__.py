@@ -15,6 +15,7 @@ handlers = {
     Go2PyCmd.CMD_PUT_OBJECT: object.handle_put_object,
     Go2PyCmd.CMD_WAIT_OBJECT: object.handle_wait_object,
     Go2PyCmd.CMD_CANCEL_OBJECT: object.handle_cancel_object,
+    Go2PyCmd.CMD_RELEASE_OBJECT: object.handle_release_object,
     # actor
     Go2PyCmd.CMD_NEW_ACTOR: actor.handle_new_actor,
     Go2PyCmd.CMD_KILL_ACTOR: actor.handle_kill_actor,

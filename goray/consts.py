@@ -10,6 +10,7 @@ class ErrCode(enum.IntEnum):
     Failed = enum.auto()
     Timeout = enum.auto()
     Cancelled = enum.auto()
+    ObjectRefNotFound = enum.auto()
 
 
 class Go2PyCmd(enum.IntEnum):
@@ -19,6 +20,7 @@ class Go2PyCmd(enum.IntEnum):
     CMD_PUT_OBJECT = enum.auto()
     CMD_WAIT_OBJECT = enum.auto()
     CMD_CANCEL_OBJECT = enum.auto()
+    CMD_RELEASE_OBJECT = enum.auto()
 
     CMD_NEW_ACTOR = enum.auto()
     CMD_NEW_PY_ACTOR = enum.auto()

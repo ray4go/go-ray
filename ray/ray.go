@@ -102,7 +102,7 @@ func handleGetTaskAndActorList(_ int64, _ []byte) ([]byte, int64) {
 
 // SharedObject represents a shared object put to ray object store by [Put]
 type SharedObject[T0 any] struct {
-	obj *ObjectRef
+	obj *ObjectRef // todo: embed *ObjectRef
 }
 
 // This method is for internal use. Do not call it directly.
@@ -125,30 +125,13 @@ func Put[T any](value T) (SharedObject[T], error) {
 
 	var zero T
 	obj := ObjectRef{
-		id:    int64(binary.LittleEndian.Uint64(objIdBytes)),
-		types: []reflect.Type{reflect.TypeOf(zero)},
+		id:          int64(binary.LittleEndian.Uint64(objIdBytes)),
+		types:       []reflect.Type{reflect.TypeOf(zero)},
+		autoRelease: false,
 	}
 	return SharedObject[T]{
 		obj: &obj,
 	}, nil
-}
-
-// Cancel a remote function (Task) or a remote Actor method (Actor Task)
-// Noted, for actor method task, if the specified Task is pending execution, it is cancelled and not executed.
-// If the actor method task is currently executing, the task cannot be canceled because actors have states.
-// See [Ray Core API doc] for more info.
-//
-// [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.cancel.html#ray-cancel
-func (obj ObjectRef) Cancel(opts ...*RayOption) error {
-	data, err := jsonEncodeOptions(opts, Option("object_ref_local_id", obj.id))
-	if err != nil {
-		log.Panicf("Error encoding options to JSON: %v", err)
-	}
-	res, retCode := ffi.CallServer(consts.Go2PyCmd_CancelObject, data)
-	if retCode != consts.ErrorCode_Success {
-		return fmt.Errorf("ray.Cancel() failed, reason: %w, detail: %s", newError(retCode), res)
-	}
-	return nil
 }
 
 // Wait the requested number of ObjectRefs are ready.
@@ -157,7 +140,7 @@ func (obj ObjectRef) Cancel(opts ...*RayOption) error {
 // See [Ray Core API doc].
 //
 // [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.wait.html#ray.wait
-func Wait(objRefs []ObjectRef, requestNum int, opts ...*RayOption) ([]ObjectRef, []ObjectRef, error) {
+func Wait(objRefs []*ObjectRef, requestNum int, opts ...*RayOption) ([]*ObjectRef, []*ObjectRef, error) {
 	objIds := make([]int64, 0, len(objRefs))
 	for _, obj := range objRefs {
 		objIds = append(objIds, obj.id)
@@ -175,8 +158,8 @@ func Wait(objRefs []ObjectRef, requestNum int, opts ...*RayOption) ([]ObjectRef,
 	if err != nil {
 		log.Panicf("ray.Wait(): decode response failed, response: %s", retData)
 	}
-	ready := make([]ObjectRef, len(res[0]))
-	notReady := make([]ObjectRef, len(res[1]))
+	ready := make([]*ObjectRef, len(res[0]))
+	notReady := make([]*ObjectRef, len(res[1]))
 	for i, idx := range res[0] {
 		ready[i] = objRefs[idx]
 	}

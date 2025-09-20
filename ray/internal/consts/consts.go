@@ -8,6 +8,7 @@ const (
 	ErrorCode_Failed
 	ErrorCode_Timeout
 	ErrorCode_Cancelled
+	ErrorCode_ObjectRefNotFound
 )
 
 const (
@@ -17,6 +18,7 @@ const (
 	Go2PyCmd_PutObject
 	Go2PyCmd_WaitObject
 	Go2PyCmd_CancelObject
+	Go2PyCmd_ReleaseObject
 
 	Go2PyCmd_NewActor
 	Go2PyCmd_NewPythonActor

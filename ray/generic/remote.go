@@ -49,14 +49,14 @@ func NewPointedValue[T any]() T {
 
 func (r *RemoteFunc[T]) Remote(options ...*ray.RayOption) T {
 	args := ExpandArgs(r.args, options)
-	var obj ray.ObjectRef
+	var obj *ray.ObjectRef
 	if r.actor == nil {
 		obj = ray.RemoteCall(r.funcName, args...)
 	} else {
 		obj = r.actor.RemoteCall(r.funcName, args...)
 	}
 	t := NewPointedValue[T]()
-	t.setObjectRef(&obj)
+	t.setObjectRef(obj)
 	return t
 }
 

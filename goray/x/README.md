@@ -1,14 +1,19 @@
 # Python & Golang Cross Language Call Framework
 
 Supports:
+
 - Go call Python function
 - Python call Go function
 - Python init Go class and call method
 
-For the type convertion of parameters and return values when cross language call, see [Types convertion](../../docs/crosslang_types.md)
+Python调用go时，只支持通过位置参数传递参数，不支持通过关键字参数传递参数
+
+For the type convertion of parameters and return values when cross language call,
+see [Types convertion](../../docs/crosslang_types.md)
 
 Notice:
-由于Golang函数使用的是virtual stack而不是system stack，其他语言通过cgo调用Golang函数时，存在约 30ns 的固定开销（比 C、C++、Rust等语言高一个数量级）。
+由于Golang函数使用的是virtual stack而不是system stack，其他语言通过cgo调用Golang函数时，存在约 30ns 的固定开销（比
+C、C++、Rust等语言高一个数量级）。
 因此Golang的跨语言调用不适用于高频短调用（Fast Calls）场景。
 
 ## Usage
@@ -35,8 +40,8 @@ def hello(name: str):
 package main
 
 import (
-	"fmt"
 	"github.com/ray4go/go-ray/ray"
+	"fmt"
 )
 
 type counter struct {

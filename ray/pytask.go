@@ -15,7 +15,7 @@ var anyType = reflect.TypeOf((*any)(nil)).Elem()
 
 // RemoteCallPyTask executes a remote Python ray task by name with the provided arguments and options.
 // Like in [RemoteCall], [ObjectRef] instances can be passed as arguments.
-func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
+func RemoteCallPyTask(name string, argsAndOpts ...any) *ObjectRef {
 	log.Debug("[Go] RemoteCallPyTask %s %#v\n", name, argsAndOpts)
 	argsAndOpts = append(argsAndOpts, Option("task_name", name))
 	argsData := remote_call.EncodeRemoteCallArgs(nil, remoteCallArgs(argsAndOpts))
@@ -23,9 +23,10 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) ObjectRef {
 	if retCode != 0 {
 		panic(fmt.Sprintf("Error: RemoteCallPyTask failed: retCode=%v, message=%s", retCode, res))
 	}
-	return ObjectRef{
-		id:    int64(binary.LittleEndian.Uint64(res)),
-		types: []reflect.Type{anyType},
+	return &ObjectRef{
+		id:          int64(binary.LittleEndian.Uint64(res)),
+		types:       []reflect.Type{anyType},
+		autoRelease: true,
 	}
 }
 

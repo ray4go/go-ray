@@ -133,7 +133,7 @@ func (actor *ActorHandle) isGoActor() bool {
 // The complete options for actor method call can be found in [Ray Core API doc].
 //
 // [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.method.html#ray.method
-func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) ObjectRef {
+func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) *ObjectRef {
 	var callable *utils.CallableType
 	var returnTypes []reflect.Type
 	if actor.isGoActor() {
@@ -163,9 +163,10 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) Obje
 		// todo: pass error to ObjectRef
 		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
 	}
-	return ObjectRef{
-		id:    int64(binary.LittleEndian.Uint64(res)),
-		types: returnTypes,
+	return &ObjectRef{
+		id:          int64(binary.LittleEndian.Uint64(res)),
+		types:       returnTypes,
+		autoRelease: true,
 	}
 }
 
