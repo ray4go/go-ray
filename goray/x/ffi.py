@@ -14,8 +14,10 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-_loaded_libs = {}
+# lib path -> GoCommander
+_loaded_libs: dict[str, cmds.GoCommander] = {}
 
+# vars needed to put in global to prevent GC
 _global_vars = []
 
 cmdBitsLen = 10
@@ -150,8 +152,8 @@ def load_go_lib(
             if out_ptr:
                 go_lib.FreeMemory(out_ptr)
 
-    _loaded_libs[libpath] = execute
-    return cmds.GoCommander(execute)
+    _loaded_libs[libpath] = cmds.GoCommander(execute)
+    return _loaded_libs[libpath]
 
 
 def c_pointer_to_bytes(c_ptr: int, length: int, zero_copy: bool) -> memoryview:

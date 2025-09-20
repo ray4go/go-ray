@@ -1,5 +1,6 @@
 import collections
 import contextlib
+import functools
 import importlib.util
 import logging
 import os
@@ -162,6 +163,7 @@ def error_msg(msg: str, frame_index: int = 0) -> bytes:
     return f"[ERROR]@{fname}:{lineno} {msg} ".encode("utf-8")
 
 
+@functools.cache
 def get_module(path):
     # https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
     # https://stackoverflow.com/questions/41861427/python-3-5-how-to-dynamically-import-a-module-given-the-full-file-path-in-the

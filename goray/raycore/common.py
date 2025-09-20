@@ -1,3 +1,4 @@
+import functools
 import struct
 
 from .. import consts, state, utils
@@ -6,13 +7,9 @@ from ..x import ffi
 uint64_le_packer = struct.Struct("<Q")
 
 
+@functools.cache
 def load_go_lib():
-    global _loaded_libs
-    globals().setdefault("_loaded_libs", False)
     from . import handle
-
-    if _loaded_libs:
-        return _loaded_libs
 
     if not state.golibpath:
         raise Exception("init() must be called first")
@@ -22,7 +19,6 @@ def load_go_lib():
     if state.pymodulepath:
         utils.get_module(state.pymodulepath)
 
-    _loaded_libs = lib
     return lib
 
 

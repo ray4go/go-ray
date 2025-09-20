@@ -1,8 +1,8 @@
 import logging
 
+from . import cmds
 from .. import funccall, utils
 from ..consts import *
-from . import cmds
 
 logger = logging.getLogger(__name__)
 
