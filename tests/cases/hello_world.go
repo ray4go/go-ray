@@ -26,6 +26,16 @@ func init() {
 			ray.RemoteCall("Divide", 5)
 		})
 	})
+
+	AddTestCase("TestInvalidArg", func(assert *require.Assertions) {
+		assert.Panics(func() {
+			ray.RemoteCall("Divide", 16, ray.Option("num_cpus", 2), 5)
+		}, "ray options must be the last arguments")
+
+		assert.Panics(func() {
+			ray.RemoteCall("Divide", 16, 3, 5)
+		}, "arg num not match")
+	})
 }
 
 func (testTask) NoReturnVal(a, b int64) {

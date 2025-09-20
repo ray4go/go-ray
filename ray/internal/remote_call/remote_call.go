@@ -41,15 +41,14 @@ encode result: 2 bytes units
   - second unit is json encoded options and ObjectRef info.
 */
 func EncodeRemoteCallArgs(callable *utils.CallableType, argsAndOpts []any) []byte {
-	argsAndObjs, opts := splitArgsAndOptions(argsAndOpts)
-	if callable != nil && !(callable.IsValidArgNum(len(argsAndObjs))) {
+	args, objRefs, opts := splitFuncCallRawArgs(argsAndOpts)
+	if callable != nil && !(callable.IsValidArgNum(len(args) + len(objRefs))) {
 		panic(fmt.Sprintf(
 			"encodeArgs: func/method args length not match, given %v, CallableType: %s",
-			len(argsAndObjs), callable.Type,
+			len(args)+len(objRefs), callable.Type,
 		))
 	}
 
-	args, objRefs := splitArgsAndObjectRefs(argsAndObjs)
 	argData := EncodeSlice(args)
 	buffer := bytes.NewBuffer(nil)
 	utils.AppendBytesUnit(buffer, argData)
@@ -115,34 +114,39 @@ func EncodeFuncResult(results []any) []byte {
 	return EncodeSlice(results)
 }
 
-func splitArgsAndObjectRefs(items []any) ([]any, map[int]*RemoteObjectRef) {
+// the func call args can be either:
+//   - normal arg
+//   - RemoteObjectRef
+//   - RemoteCallOption
+//
+// the RemoteCallOption must occur in the last of the args.
+// this function splits the args into the above 3 types.
+func splitFuncCallRawArgs(items []any) ([]any, map[int]*RemoteObjectRef, []*RemoteCallOption) {
 	args := make([]any, 0, len(items))
 	objs := make(map[int]*RemoteObjectRef)
+	opts := make([]*RemoteCallOption, 0, len(items))
+	gotOpt := false
 	for idx, item := range items {
+		if gotOpt {
+			if _, ok := item.(*RemoteCallOption); !ok {
+				panic("RemoteCallOption must occur in the last of the args")
+			}
+		}
+
 		switch v := item.(type) {
 		case *RemoteObjectRef:
 			if v == nil {
 				panic("invalid ObjectRef, got nil")
 			}
 			objs[idx] = v
+		case *RemoteCallOption:
+			opts = append(opts, v)
+			gotOpt = true
 		default:
 			args = append(args, item)
 		}
 	}
-	return args, objs
-}
-
-func splitArgsAndOptions(items []any) ([]any, []*RemoteCallOption) {
-	args := make([]any, 0, len(items))
-	opts := make([]*RemoteCallOption, 0, len(items))
-	for _, item := range items {
-		if opt, ok := item.(*RemoteCallOption); ok {
-			opts = append(opts, opt)
-		} else {
-			args = append(args, item)
-		}
-	}
-	return args, opts
+	return args, objs, opts
 }
 
 func encodeOptions(opts []*RemoteCallOption, objRefs map[int]*RemoteObjectRef) []byte {
