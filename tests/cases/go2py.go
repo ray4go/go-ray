@@ -88,6 +88,7 @@ func init() {
 		assert.Equal(resType{A: 1, B: "str", C: []byte("bytes")}, res1)
 
 		obj5 := ray.RemoteCallPyTask("single", map[any]any{"A": 1, "B": "str", "C": []byte("bytes")})
+		obj5.DisableAutoRelease()
 		var res2 resType
 		err = obj5.GetInto(&res2)
 		assert.NoError(err)
@@ -152,6 +153,7 @@ func init() {
 		assert.True(tools.DeepEqualValues(args, res[0]))
 
 		obj := actor.RemoteCall("hello", "world")
+		obj.DisableAutoRelease()
 		res1, err := ray.Get1[string](obj)
 		assert.NoError(err)
 		assert.Equal("hello world", res1)
@@ -161,6 +163,7 @@ func init() {
 
 		actor.RemoteCall("no_return", "world")
 		obj2 := actor.RemoteCall("no_return", "world")
+		obj2.DisableAutoRelease()
 		res, err = obj2.GetAll()
 		assert.NoError(err)
 		err = ray.Get0(obj2)
@@ -169,6 +172,7 @@ func init() {
 		assert.NoError(err)
 
 		obj3 := actor.RemoteCall("single", 1)
+		obj3.DisableAutoRelease()
 		res3, err := ray.Get1[int](obj3)
 		assert.NoError(err)
 		assert.EqualValues(1, res3)
@@ -202,6 +206,7 @@ func init() {
 			},
 		}
 		obj5 := actor.RemoteCall("single", t1)
+		obj5.DisableAutoRelease()
 		res5, err := ray.Get1[T1](obj5)
 		assert.NoError(err)
 		assert.Equal(t1, res5)
@@ -235,6 +240,7 @@ func init() {
 	// Test Python multiple return values - Go receives as single list
 	AddTestCase("TestGoCallPy-MultipleReturns", func(assert *require.Assertions) {
 		obj := ray.RemoteCallPyTask("multiple_returns", 42, "hello")
+		obj.DisableAutoRelease()
 
 		// Python returns multiple values, but Go receives as single list
 		result, err := ray.Get1[[]any](obj)
@@ -292,6 +298,7 @@ func init() {
 	// Test None value handling
 	AddTestCase("TestGoCallPy-NoneValues", func(assert *require.Assertions) {
 		obj := ray.RemoteCallPyTask("return_none")
+		obj.DisableAutoRelease()
 
 		// Test with pointer type (should get nil)
 		var ptrInt *int
@@ -390,7 +397,7 @@ func init() {
 	// Test Wait() with Python tasks
 	AddTestCase("TestGoCallPy-Wait", func(assert *require.Assertions) {
 		// Create multiple tasks with different completion times
-		objs := []ray.ObjectRef{
+		objs := []*ray.ObjectRef{
 			ray.RemoteCallPyTask("timeout_task", 0.1),
 			ray.RemoteCallPyTask("timeout_task", 0.2),
 			ray.RemoteCallPyTask("timeout_task", 0.3),
@@ -668,7 +675,7 @@ def process_list(items):
 	// Test concurrent Python calls
 	AddTestCase("TestGoCallPy-Concurrent", func(assert *require.Assertions) {
 		const numTasks = 10
-		var objs []ray.ObjectRef
+		var objs []*ray.ObjectRef
 
 		// Start multiple Python tasks concurrently
 		for i := 0; i < numTasks; i++ {

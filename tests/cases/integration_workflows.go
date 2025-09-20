@@ -375,28 +375,28 @@ func init() {
 		recordsPerBatch := 100
 
 		// Stage 1: Data Ingestion
-		var ingestionRefs []ray.ObjectRef
+		var ingestionRefs []*ray.ObjectRef
 		for i := 0; i < batchCount; i++ {
 			ref := ray.RemoteCall("DataIngestion", i, recordsPerBatch)
 			ingestionRefs = append(ingestionRefs, ref)
 		}
 
 		// Stage 2: Data Cleaning (depends on ingestion)
-		var cleaningRefs []ray.ObjectRef
+		var cleaningRefs []*ray.ObjectRef
 		for _, ingestionRef := range ingestionRefs {
 			cleaningRef := ray.RemoteCall("DataCleaning", ingestionRef)
 			cleaningRefs = append(cleaningRefs, cleaningRef)
 		}
 
 		// Stage 3: Data Aggregation (depends on cleaning)
-		var aggregationRefs []ray.ObjectRef
+		var aggregationRefs []*ray.ObjectRef
 		for _, cleaningRef := range cleaningRefs {
 			aggregationRef := ray.RemoteCall("DataAggregation", cleaningRef)
 			aggregationRefs = append(aggregationRefs, aggregationRef)
 		}
 
 		// Stage 4: Report Generation (depends on aggregation)
-		var reportRefs []ray.ObjectRef
+		var reportRefs []*ray.ObjectRef
 		for _, aggregationRef := range aggregationRefs {
 			reportRef := ray.RemoteCall("ReportGeneration", aggregationRef)
 			reportRefs = append(reportRefs, reportRef)
@@ -441,7 +441,7 @@ func init() {
 		assert.NoError(err)
 
 		// Train multiple models with different epochs
-		var modelRefs []ray.ObjectRef
+		var modelRefs []*ray.ObjectRef
 		epochs := []int{5, 10, 15}
 
 		for _, epoch := range epochs {
@@ -450,7 +450,7 @@ func init() {
 		}
 
 		// Evaluate each model
-		var evalRefs []ray.ObjectRef
+		var evalRefs []*ray.ObjectRef
 		for _, modelRef := range modelRefs {
 			evalRef := ray.RemoteCall("ModelEvaluation", modelRef, testDataRef)
 			evalRefs = append(evalRefs, evalRef)
@@ -482,7 +482,7 @@ func init() {
 		}
 
 		// Distribute compute tasks
-		var taskRefs []ray.ObjectRef
+		var taskRefs []*ray.ObjectRef
 		for i, workload := range workloads {
 			taskRef := ray.RemoteCall("ComputeTask", i, workload)
 			taskRefs = append(taskRefs, taskRef)

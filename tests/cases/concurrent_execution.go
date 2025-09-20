@@ -117,7 +117,7 @@ func init() {
 		slowRef := ray.RemoteCall("SlowMultiply", 2, 2) // ~150ms
 		mediumRef := ray.RemoteCall("SlowAdd", 3, 3)    // ~100ms
 
-		refs := []ray.ObjectRef{fastRef, slowRef, mediumRef}
+		refs := []*ray.ObjectRef{fastRef, slowRef, mediumRef}
 
 		// Wait for at least 2 tasks to complete
 		ready, notReady, err := ray.Wait(refs, 2, ray.Option("timeout", 1.0))
@@ -136,7 +136,7 @@ func init() {
 		ref1 := ray.RemoteCall("SlowAdd", 10, 20)
 		ref2 := ray.RemoteCall("SlowAdd", 30, 40)
 
-		refs := []ray.ObjectRef{ref1, ref2}
+		refs := []*ray.ObjectRef{ref1, ref2}
 
 		// Wait for all tasks
 		ready, notReady, err := ray.Wait(refs, 2, ray.Option("timeout", 2.0))

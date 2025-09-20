@@ -156,7 +156,7 @@ func init() {
 
 	AddTestCase("TestAdvancedWaitScenarios", func(assert *require.Assertions) {
 		// Test Wait with different timing scenarios
-		refs := []ray.ObjectRef{
+		refs := []*ray.ObjectRef{
 			ray.RemoteCall("VariableDelayTask", 1, 50),  // 50ms
 			ray.RemoteCall("VariableDelayTask", 2, 100), // 100ms
 			ray.RemoteCall("VariableDelayTask", 3, 200), // 200ms
@@ -178,7 +178,7 @@ func init() {
 
 	AddTestCase("TestWaitWithFailures", func(assert *require.Assertions) {
 		// Test Wait behavior with failed tasks
-		refs := []ray.ObjectRef{
+		refs := []*ray.ObjectRef{
 			ray.RemoteCall("RandomFailureTask", 1, false), // Success
 			ray.RemoteCall("RandomFailureTask", 2, true),  // Failure
 			ray.RemoteCall("RandomFailureTask", 3, false), // Success
@@ -308,6 +308,7 @@ func init() {
 	AddTestCase("TestMultipleGetCallsOnSameObjectRef", func(assert *require.Assertions) {
 		// Test that we can call Get methods multiple times on the same ObjectRef
 		ref := ray.RemoteCall("ProcessMixedTypes", 5, 2.5, "multi", false, []string{"a"}, map[string]int{"x": 1})
+		ref.DisableAutoRelease()
 
 		// First Get call
 		result1, err1 := ref.GetAll()
@@ -345,7 +346,7 @@ func init() {
 
 	AddTestCase("TestLargeObjectRefBatch", func(assert *require.Assertions) {
 		// Test handling many ObjectRefs at once
-		var refs []ray.ObjectRef
+		var refs []*ray.ObjectRef
 		batchSize := 20
 
 		for i := 0; i < batchSize; i++ {

@@ -106,6 +106,7 @@ func init() {
 
 	AddTestCase("TestEmptyReturnValues", func(assert *require.Assertions) {
 		objRef := ray.RemoteCall("EmptyReturns")
+		objRef.DisableAutoRelease()
 
 		// Test Get0 for no return values
 		err := ray.Get0(objRef)
@@ -157,7 +158,7 @@ func init() {
 		// Create a slow task
 		slowRef := ray.RemoteCall("TaskWithDelay", 1000, "slow") // 1 second delay
 
-		refs := []ray.ObjectRef{slowRef}
+		refs := []*ray.ObjectRef{slowRef}
 
 		// Wait with short timeout
 		ready, notReady, err := ray.Wait(refs, 1, ray.Option("timeout", 0.1)) // 100ms timeout

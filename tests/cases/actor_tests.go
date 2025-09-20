@@ -355,7 +355,7 @@ func init() {
 		actor := ray.NewActor("NewStatefulActor", 0)
 
 		// Launch multiple concurrent operations
-		var refs []ray.ObjectRef
+		var refs []*ray.ObjectRef
 		for i := 1; i <= 10; i++ {
 			ref := actor.RemoteCall("Add", i)
 			refs = append(refs, ref)

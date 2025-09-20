@@ -12,7 +12,7 @@ import (
 
 // Task that calls other remote tasks
 func (testTask) CoordinatorTask(taskCount int) []int {
-	var refs []ray.ObjectRef
+	var refs []*ray.ObjectRef
 
 	// Launch multiple remote tasks from within this task
 	for i := 0; i < taskCount; i++ {
@@ -49,7 +49,7 @@ func (testTask) ActorCoordinatorTask(actorName string, operations []string) []in
 
 	var results []int
 	for _, op := range operations {
-		var ref ray.ObjectRef
+		var ref *ray.ObjectRef
 		switch op {
 		case "incr":
 			ref = actor.RemoteCall("Incr", 1)
@@ -113,7 +113,7 @@ func (testTask) ProcessStoredData(data []int) int {
 
 // Task that uses Wait functionality
 func (testTask) BatchCoordinatorTask(batchSize int) []int {
-	var refs []ray.ObjectRef
+	var refs []*ray.ObjectRef
 
 	// Launch batch of tasks
 	for i := 0; i < batchSize; i++ {
@@ -169,7 +169,7 @@ func (a *TaskCallingActor) CallRemoteTask(taskName string, value int) int {
 }
 
 func (a *TaskCallingActor) BatchCallTasks(count int) []int {
-	var refs []ray.ObjectRef
+	var refs []*ray.ObjectRef
 
 	for i := 0; i < count; i++ {
 		ref := ray.RemoteCall("QuickTask", i)

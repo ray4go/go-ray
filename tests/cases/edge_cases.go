@@ -266,7 +266,7 @@ func init() {
 
 	AddTestCase("TestConcurrentSlowTasks", func(assert *require.Assertions) {
 		// Launch multiple slow tasks concurrently
-		var refs []ray.ObjectRef
+		var refs []*ray.ObjectRef
 		numTasks := 5
 
 		for i := 0; i < numTasks; i++ {
@@ -295,7 +295,7 @@ func init() {
 
 	AddTestCase("TestMemoryLeakDetection", func(assert *require.Assertions) {
 		// Run multiple memory allocation tasks
-		var refs []ray.ObjectRef
+		var refs []*ray.ObjectRef
 
 		for i := 0; i < 10; i++ {
 			ref := ray.RemoteCall("MemoryLeakTest", 100) // 100 * 1KB allocations
@@ -426,7 +426,7 @@ func init() {
 
 	AddTestCase("TestMixedSuccessFailureBatch", func(assert *require.Assertions) {
 		// Create a mix of tasks that will succeed and fail
-		var refs []ray.ObjectRef
+		var refs []*ray.ObjectRef
 
 		refs = append(refs, ray.RemoteCall("QuickTask", 1))           // Success
 		refs = append(refs, ray.RemoteCall("DivideByZero", 10, 0))    // Failure
@@ -434,6 +434,7 @@ func init() {
 		refs = append(refs, ray.RemoteCall("TaskThatPanics", "test")) // Failure
 		refs = append(refs, ray.RemoteCall("QuickTask", 3))           // Success
 
+		fmt.Printf("TestMixedSuccessFailureBatch %#v\n", refs)
 		// Wait for all to complete (including failures)
 		ready, notReady, err := ray.Wait(refs, 5, ray.Option("timeout", 5.0))
 		assert.NoError(err)

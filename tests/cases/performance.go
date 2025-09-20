@@ -78,7 +78,7 @@ func init() {
 
 		// Launch many small tasks
 		numTasks := 100
-		refs := make([]ray.ObjectRef, numTasks)
+		refs := make([]*ray.ObjectRef, numTasks)
 
 		for i := 0; i < numTasks; i++ {
 			refs[i] = ray.RemoteCall("QuickTask", i)
@@ -108,7 +108,7 @@ func init() {
 		numTasks := 20
 		dataSize := 1000
 
-		refs := make([]ray.ObjectRef, numTasks)
+		refs := make([]*ray.ObjectRef, numTasks)
 
 		for i := 0; i < numTasks; i++ {
 			// Create test data
@@ -136,7 +136,7 @@ func init() {
 		start := time.Now()
 
 		// Calculate Fibonacci numbers in parallel
-		refs := []ray.ObjectRef{
+		refs := []*ray.ObjectRef{
 			ray.RemoteCall("FibonacciTask", 20),
 			ray.RemoteCall("FibonacciTask", 21),
 			ray.RemoteCall("FibonacciTask", 22),
@@ -186,7 +186,7 @@ func init() {
 		}
 
 		// Process each row in parallel
-		rowRefs := make([]ray.ObjectRef, rows)
+		rowRefs := make([]*ray.ObjectRef, rows)
 		for i := 0; i < rows; i++ {
 			rowRefs[i] = ray.RemoteCall("MatrixMultiplyRow", matrixA[i], matrixB)
 		}
@@ -216,7 +216,7 @@ func init() {
 	AddTestCase("TestMemoryScaling", func(assert *require.Assertions) {
 		// Test tasks with increasing memory usage
 		sizes := []int{1000, 5000, 10000, 20000}
-		refs := make([]ray.ObjectRef, len(sizes))
+		refs := make([]*ray.ObjectRef, len(sizes))
 
 		for i, size := range sizes {
 			refs[i] = ray.RemoteCall("ProcessLargeData", size)
@@ -274,7 +274,7 @@ func init() {
 		memRef2 := ray.RemoteCall("ProcessLargeData", 12000, ray.Option("memory", 80*1024*1024))
 
 		// Wait for all to complete
-		refs := []ray.ObjectRef{cpuRef1, cpuRef2, memRef1, memRef2}
+		refs := []*ray.ObjectRef{cpuRef1, cpuRef2, memRef1, memRef2}
 		ready, notReady, err := ray.Wait(refs, 4, ray.Option("timeout", 30.0))
 
 		assert.NoError(err)
@@ -299,7 +299,7 @@ func init() {
 		tasksPerRound := 20
 
 		for round := 0; round < numRounds; round++ {
-			refs := make([]ray.ObjectRef, tasksPerRound)
+			refs := make([]*ray.ObjectRef, tasksPerRound)
 
 			// Launch all tasks quickly
 			for i := 0; i < tasksPerRound; i++ {
