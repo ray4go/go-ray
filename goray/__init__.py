@@ -1,7 +1,6 @@
 import functools
 import logging
 import sys
-import typing
 
 from . import consts, state, utils, x
 
@@ -85,19 +84,6 @@ def golang_actor_class(name: str, **options):
     from .raycore import py2go
 
     return py2go.GolangActorClass(name, **options)
-
-
-def get_golang_actor(name: str, namespace: typing.Optional[str] = None):
-    """
-    Get a named golang actor by name.
-
-    The actor must be created from python via `golang_actor_class(name).remote(...)`
-    """
-    # when user only want to use goray.x module, it's not necessary to install ray
-    import ray
-    from .raycore import py2go
-
-    return py2go.GolangRemoteActorHandle(ray.get_actor(name, namespace=namespace))
 
 
 def golang_task(name: str, **options):

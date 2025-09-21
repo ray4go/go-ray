@@ -3,7 +3,7 @@ import logging
 import msgpack
 import ray
 
-from . import common, registry
+from . import common, registry, actor_wrappers
 from .. import funccall, state, utils
 from ..consts import *
 from ..x import handlers as x_handlers
@@ -75,46 +75,6 @@ def handle_run_py_task(data: bytes) -> tuple[bytes, int]:
     return common.uint64_le_packer.pack(fut_local_id), 0
 
 
-class PyActorWrapper:
-    """Python actor wrapper for golang remote call"""
-
-    def __init__(
-        self,
-        class_name: str,
-        raw_args: bytes,
-        object_positions: list[int],
-        *object_refs: tuple[bytes, int],
-    ):
-        common.load_go_lib()
-
-        cls, opts = registry.get_py_actor(class_name)
-        if cls is None:
-            raise Exception(
-                f"python actor {class_name} not found, all py actors: {registry.all_py_actors()}"
-            )
-
-        args = x_handlers.decode_args(raw_args, object_positions, object_refs)
-        self._actor = cls(*args)
-
-    def call_method(
-        self,
-        method_name: str,
-        raw_args: bytes,
-        object_positions: list[int],
-        *object_refs: tuple[bytes, int],
-    ) -> tuple[bytes, int]:
-        args = x_handlers.decode_args(raw_args, object_positions, object_refs)
-        try:
-            res = getattr(self._actor, method_name)(*args)
-        except Exception as e:
-            logging.exception(f"[py] execute error {e}")
-            return (
-                f"[goray error] python run task error: {e}".encode("utf-8"),
-                ErrCode.Failed,
-            )
-        return msgpack.packb(res, use_bin_type=True), ErrCode.Success
-
-
 def handle_new_py_actor(data: bytes) -> tuple[bytes, int]:
     args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
         data
@@ -127,11 +87,11 @@ def handle_new_py_actor(data: bytes) -> tuple[bytes, int]:
 
     common.inject_runtime_env(options)
     method_names = common.get_class_methods(cls)
-    methods = {name: PyActorWrapper.call_method for name in method_names}
-    ActorCls = ray.remote(
-        common.copy_class(
-            PyActorWrapper, class_name, namespace=TaskActorSource.Py2Go, **methods
-        )
+    ActorCls = actor_wrappers.new_remote_actor_type(
+        actor_wrappers.PyActor,
+        class_name,
+        method_names,
+        namespace=TaskActorSource.Py2Go,
     )
     actor_handle = ActorCls.options(**options).remote(
         class_name, args_data, object_positions, *object_refs

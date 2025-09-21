@@ -25,9 +25,11 @@ C、C++、Rust等语言高一个数量级）。
 ```python
 from goray import x
 
+
 @x.export
 def echo(*args) -> list:
     return list(args)
+
 
 @x.export
 def hello(name: str):
@@ -108,8 +110,8 @@ print(f"go counter.Incr() return: {res}")
 
 ```go
 import (
-    "fmt"
-    "github.com/ray4go/go-ray/ray"
+"fmt"
+"github.com/ray4go/go-ray/ray"
 )
 
 res, err := ray.LocalCallPyTask("echo", 1, "str", []byte("bytes"), []int{1, 2, 3}).Get()

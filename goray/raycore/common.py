@@ -61,6 +61,17 @@ def copy_class(cls, name: str, namespace: str = "", **members):
     return new_cls
 
 
+def method_bind(func, *args, **kwargs):
+    """
+    bind positional arguments and keyword arguments to a class method
+    """
+
+    def wrapper(self, *args2, **kwargs2):
+        return func(self, *args, *args2, **kwargs, **kwargs2)
+
+    return wrapper
+
+
 def get_class_methods(cls):
     return [
         func

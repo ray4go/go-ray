@@ -205,7 +205,7 @@ def test_named_actor():
     assert result == 1100
     
     # Get the same actor by name
-    retrieved_actor = goray.get_golang_actor(actor_name)
+    retrieved_actor = ray.get_actor(actor_name)
     result2 = ray.get(retrieved_actor.Decr.remote(200))
     assert result2 == 900  # 1100 - 200
 

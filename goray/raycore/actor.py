@@ -3,7 +3,7 @@ import logging
 
 import ray
 
-from . import common
+from . import common, actor_wrappers
 from .. import funccall, state, utils
 from ..consts import *
 from ..x import actor
@@ -11,33 +11,27 @@ from ..x import actor
 logger = logging.getLogger(__name__)
 
 
-class Actor:
-    _actor: actor.GoActorWrapper
-
-    def __init__(self, *args, **kwargs):
-        self._actor = actor.GoActorWrapper(common.load_go_lib(), *args, **kwargs)
-
-    def call_method(self, *args, **kwargs):
-        return self._actor.call_method(*args, **kwargs)
-
-
 def handle_new_actor(data: bytes) -> tuple[bytes, int]:
-    raw_args, options, object_positions, object_refs = funccall.decode_funccall_args(
-        data
+    encoded_args, options, object_positions, object_refs = (
+        funccall.decode_funccall_args(data)
     )
     actor_type_name = options.pop(ACTOR_NAME_OPTION_KEY)
     actor_methods = options.pop(ACTOR_METHOD_LIST_OPTION_KEY)
     logger.debug(f"[py] new actor {actor_type_name}, {options=}, {object_positions=}")
 
     common.inject_runtime_env(options)
-    methods = {name: Actor.call_method for name in actor_methods}
-    ActorCls = ray.remote(
-        common.copy_class(
-            Actor, actor_type_name, namespace=TaskActorSource.GO, **methods
-        )
+    ActorCls = actor_wrappers.new_remote_actor_type(
+        actor_wrappers.GoActor,
+        actor_type_name,
+        actor_methods,
+        namespace=TaskActorSource.GO,
     )
     actor_handle = ActorCls.options(**options).remote(
-        actor_type_name, raw_args, object_positions, *object_refs
+        actor_type_name,
+        actor.CallerLang.Golang,
+        encoded_args,
+        object_positions,
+        *object_refs,
     )
     actor_local_id = state.actors.add(actor_handle)
     return common.uint64_le_packer.pack(actor_local_id), 0
@@ -56,7 +50,7 @@ def handle_actor_method_call(data: bytes) -> tuple[bytes, int]:
         return utils.error_msg("actor not found!"), ErrCode.Failed
 
     actor_handle = state.actors[actor_local_id]
-    method = getattr(actor_handle, method_name)
+    method = getattr(actor_handle, method_name + actor_wrappers.METHOD_WITH_ENCODED_ARGS_SUFFIX)
     fut = method.options(**options).remote(
         method_name, raw_args, object_positions, *object_refs
     )

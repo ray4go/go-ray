@@ -4,8 +4,9 @@ import logging
 
 import ray
 
-from . import common
-from .. import utils, x, consts
+from . import common, actor_wrappers
+from .. import utils, consts
+from ..x import actor
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
@@ -48,36 +49,6 @@ class GolangRemoteFunc:
         )
 
 
-class Go4PyRemoteActor:
-    """
-    Go actor wrapper for python remote call.
-    """
-
-    def __init__(self, actor_class_name: str, method_names: list[str], *args):
-        cmder = common.load_go_lib()
-        self._actor = x.GolangLocalActor(cmder, actor_class_name, method_names, *args)
-
-    def call_method(self, method_name: str, *args):
-        return self._actor._call_method(method_name, *args)
-
-
-class GolangRemoteActorHandle:
-    """
-    The usage is same as ray actor handle.
-    """
-
-    def __init__(self, actor_handle: Go4PyRemoteActor):
-        self._actor = actor_handle
-
-    def __getattr__(self, method_name: str) -> "GolangRemoteFunc":
-        method = getattr(self._actor, method_name, None)
-        if method is None:
-            raise AttributeError(
-                f"golang actor {self._actor!r} has no method {method_name!r}"
-            )
-        return GolangRemoteFunc(method, method_name)
-
-
 class GolangActorClass:
     """
     The usage is same as @ray.remote decorated class.
@@ -92,19 +63,20 @@ class GolangActorClass:
         options.update(kwargs)
         return GolangActorClass(self._class_name, **options)
 
-    def remote(self, *args) -> GolangRemoteActorHandle:
+    def remote(self, *args):
         method_names = common.load_go_lib().get_golang_actor_methods(self._class_name)
-        methods = {name: Go4PyRemoteActor.call_method for name in method_names}
-        ActorCls = ray.remote(
-            common.copy_class(
-                Go4PyRemoteActor,
-                self._class_name,
-                namespace=consts.TaskActorSource.Go2Py,
-                **methods,
-            )
+        ActorCls = actor_wrappers.new_remote_actor_type(
+            actor_wrappers.GoActor,
+            self._class_name,
+            method_names,
+            namespace=consts.TaskActorSource.Go2Py,
         )
         common.inject_runtime_env(self._options)
         actor_handle = ActorCls.options(**self._options).remote(
-            self._class_name, method_names, *args
+            self._class_name,
+            actor.CallerLang.Python,
+            b"",
+            [],
+            *args,
         )
-        return GolangRemoteActorHandle(actor_handle)
+        return actor_handle

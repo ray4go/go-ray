@@ -1,13 +1,9 @@
 # x for cross language
 import functools
-import io
 import logging
 import typing
 
-import msgpack
-
 from . import actor, cmds, ffi, handlers
-from ..consts import *
 
 
 class GolangLocalActor:
@@ -27,38 +23,21 @@ class GolangLocalActor:
         self._actor = None
 
         self._method_names = method_names
-        raw_args = b"".join(msgpack.packb(arg, use_bin_type=True) for arg in args)
-        self._actor = actor.GoActorWrapper(
+        self._actor = actor.GoActor(
             self._cmder,
             actor_class_name,
-            raw_args=raw_args,
-            object_positions=[],
+            actor.CallerLang.Python,
+            b"",
+            [],
+            *args,
         )
-
-    def _call_method(self, method_name: str, *args):
-        raw_args = b"".join(msgpack.packb(arg, use_bin_type=True) for arg in args)
-        res, code = self._actor.call_method(
-            method_name,
-            raw_args=raw_args,
-            object_positions=[],
-        )
-        if code != ErrCode.Success:
-            raise Exception(
-                f"golang actor method {method_name} error: {res.decode('utf-8')}"
-            )
-        returns = list(msgpack.Unpacker(io.BytesIO(res), strict_map_key=False))
-        if len(returns) == 1:
-            return returns[0]
-        if len(returns) == 0:
-            return None
-        return returns
 
     def __getattr__(self, name) -> typing.Callable:
         if name not in self._method_names:
             raise AttributeError(
                 f"golang actor type {self._actor_class_name!r} has no method {name!r}"
             )
-        return functools.partial(self._call_method, name)
+        return functools.partial(self._actor.call_method_with_native_args, name)
 
     def __repr__(self):
         return f"<GolangLocalActor {self._actor_class_name} id={self._actor.go_instance_index}>"
