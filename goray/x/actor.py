@@ -1,7 +1,7 @@
 import enum
 import io
 import logging
-from typing import Any
+from typing import Any, Union
 
 import msgpack
 
@@ -37,7 +37,7 @@ class GoActor:
         go_encoded_args: bytes,  # set when caller_type=golang
         go_object_positions: list[int],  # set when caller_type=golang
         # when set when caller_type=golang, it's go_encoded_object_refs; when python, it's py_native_args
-        *go_encoded_object_refs_or_py_native_args: tuple[bytes, int] | Any,
+        *go_encoded_object_refs_or_py_native_args: Union[tuple[bytes, int], Any],
     ):
         self.cmder = cmder
 

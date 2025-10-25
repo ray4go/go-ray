@@ -6,6 +6,7 @@
 ## 手动启动测试用例
 
 ```bash
+pip install -r requirements.txt
 bash ../run.sh . local --import tests/cases/registry.py
 ```
 
