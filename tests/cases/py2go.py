@@ -365,4 +365,15 @@ def test_actor_no_return_method():
 
 @goray.remote
 def start_python_tests():
-    return pytest.main(["-s", __file__])
+    # return pytest.main(["-s", __file__])  this will block in some
+    test_cases = [
+        func
+        for name, func in globals().items()
+        if name.startswith("test_") and callable(func)
+    ]
+    print(f"{len(test_cases)} Python test cases found.")
+    for test in test_cases:
+        print(f"Running {test.__name__}...")
+        test()
+    print("All Python test cases finished.")
+    return 0
