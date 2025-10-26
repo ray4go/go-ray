@@ -2,6 +2,8 @@
 
 Ray Core for Golang
 
+[API Documentation](https://pkg.go.dev/github.com/ray4go/go-ray/ray)
+
 ## Features
 
 - **Pure Golang** - Write pure Golang code in your ray application without touching Python
@@ -61,7 +63,6 @@ func driver() int {
   return 0
 }
 
-// raytasks
 type tasks struct{}
 type actors struct{}
 
@@ -102,9 +103,9 @@ func main() {}
 **Task Registration**
 
 Use `ray.Init(tasks, actors, driver)` to register ray tasks, actors, and driver. Where:
-- All public methods of the tasks variable will be registered as ray tasks
-- Public methods of the actors variable are used to create actors; the method serves as the actor's constructor, and the method name becomes the actor type name. The constructor supports parameters, and its return value should be the corresponding actor instance
-- The driver function has the signature `func() int` and will be executed as the ray driver, with its return value representing the exit code of the driver process
+- All public methods of the `tasks` variable will be registered as ray tasks
+- Public methods of the `actors` variable are used to create actors; the method serves as the actor's constructor.
+- The driver function has the signature `func() int` and will be executed as the ray driver, with its return value representing the exit code of the driver process.
 
 `ray.Init()` should be called in the `init()` function of the main package. All other GoRay APIs can only be called within the driver function and its spawned remote tasks.
 
@@ -116,7 +117,7 @@ Use `ray.RemoteCall(taskName, args...) -> ObjectRef` to asynchronously invoke a 
 Configure the task by passing zero or more `ray.Option(key, value)` at the end of the `RemoteCall()` parameter list (corresponding to [`.options(...)`](https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote_function.RemoteFunction.options.html#ray.remote_function.RemoteFunction.options) in Ray).
 Task parameters and return values can be composite types or structs (struct fields must be public), supporting variadic arguments and multiple return values.
 
-Use `ray.NewActor(actorTypeName, args...)` to create a remote actor instance, with the parameter list also supporting `ray.Option(key, value)`.
+Use `ray.NewActor(actorTypeName, args...)` to create a remote actor instance, with the parameter list also supporting `ray.Option(key, value)`. The `actorTypeName` corresponds to the actor constructor method name registered in `ray.Init()`. The constructor parameters (not including `ray.Option`) are passed to the actor constructor method.
 `ray.NewActor` returns an actor handle. Use `actorHandle.RemoteCall(methodName, args...) -> ObjectRef` to invoke actor methods,
 with usage identical to `ray.RemoteCall()`.
 
@@ -140,11 +141,11 @@ You can pass an `ObjectRef` as a parameter to `RemoteCall()`, but only for singl
 **Parameters and Return Values for Remote Calls**
 
 Parameters and return values for remote calls are serialized and deserialized using [msgpack](https://msgpack.org/).
-Supported types include: integers, floats, booleans, strings, binary data, slices, maps, nil, structs, and their pointer types. Note that **map keys only support string types** (not integers).
+Supported types include: integers, floats, booleans, strings, binary data, slices, maps, nil, structs, and their pointer types. Note that **map keys only support string and integers types**.
 
 **Other APIs**
 
-- `Put(data any) -> (SharedObject, error)` places an object into Ray's object store; the returned SharedObject can be passed as a parameter to other tasks/actors.
+- `Put(data any) -> (SharedObject, error)` puts an object into Ray's object store; the returned SharedObject can be passed as a parameter to other tasks/actors.
 - `Wait(objRefs []ObjectRef, requestNum int, opts ...*option) ([]ObjectRef, []ObjectRef, error)`
    Waits for a specified number of ObjectRefs to complete, returning slices of completed and uncompleted ObjectRefs.
 - `ObjectRef.Cancel(opts ...*option) -> error` terminates execution of a remote task (task/actor method).
@@ -211,9 +212,10 @@ If the binary has already been distributed to cluster nodes through other means,
 
 Cross-language invocation supports:
 - Cross-language invocation of Ray remote tasks and actors
-  - Golang calling Python-declared ray tasks and actors; Python calling Go-declared ray tasks and actors
-  - Golang ObjectRefs passed as parameters to Python tasks/actors; vice versa is also supported
-  - Python retrieving named Go ray actor handles; vice versa is also supported
+  - Call Python ray tasks from golang; call golang ray tasks from python
+  - Create Python ray actors and call methods from golang; create golang ray actors and call methods from python
+  - Pass Golang ObjectRef to Python tasks/actors, and vice versa
+  - Get a named Golang ray actor handle from Python, and vice versa
 - Local cross-language invocation
   - Golang calling Python functions within the current process
   - Python calling Golang functions within the current process
@@ -231,14 +233,14 @@ In Python code:
 - Use `goray.init(libpath: str, **ray_init_args)` to initialize ray, replacing the original `ray.init`.
   - `libpath` is the path to the compiled Go shared library.
   - `ray_init_args` are the ray initialization parameters originally passed to `ray.Init`
-- Use `goray.golang_actor_class(name: str)` to get a Golang ray actor class
-- Use `goray.golang_task(name: str)` to get a Golang ray task
+- Use `goray.golang_actor_class(name: str)` to get a Golang ray actor class, which can be used to create new actors like a regular Python ray actor
+- Use `goray.golang_task(name: str)` to get a Golang ray task, which can be called like a regular Python ray task
 - Use `goray.golang_local_run_task(name: str, *args)` to call a Golang function within the current process
 - Use `goray.golang_local_new_actor(name: str, *args)` to initialize a Golang class within the current process
 
 In Golang code:
-- `ray.RemoteCallPyTask(name, args...) -> ObjectRef` calls a Python-declared ray task
-- `ray.NewPyActor(name, args...) -> ActorHandle` creates a Python-declared ray actor
+- `ray.RemoteCallPyTask(name, args...) -> ObjectRef` calls a Python-defined ray task
+- `ray.NewPyActor(name, args...) -> ActorHandle` creates a Python-defined ray actor
 - `ray.LocalCallPyTask(name, args...) -> LocalPyCallResult` calls a Python function within the current process
 
 Submit the ray job as you would with a regular Python Ray project.
@@ -254,33 +256,24 @@ Note:
 - When Python calls Go, only positional arguments are supported; keyword arguments are not supported
 - When Go calls Python, if there is a return value, it is always returned to Go as a single return value in list type. Therefore, you need to use `ray.Get1(objectRef)` or `objectRef.GetInto(&val)` to retrieve the return value (if any)
 
-
 ### Codegen
 
-GoRay provides methods such as ray.RemoteCall(), ray.NewActor(), and actorHandle.RemoteCall() that use strings to specify task/actor method names, with task parameters of type `any` and return values requiring manual type specification.
-This prevents compile-time checking of name and parameter type correctness, and IDEs cannot provide code completion features.
+Methods in GoRay such as ray.RemoteCall(), ray.NewActor(), and actorHandle.RemoteCall() use strings to specify task/actor method names, with task parameters of type `any`. The return values of remote calls require manual type casting. This results in poor IDE support and a suboptimal developer experience.
 
-GoRay provides a codegen CLI tool `goraygen` to generate high-level wrapper APIs for ray tasks and actors. The wrapper code's parameter types align with the original ray tasks/actors, and the returned futures are type-aware of return values.
-Remotely calling ray tasks/actors through wrapper APIs achieves compile-time type safety for remote calls and is IDE-friendly.
+GoRay provides a codegen CLI tool `goraygen` to generate tasks and actors wrappers. The wrapper is type-safe and IDE-friendly. 
 
 Usage:
 
 1. Annotate the ray tasks struct with `// raytasks` and the ray actor factory struct with `// rayactors`.
 2. Generate high-level code using:
 ```bash
-go install github.com/ray4go/go-ray/goraygen
+go install github.com/ray4go/goraygen
 goraygen /path/to/your/package/
 ```
 
-goraygen will generate a `ray_workloads_wrapper.go` file in the package directory containing wrappers for all ray tasks and actors ([example file](./examples/ray_workloads_wrapper.go)).
+goraygen will generate a `ray_workloads_wrapper.go` file in the package directory containing wrappers for all ray tasks and actors.
 
-Usage example:
-
-```golang
-future := Devide(16, 5).Remote(ray.Option("num_cpus", 2))
-res, remainder, err := future.Get()
-```
-
+See [goraygen Documentation](https://github.com/ray4go/goraygen) for details.
 
 ## Best Practices
 
