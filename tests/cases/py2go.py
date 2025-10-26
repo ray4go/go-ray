@@ -7,6 +7,17 @@ import ray
 import goray
 
 
+def test_pass_py_objref_to_go():
+    """Test passing Python ObjectRef to Golang tasks"""
+    data_ref = ray.put({"key": "value", "number": 42})
+
+    task = goray.golang_task("Single")
+    result_ref = task.remote(data_ref)
+
+    received_data = ray.get(result_ref)
+    assert received_data == {"key": "value", "number": 42}
+    
+
 def test_local_task():
     pid = goray.golang_local_run_task("Pid")
     assert pid == os.getpid()

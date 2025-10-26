@@ -31,7 +31,7 @@ def handle_run_remote_task(data: bytes) -> tuple[bytes, int]:
     common.inject_runtime_env(options)
 
     task_func = ray.remote(
-        common.copy_function(run_task, task_name, namespace=TaskActorSource.GO)
+        common.copy_function(run_task, task_name, namespace="GolangTask")
     )
     fut = task_func.options(**options).remote(
         task_name, args_data, object_positions, *object_refs

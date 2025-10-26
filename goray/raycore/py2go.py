@@ -20,7 +20,7 @@ def get_golang_remote_task(name: str, options: dict) -> GolangRemoteFunc:
     common.inject_runtime_env(options)
     remote_task = ray.remote(
         common.copy_function(
-            _run_golang_remote_task, name, consts.TaskActorSource.Go2Py
+            _run_golang_remote_task, name, "GolangTask"
         )
     )
     return GolangRemoteFunc(remote_task, name, **options)
@@ -69,7 +69,7 @@ class GolangActorClass:
             actor_wrappers.GoActor,
             self._class_name,
             method_names,
-            namespace=consts.TaskActorSource.Go2Py,
+            namespace=consts.ActorSourceLang.GO,
         )
         common.inject_runtime_env(self._options)
         actor_handle = ActorCls.options(**self._options).remote(

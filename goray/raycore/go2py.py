@@ -91,7 +91,7 @@ def handle_new_py_actor(data: bytes) -> tuple[bytes, int]:
         actor_wrappers.PyActor,
         class_name,
         method_names,
-        namespace=TaskActorSource.Py2Go,
+        namespace=ActorSourceLang.PY,
     )
     actor_handle = ActorCls.options(**options).remote(
         class_name, args_data, object_positions, *object_refs

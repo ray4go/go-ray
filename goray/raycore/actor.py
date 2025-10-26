@@ -24,7 +24,7 @@ def handle_new_actor(data: bytes) -> tuple[bytes, int]:
         actor_wrappers.GoActor,
         actor_type_name,
         actor_methods,
-        namespace=TaskActorSource.GO,
+        namespace=ActorSourceLang.GO,
     )
     actor_handle = ActorCls.options(**options).remote(
         actor_type_name,
@@ -88,11 +88,11 @@ def handle_get_actor(data: bytes) -> tuple[bytes, int]:
     # it's not a good way, but we have no better choice.
     try:
         source, name = actor_full_name.split(".", 1)
-        assert source in (TaskActorSource.GO, TaskActorSource.Py2Go)
-    except ValueError:
+        assert source in (ActorSourceLang.GO, ActorSourceLang.PY)
+    except Exception:
         return (
             utils.error_msg(
-                f"Invalid actor {actor_full_name!r}, only support getting actors created from golang for now."
+                f"Invalid actor {actor_full_name!r}, this actor is not created by goray."
             ),
             ErrCode.Failed,
         )
@@ -101,7 +101,7 @@ def handle_get_actor(data: bytes) -> tuple[bytes, int]:
         {
             "py_local_id": actor_local_id,
             "actor_type_name": name,
-            "is_golang_actor": source == TaskActorSource.GO,
+            "is_golang_actor": source == ActorSourceLang.GO,
         }
     )
     return res.encode(), 0
