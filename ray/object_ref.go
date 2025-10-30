@@ -1,15 +1,17 @@
 package ray
 
 import (
+	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/ray4go/go-ray/ray/internal/consts"
 	"github.com/ray4go/go-ray/ray/internal/ffi"
 	"github.com/ray4go/go-ray/ray/internal/log"
 	"github.com/ray4go/go-ray/ray/internal/remote_call"
 	"github.com/ray4go/go-ray/ray/internal/utils"
-	"encoding/binary"
-	"encoding/json"
-	"fmt"
-	"reflect"
 )
 
 // ObjectRef is a reference to an object in Ray's object store.
@@ -20,10 +22,35 @@ type ObjectRef struct {
 	autoRelease bool           // if true, the object will be automatically released after it is retrieved or passed to another task
 }
 
+type getObjectOption struct {
+	timeout float64
+}
+
+// GetObjectOption defines options for ray.GetN, [ObjectRef.GetAll], [ObjectRef.GetInto]
+// - [WithTimeout] sets the timeout for getting the object.
+type GetObjectOption func(*getObjectOption)
+
+// WithTimeout sets the timeout for getting the object.
+func WithTimeout(timeout time.Duration) GetObjectOption {
+	return func(o *getObjectOption) {
+		o.timeout = timeout.Seconds()
+	}
+}
+
+func applyGetObjectOptions(opts []GetObjectOption) *getObjectOption {
+	option := &getObjectOption{
+		timeout: -1, // default: wait indefinitely
+	}
+	for _, opt := range opts {
+		opt(option)
+	}
+	return option
+}
+
 // getRaw is used to get the raw result in bytes of the ObjectRef.
 // timeout: -1 means wait indefinitely, 0 means return immediately if the object is available.
-func (obj *ObjectRef) getRaw(timeout float64) ([]byte, error) {
-	data, err := json.Marshal([]any{obj.id, timeout, obj.autoRelease})
+func (obj *ObjectRef) getRaw(option *getObjectOption) ([]byte, error) {
+	data, err := json.Marshal([]any{obj.id, option.timeout, obj.autoRelease})
 	if err != nil {
 		return nil, fmt.Errorf("ObjectRef.Get json.Marshal failed: %w", err)
 	}
@@ -80,20 +107,12 @@ func (obj *ObjectRef) Cancel(opts ...*RayOption) error {
 // GetAll returns all return values of the ObjectRefs in []any, with optional timeout.
 // Returns [ErrCancelled] if the task is cancelled.
 //
-// Parameter timeout set the maximum amount of time in seconds to wait before returning.
+// WithTimeout() option sets the maximum amount of time in seconds to wait before returning.
 // Setting timeout=0 will return the object immediately if it’s available.
 // Returns [ErrTimeout] if the object is not available within the specified timeout.
 // Returns [ErrCancelled] if the task is cancelled.
-func (obj *ObjectRef) GetAll(timeout ...float64) ([]any, error) {
-	timeoutVal := float64(-1)
-	if len(timeout) > 0 {
-		if len(timeout) != 1 {
-			panic(fmt.Sprintf("ObjectRef GetAll: at most 1 timeout value is allowed, got %v", len(timeout)))
-		}
-		timeoutVal = timeout[0]
-	}
-
-	resultData, err := obj.getRaw(timeoutVal)
+func (obj *ObjectRef) GetAll(options ...GetObjectOption) ([]any, error) {
+	resultData, err := obj.getRaw(applyGetObjectOptions(options))
 	if err != nil {
 		return nil, err
 	}
@@ -104,21 +123,19 @@ func (obj *ObjectRef) GetAll(timeout ...float64) ([]any, error) {
 // GetInto is used to decode the result of remote task / actor method into the given pointer.
 // The number of pointers must match the number of return values of the remote task / actor method.
 // If the remote task / actor method has no return values, no pointers should be provided.
-// Pass a float to the last argument to set the timeout in seconds.
-func (obj *ObjectRef) GetInto(ptrs ...any) error {
-	timeout := -1.0
-	if len(ptrs) > 0 {
-		switch val := ptrs[len(ptrs)-1].(type) {
-		case float32:
-			timeout = float64(val)
-			ptrs = ptrs[:len(ptrs)-1]
-		case float64:
-			timeout = val
-			ptrs = ptrs[:len(ptrs)-1]
+// Pass [WithTimeout]() to the last argument to set the timeout.
+func (obj *ObjectRef) GetInto(ptrsAndOpts ...any) error {
+	ptrs := make([]any, 0, len(ptrsAndOpts))
+	opts := make([]GetObjectOption, 0, len(ptrsAndOpts))
+	for _, val := range ptrsAndOpts {
+		if opt, ok := val.(GetObjectOption); ok {
+			opts = append(opts, opt)
+		} else {
+			ptrs = append(ptrs, val)
 		}
 	}
 
-	resultData, err := obj.getRaw(timeout)
+	resultData, err := obj.getRaw(applyGetObjectOptions(opts))
 	if err != nil {
 		return err
 	}
@@ -128,7 +145,7 @@ func (obj *ObjectRef) GetInto(ptrs ...any) error {
 	return remote_call.DecodeInto(resultData, ptrs)
 }
 
-// [generic.Future1] & [Future] implements this interface
+// [generic.Future1] & [SharedObject] implements this interface
 type objectRefGetter interface {
 	ObjectRef() *ObjectRef
 }
@@ -149,7 +166,7 @@ func remoteCallArgs(args []any) []any {
 		case *ObjectRef:
 			checkObjectRef(v, i)
 			res[i] = &remote_call.RemoteObjectRef{Id: v.id, AutoRelease: v.autoRelease}
-		case objectRefGetter: // generic.Future1 & Future
+		case objectRefGetter: // generic.Future1 & SharedObject
 			obj := v.ObjectRef()
 			checkObjectRef(obj, i)
 			res[i] = &remote_call.RemoteObjectRef{Id: obj.id, AutoRelease: obj.autoRelease}

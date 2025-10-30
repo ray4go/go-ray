@@ -16,8 +16,8 @@ func (f *Future0) setObjectRef(obj *ray.ObjectRef) {
 	f.obj = obj
 }
 
-func (f *Future0) Get() error {
-	return ray.Get0(f.obj)
+func (f *Future0) Get(options ...ray.GetObjectOption) error {
+	return ray.Get0(f.obj, options...)
 }
 
 type Future1[T0 any] struct {
@@ -28,8 +28,8 @@ func (f *Future1[T0]) setObjectRef(obj *ray.ObjectRef) {
 	f.obj = obj
 }
 
-func (f *Future1[T0]) Get() (T0, error) {
-	return ray.Get1[T0](f.obj)
+func (f *Future1[T0]) Get(options ...ray.GetObjectOption) (T0, error) {
+	return ray.Get1[T0](f.obj, options...)
 }
 
 // ObjectRef returns the underlying ObjectRef of the Future.
@@ -46,8 +46,8 @@ func (f *Future2[T0, T1]) setObjectRef(obj *ray.ObjectRef) {
 	f.obj = obj
 }
 
-func (f *Future2[T0, T1]) Get() (T0, T1, error) {
-	return ray.Get2[T0, T1](f.obj)
+func (f *Future2[T0, T1]) Get(options ...ray.GetObjectOption) (T0, T1, error) {
+	return ray.Get2[T0, T1](f.obj, options...)
 }
 
 type Future3[T0 any, T1 any, T2 any] struct {
@@ -58,8 +58,8 @@ func (f *Future3[T0, T1, T2]) setObjectRef(obj *ray.ObjectRef) {
 	f.obj = obj
 }
 
-func (f *Future3[T0, T1, T2]) Get() (T0, T1, T2, error) {
-	return ray.Get3[T0, T1, T2](f.obj)
+func (f *Future3[T0, T1, T2]) Get(options ...ray.GetObjectOption) (T0, T1, T2, error) {
+	return ray.Get3[T0, T1, T2](f.obj, options...)
 }
 
 type Future4[T0 any, T1 any, T2 any, T3 any] struct {
@@ -70,8 +70,8 @@ func (f *Future4[T0, T1, T2, T3]) setObjectRef(obj *ray.ObjectRef) {
 	f.obj = obj
 }
 
-func (f *Future4[T0, T1, T2, T3]) Get() (T0, T1, T2, T3, error) {
-	return ray.Get4[T0, T1, T2, T3](f.obj)
+func (f *Future4[T0, T1, T2, T3]) Get(options ...ray.GetObjectOption) (T0, T1, T2, T3, error) {
+	return ray.Get4[T0, T1, T2, T3](f.obj, options...)
 }
 
 type Future5[T0 any, T1 any, T2 any, T3 any, T4 any] struct {
@@ -82,8 +82,8 @@ func (f *Future5[T0, T1, T2, T3, T4]) setObjectRef(obj *ray.ObjectRef) {
 	f.obj = obj
 }
 
-func (f *Future5[T0, T1, T2, T3, T4]) Get() (T0, T1, T2, T3, T4, error) {
-	return ray.Get5[T0, T1, T2, T3, T4](f.obj)
+func (f *Future5[T0, T1, T2, T3, T4]) Get(options ...ray.GetObjectOption) (T0, T1, T2, T3, T4, error) {
+	return ray.Get5[T0, T1, T2, T3, T4](f.obj, options...)
 }
 
 type Future6[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any] struct {
@@ -94,8 +94,8 @@ func (f *Future6[T0, T1, T2, T3, T4, T5]) setObjectRef(obj *ray.ObjectRef) {
 	f.obj = obj
 }
 
-func (f *Future6[T0, T1, T2, T3, T4, T5]) Get() (T0, T1, T2, T3, T4, T5, error) {
-	return Get6[T0, T1, T2, T3, T4, T5](f.obj)
+func (f *Future6[T0, T1, T2, T3, T4, T5]) Get(options ...ray.GetObjectOption) (T0, T1, T2, T3, T4, T5, error) {
+	return Get6[T0, T1, T2, T3, T4, T5](f.obj, options...)
 }
 
 type Future7[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any] struct {
@@ -106,8 +106,8 @@ func (f *Future7[T0, T1, T2, T3, T4, T5, T6]) setObjectRef(obj *ray.ObjectRef) {
 	f.obj = obj
 }
 
-func (f *Future7[T0, T1, T2, T3, T4, T5, T6]) Get() (T0, T1, T2, T3, T4, T5, T6, error) {
-	return Get7[T0, T1, T2, T3, T4, T5, T6](f.obj)
+func (f *Future7[T0, T1, T2, T3, T4, T5, T6]) Get(options ...ray.GetObjectOption) (T0, T1, T2, T3, T4, T5, T6, error) {
+	return Get7[T0, T1, T2, T3, T4, T5, T6](f.obj, options...)
 }
 
 type Future8[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any] struct {
@@ -118,8 +118,8 @@ func (f *Future8[T0, T1, T2, T3, T4, T5, T6, T7]) setObjectRef(obj *ray.ObjectRe
 	f.obj = obj
 }
 
-func (f *Future8[T0, T1, T2, T3, T4, T5, T6, T7]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, error) {
-	return Get8[T0, T1, T2, T3, T4, T5, T6, T7](f.obj)
+func (f *Future8[T0, T1, T2, T3, T4, T5, T6, T7]) Get(options ...ray.GetObjectOption) (T0, T1, T2, T3, T4, T5, T6, T7, error) {
+	return Get8[T0, T1, T2, T3, T4, T5, T6, T7](f.obj, options...)
 }
 
 type Future9[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any] struct {
@@ -130,8 +130,8 @@ func (f *Future9[T0, T1, T2, T3, T4, T5, T6, T7, T8]) setObjectRef(obj *ray.Obje
 	f.obj = obj
 }
 
-func (f *Future9[T0, T1, T2, T3, T4, T5, T6, T7, T8]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, error) {
-	return Get9[T0, T1, T2, T3, T4, T5, T6, T7, T8](f.obj)
+func (f *Future9[T0, T1, T2, T3, T4, T5, T6, T7, T8]) Get(options ...ray.GetObjectOption) (T0, T1, T2, T3, T4, T5, T6, T7, T8, error) {
+	return Get9[T0, T1, T2, T3, T4, T5, T6, T7, T8](f.obj, options...)
 }
 
 type Future10[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any, T9 any] struct {
@@ -142,8 +142,8 @@ func (f *Future10[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9]) setObjectRef(obj *ray
 	f.obj = obj
 }
 
-func (f *Future10[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, error) {
-	return Get10[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9](f.obj)
+func (f *Future10[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9]) Get(options ...ray.GetObjectOption) (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, error) {
+	return Get10[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9](f.obj, options...)
 }
 
 type Future11[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any, T9 any, T10 any] struct {
@@ -154,8 +154,8 @@ func (f *Future11[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]) setObjectRef(obj
 	f.obj = obj
 }
 
-func (f *Future11[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, error) {
-	return Get11[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10](f.obj)
+func (f *Future11[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]) Get(options ...ray.GetObjectOption) (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, error) {
+	return Get11[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10](f.obj, options...)
 }
 
 type Future12[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any, T9 any, T10 any, T11 any] struct {
@@ -166,8 +166,8 @@ func (f *Future12[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11]) setObjectRe
 	f.obj = obj
 }
 
-func (f *Future12[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, error) {
-	return Get12[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11](f.obj)
+func (f *Future12[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11]) Get(options ...ray.GetObjectOption) (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, error) {
+	return Get12[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11](f.obj, options...)
 }
 
 type Future13[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any, T9 any, T10 any, T11 any, T12 any] struct {
@@ -178,8 +178,8 @@ func (f *Future13[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12]) setObj
 	f.obj = obj
 }
 
-func (f *Future13[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, error) {
-	return Get13[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12](f.obj)
+func (f *Future13[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12]) Get(options ...ray.GetObjectOption) (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, error) {
+	return Get13[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12](f.obj, options...)
 }
 
 type Future14[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any, T9 any, T10 any, T11 any, T12 any, T13 any] struct {
@@ -190,8 +190,8 @@ func (f *Future14[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13]) s
 	f.obj = obj
 }
 
-func (f *Future14[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, error) {
-	return Get14[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13](f.obj)
+func (f *Future14[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13]) Get(options ...ray.GetObjectOption) (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, error) {
+	return Get14[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13](f.obj, options...)
 }
 
 type Future15[T0 any, T1 any, T2 any, T3 any, T4 any, T5 any, T6 any, T7 any, T8 any, T9 any, T10 any, T11 any, T12 any, T13 any, T14 any] struct {
@@ -202,6 +202,6 @@ func (f *Future15[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T1
 	f.obj = obj
 }
 
-func (f *Future15[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14]) Get() (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, error) {
-	return Get15[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14](f.obj)
+func (f *Future15[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14]) Get(options ...ray.GetObjectOption) (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, error) {
+	return Get15[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14](f.obj, options...)
 }

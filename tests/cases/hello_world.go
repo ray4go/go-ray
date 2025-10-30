@@ -71,7 +71,7 @@ func init() {
 
 	AddTestCase("TestTimeout", func(assert *require.Assertions) {
 		obj := ray.RemoteCall("Busy", "Workload", 4)
-		res, err := obj.GetAll(1)
+		res, err := obj.GetAll(ray.WithTimeout(time.Millisecond * 1000))
 		assert.Empty(res)
 		assert.ErrorIs(err, ray.ErrTimeout)
 	})

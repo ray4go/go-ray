@@ -386,7 +386,7 @@ func init() {
 		ref := actor.RemoteCall("VerySlowOperation", 2) // 2 seconds
 
 		// Try to get result with timeout
-		_, err := ref.GetAll(0.5) // 500ms timeout
+		_, err := ref.GetAll(ray.WithTimeout(time.Millisecond * 500)) // 500ms timeout
 		assert.ErrorIs(err, ray.ErrTimeout)
 	})
 

@@ -25,8 +25,8 @@ func (f *Future0) setObjectRef(obj *ray.ObjectRef) {
 	f.obj = obj
 }
 
-func (f *Future0) Get() error {
-	return ray.Get0(f.obj)
+func (f *Future0) Get(options ...ray.GetObjectOption) error {
+	return ray.Get0(f.obj, options...)
 }
 """
 
@@ -42,8 +42,8 @@ func (f *Future2[T0, T1]) setObjectRef(obj *ray.ObjectRef) {
 	f.obj = obj
 }
 
-func (f *Future2[T0, T1]) Get() (T0, T1, error) {
-	return ray.Get2[T0, T1](f.obj)
+func (f *Future2[T0, T1]) Get(options ...ray.GetObjectOption) (T0, T1, error) {
+	return ray.Get2[T0, T1](f.obj, options...)
 }
 """
 
@@ -57,8 +57,8 @@ func (f *Future${l}[${types}]) setObjectRef(obj *ray.ObjectRef) {
 	f.obj = obj
 }
 
-func (f *Future${l}[${types}]) Get() (${types}, error) {
-	return ${prefix}Get${l}[${types}](f.obj)
+func (f *Future${l}[${types}]) Get(options ...ray.GetObjectOption) (${types}, error) {
+	return ${prefix}Get${l}[${types}](f.obj, options...)
 }
 """
 future_tpl = string.Template(_future_tpl)

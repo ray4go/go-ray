@@ -227,7 +227,7 @@ func driver() int {
 	{
 		// obj.GetAll()
 		obj := ray.RemoteCall("Busy", "Workload", 4)
-		fmt.Println(obj.GetAll(1))
+		fmt.Println(obj.GetAll(ray.WithTimeout(time.Millisecond * 1000)))
 	}
 	{
 		// MultiReturn

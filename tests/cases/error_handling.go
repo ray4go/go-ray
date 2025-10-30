@@ -68,7 +68,7 @@ func init() {
 		objRef := ray.RemoteCall("TaskWithDelay", 500, "test")
 
 		// Try to get result with short timeout
-		_, err := objRef.GetAll(0.1) // 100ms timeout
+		_, err := objRef.GetAll(ray.WithTimeout(time.Millisecond * 100)) // 100ms timeout
 
 		assert.ErrorIs(err, ray.ErrTimeout)
 	})

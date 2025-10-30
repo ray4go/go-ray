@@ -1,78 +1,72 @@
 package ray
 
-import "fmt"
-
 // [ObjectRef] and [LocalPyCallResult] implement this interface.
 type Decodable interface {
 	GetInto(ptrs ...any) error
 }
 
-// optionalTimeout add optional timeout value to the end of the ptrs slice.
-func optionalTimeout(timeout []float64, ptrs ...any) []any {
-	if len(timeout) > 0 {
-		if len(timeout) != 1 {
-			panic(fmt.Sprintf("ObjectRef Get: at most 1 timeout value is allowed, got %v", len(timeout)))
-		}
-		ptrs = append(ptrs, timeout[0])
+func appendOptions(options []GetObjectOption, ptrs ...any) []any {
+	for _, opt := range options {
+		ptrs = append(ptrs, opt)
 	}
 	return ptrs
 }
 
 // Get0 is used to wait remote task / actor method execution finish.
-// The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get0(obj Decodable, timeout ...float64) error {
-	return obj.GetInto(optionalTimeout(timeout)...)
+// [WithTimeout]() can be used as GetObjectOption to set timeout.
+func Get0(obj Decodable, options ...GetObjectOption) error {
+	return obj.GetInto(appendOptions(options)...)
 }
 
 // Get1 is used to get the result of task / actor method with 1 return value.
-// The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get1[T0 any](obj Decodable, timeout ...float64) (T0, error) {
+// [WithTimeout]() can be used as GetObjectOption to set timeout.
+func Get1[T0 any](obj Decodable, options ...GetObjectOption) (T0, error) {
 	var (
 		r0 T0
 	)
-	err := obj.GetInto(optionalTimeout(timeout, &r0)...)
+	err := obj.GetInto(appendOptions(options, &r0)...)
 	return r0, err
 }
 
 // Get2 is used to get the result of task / actor method with 2 return value.
-// The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get2[T0 any, T1 any](obj Decodable, timeout ...float64) (T0, T1, error) {
+// [WithTimeout]() can be used as GetObjectOption to set timeout.
+func Get2[T0 any, T1 any](obj Decodable, options ...GetObjectOption) (T0, T1, error) {
 	var (
 		r0 T0
 		r1 T1
 	)
-	err := obj.GetInto(optionalTimeout(timeout, &r0, &r1)...)
+	err := obj.GetInto(appendOptions(options, &r0, &r1)...)
 	return r0, r1, err
 }
 
 // Get3 is used to get the result of task / actor method with 3 return value.
-// The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get3[T0 any, T1 any, T2 any](obj Decodable, timeout ...float64) (T0, T1, T2, error) {
+// [WithTimeout]() can be used as GetObjectOption to set timeout.
+func Get3[T0 any, T1 any, T2 any](obj Decodable, options ...GetObjectOption) (T0, T1, T2, error) {
 	var (
 		r0 T0
 		r1 T1
 		r2 T2
 	)
-	err := obj.GetInto(optionalTimeout(timeout, &r0, &r1, &r2)...)
+	err := obj.GetInto(appendOptions(options, &r0, &r1, &r2)...)
 	return r0, r1, r2, err
 }
 
 // Get4 is used to get the result of task / actor method with 4 return value.
-// The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get4[T0 any, T1 any, T2 any, T3 any](obj Decodable, timeout ...float64) (T0, T1, T2, T3, error) {
+// [WithTimeout]() can be used as GetObjectOption to set timeout.
+func Get4[T0 any, T1 any, T2 any, T3 any](obj Decodable, options ...GetObjectOption) (T0, T1, T2, T3, error) {
 	var (
 		r0 T0
 		r1 T1
 		r2 T2
 		r3 T3
 	)
-	err := obj.GetInto(optionalTimeout(timeout, &r0, &r1, &r2, &r3)...)
+	err := obj.GetInto(appendOptions(options, &r0, &r1, &r2, &r3)...)
 	return r0, r1, r2, r3, err
 }
 
 // Get5 is used to get the result of task / actor method with 5 return value.
-// The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get5[T0 any, T1 any, T2 any, T3 any, T4 any](obj Decodable, timeout ...float64) (T0, T1, T2, T3, T4, error) {
+// [WithTimeout]() can be used as GetObjectOption to set timeout.
+func Get5[T0 any, T1 any, T2 any, T3 any, T4 any](obj Decodable, options ...GetObjectOption) (T0, T1, T2, T3, T4, error) {
 	var (
 		r0 T0
 		r1 T1
@@ -80,6 +74,6 @@ func Get5[T0 any, T1 any, T2 any, T3 any, T4 any](obj Decodable, timeout ...floa
 		r3 T3
 		r4 T4
 	)
-	err := obj.GetInto(optionalTimeout(timeout, &r0, &r1, &r2, &r3, &r4)...)
+	err := obj.GetInto(appendOptions(options, &r0, &r1, &r2, &r3, &r4)...)
 	return r0, r1, r2, r3, r4, err
 }

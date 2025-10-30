@@ -5,12 +5,12 @@ max_returns_len = 16
 
 TPL = """
 // Get${l} is used to get the result of task / actor method with ${l} return value.
-// The optional timeout (in seconds) is only applicable for remote tasks / actors.
-func Get${l}[${T_any_list}](obj Decodable, timeout ...float64) (${T_list}, error) {
+// [WithTimeout]() can be used as GetObjectOption to set timeout. 
+func Get${l}[${T_any_list}](obj Decodable, options ...GetObjectOption) (${T_list}, error) {
 	var (
 ${var_list}
 	)
-	err := obj.GetInto(optionalTimeout(timeout, ${addr_list})...)
+	err := obj.GetInto(appendOptions(options, ${addr_list})...)
 	return ${val_list}, err
 }
 """

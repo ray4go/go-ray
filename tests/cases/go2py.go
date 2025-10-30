@@ -426,7 +426,7 @@ func init() {
 		assert.NoError(err)
 
 		// Try to get result (should error)
-		_, err = ray.Get1[string](obj, 1.0) // 1 second timeout
+		_, err = ray.Get1[string](obj, ray.WithTimeout(time.Millisecond*1000)) // 1 second timeout
 		assert.Error(err)
 	})
 
@@ -435,7 +435,7 @@ func init() {
 		obj := ray.RemoteCallPyTask("timeout_task", 2.0) // 2 second task
 
 		// Try to get with short timeout
-		_, err := ray.Get1[string](obj, 0.5) // 0.5 second timeout
+		_, err := ray.Get1[string](obj, ray.WithTimeout(time.Millisecond*500)) // 0.5 second timeout
 		assert.Error(err)
 		assert.Contains(err.Error(), "timeout")
 	})
@@ -880,13 +880,13 @@ def runtime_error():
 	AddTestCase("TestGoCallPy-TimeoutScenarios", func(assert *require.Assertions) {
 		// Test successful completion within timeout
 		obj1 := ray.RemoteCallPyTask("timeout_task", 0.1)
-		result1, err := ray.Get1[string](obj1, 2.0) // 2 second timeout
+		result1, err := ray.Get1[string](obj1, ray.WithTimeout(time.Millisecond*2000)) // 2 second timeout
 		assert.NoError(err)
 		assert.Equal("completed", result1)
 
 		// Test timeout on long task
-		obj2 := ray.RemoteCallPyTask("timeout_task", 3.0) // 3 second task
-		_, err = ray.Get1[string](obj2, 0.5)              // 0.5 second timeout
+		obj2 := ray.RemoteCallPyTask("timeout_task", 3.0)                      // 3 second task
+		_, err = ray.Get1[string](obj2, ray.WithTimeout(time.Millisecond*500)) // 0.5 second timeout
 		assert.Error(err)
 	})
 

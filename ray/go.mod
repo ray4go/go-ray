@@ -3,6 +3,7 @@ module github.com/ray4go/go-ray/ray
 go 1.21
 
 require (
+	github.com/bytedance/gg v1.1.0
 	github.com/stretchr/testify v1.10.0
 	github.com/ugorji/go/codec v1.3.0
 )

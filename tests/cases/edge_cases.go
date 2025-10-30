@@ -1,9 +1,10 @@
 package cases
 
 import (
-	"github.com/ray4go/go-ray/tests/tools"
 	"fmt"
 	"time"
+
+	"github.com/ray4go/go-ray/tests/tools"
 
 	"github.com/ray4go/go-ray/ray"
 	"github.com/stretchr/testify/require"
@@ -415,11 +416,11 @@ func init() {
 		ref := ray.RemoteCall("SlowIncrementerTask", 0, 10, 100) // 1 second total
 
 		// Try with short timeout first
-		_, err1 := ref.GetAll(0.1)
+		_, err1 := ref.GetAll(ray.WithTimeout(time.Millisecond * 100))
 		assert.ErrorIs(err1, ray.ErrTimeout)
 
 		// The ObjectRef should still be valid and we can wait longer
-		result, err2 := ref.GetAll(2.0)
+		result, err2 := ref.GetAll(ray.WithTimeout(time.Millisecond * 2000))
 		assert.Nil(err2)
 		assert.Equal([]interface{}{10}, result)
 	})

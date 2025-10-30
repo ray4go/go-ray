@@ -1,14 +1,16 @@
 package ray
 
 import (
+	"encoding/binary"
+	"fmt"
+	"reflect"
+
+	"github.com/bytedance/gg/gslice"
 	"github.com/ray4go/go-ray/ray/internal/consts"
 	"github.com/ray4go/go-ray/ray/internal/ffi"
 	"github.com/ray4go/go-ray/ray/internal/log"
 	"github.com/ray4go/go-ray/ray/internal/remote_call"
 	"github.com/ray4go/go-ray/ray/internal/utils"
-	"encoding/binary"
-	"fmt"
-	"reflect"
 )
 
 var anyType = reflect.TypeOf((*any)(nil)).Elem()
@@ -78,6 +80,10 @@ func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 	if len(ptrs) == 0 {
 		return nil
 	}
+	if gslice.Any(ptrs, func(v any) bool { _, ok := v.(GetObjectOption); return ok }) {
+		panic("GetObjectOption such as WithTimeout() is not supported for python local call task")
+	}
+
 	if len(ptrs) > 1 {
 		return fmt.Errorf("GetInto error: the max number of pointer for local Python call is 1, got %v", len(ptrs))
 	}
