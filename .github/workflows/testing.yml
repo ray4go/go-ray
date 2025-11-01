@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Install Ray
+      run: |
+        pip install ray[default]
+    
+    - name: Install Python dependencies
+      run: |
+        pip install -e .
+        pip install -r tests/requirements.txt
+    
+    - name: Create output directory
+      run: |
+        mkdir -p output
+    
+    - name: Run tests
+      run: |
+        bash run.sh tests local --import tests/cases/registry.py
+      env:
+        RAY_RUNTIME_ENV_IGNORE_GITIGNORE: 1
+    
+    - name: Display coverage summary
+      if: always()
+      run: |
+        if [ -f /tmp/cover-filter.out ]; then
+          echo "## Test Coverage Summary"
+          go tool cover -func=/tmp/cover-filter.out | tail -n 1
+        fi
+    
+    - name: Upload coverage report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: |
+          /tmp/cover.html
+          /tmp/cover.out
+        retention-days: 30

@@ -1,0 +1,62 @@
+name: Publish Package
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on tags starting with 'v', e.g., v1.0.0
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for PyPI trusted publishing
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Update package version
+        run: |
+          # Extract version from tag (remove 'v' prefix)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Setting package version to: $VERSION"
+          uv version $VERSION
+
+      - name: Build package
+        run: |
+          uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # Using trusted publishing (no token required)
+        # Configure GitHub Actions as a trusted publisher in PyPI project settings
+        # If using API token instead, uncomment the with block below:
+        # with:
+        #   password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Trigger Go module version update
+        run: |
+          # Extract tag name
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "Publishing Go module version: $TAG"
+          
+          # Trigger Go proxy to update module version
+          GOPROXY=proxy.golang.org go list -m github.com/ray4go/go-ray@$TAG
+          
+          echo "Go module version update triggered successfully"
