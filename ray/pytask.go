@@ -16,7 +16,7 @@ import (
 var anyType = reflect.TypeOf((*any)(nil)).Elem()
 
 // RemoteCallPyTask executes a remote Python ray task by name with the provided arguments and options.
-// Like in [RemoteCall], [ObjectRef] instances can be passed as arguments.
+// Like in [RemoteCall], [ObjectRef] values can be passed as arguments.
 func RemoteCallPyTask(name string, argsAndOpts ...any) *ObjectRef {
 	log.Debug("[Go] RemoteCallPyTask %s %#v\n", name, argsAndOpts)
 	argsAndOpts = append(argsAndOpts, Option("task_name", name))
@@ -72,7 +72,9 @@ func (r LocalPyCallResult) Get() (any, error) {
 // The number of pointers must match the number of return values of the Python function.
 // If the Python function has no return values, no arguments should be provided.
 //
-// For the type conversion from python to golang, see docs/crosslang_types.md
+// For type conversion between Python and Go, see [GoRay Cross-Language Call Type Conversion Guide].
+//
+// [GoRay Cross-Language Call Type Conversion Guide]: https://github.com/ray4go/go-ray/blob/master/docs/crosslang_types.md
 func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 	if r.code != consts.ErrorCode_Success {
 		return fmt.Errorf("Error: Local Call Python failed: retCode=%v, message=%s", r.code, r.data)
@@ -91,7 +93,7 @@ func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 }
 
 // LocalCallPyTask executes a Python task locally (in current process) by name with the provided arguments.
-// Unlike [RemoteCall] and [ActorHandle.RemoteCall], this function is synchronous. It will block until the task is completed.
+// Unlike [RemoteCall] and [ActorHandle.RemoteCall], this function is synchronous and blocks until the task completes.
 // Noted: [ObjectRef] is not supported as arguments.
 func LocalCallPyTask(name string, args ...any) LocalPyCallResult {
 	log.Debug("[Go] LocalCallPyTask %s %#v\n", name, args)
@@ -105,7 +107,7 @@ func LocalCallPyTask(name string, args ...any) LocalPyCallResult {
 	}
 }
 
-// CallPythonCode executes python function code in current process.
+// CallPythonCode executes Python code in current process.
 // Example:
 //
 //	code := `

@@ -10,8 +10,8 @@ type RayOption struct {
 	value any
 }
 
-// Option creates a new ray RayOption with the given name and value.
-// The valid RayOption name and value varies by the ray API being called.
+// Option creates a new Ray option with the given name and value.
+// Valid option names and values depend on the GoRay API being called.
 func Option(name string, value any) *RayOption {
 	return &RayOption{
 		name:  name,

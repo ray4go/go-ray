@@ -1,14 +1,15 @@
 package ray
 
 import (
+	"encoding/binary"
+	"fmt"
+	"reflect"
+
 	"github.com/ray4go/go-ray/ray/internal/consts"
 	"github.com/ray4go/go-ray/ray/internal/ffi"
 	"github.com/ray4go/go-ray/ray/internal/log"
 	"github.com/ray4go/go-ray/ray/internal/remote_call"
 	"github.com/ray4go/go-ray/ray/internal/utils"
-	"encoding/binary"
-	"fmt"
-	"reflect"
 )
 
 var (
@@ -27,11 +28,11 @@ func registerTasks(taskReceiver any) {
 }
 
 // RemoteCall calls the remote task by its name with the given arguments.
-// The ray task options can be passed in the last with [Option](key, value).
-// This call is asynchronous, returning an ObjectRef that resolves to the task's result.
-// The returned ObjectRef can be used to retrieve the result or passed as an argument to other remote tasks or actor methods.
+// The task name matches the exported method name of the task receiver registered in [Init].
+// This call is asynchronous, returning an ObjectRef, which can be used to retrieve the result or passed as an argument
+// to other remote tasks or actor methods.
 //
-// For complete ray options, see [Ray Core API doc].
+// Ray task options are provided via [Option](key, value). For complete Ray task options, see [Ray Core API doc].
 //
 // [Ray Core API doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote_function.RemoteFunction.options.html#ray.remote_function.RemoteFunction.options
 func RemoteCall(name string, argsAndOpts ...any) *ObjectRef {

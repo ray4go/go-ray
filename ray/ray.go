@@ -39,14 +39,13 @@ var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 }
 
 // Init goray environment and register the ray tasks, actors and driver.
-//   - All public methods of the given taskReceiver will be registered as ray tasks.
-//   - All public methods of the given actorFactories will be registered as actor constructor functions.
-//     Each method name becomes the actor type name, and the method must return only one value (the actor instance).
-//     The constructor method should panic or return nil when it fails to create the actor.
-//   - driverFunc is the function to be called when the ray driver starts. The driverFunc should return an integer value as the exit code.
+//   - All exported methods on taskReceiver are registered as Ray tasks and can be invoked via [RemoteCall].
+//   - Exported methods on actorFactories are used to create actors (via [NewActor]); each method serves as the actor’s constructor.
+//     The method must return exactly one value (the actor instance), and should panic or return nil on failure to create the actor.
+//   - driverFunc is called when the ray application starts and should return an integer as exit code.
 //
-// This function should be called in the init() function of your ray application.
-// All other goray APIs MUST be called after this function.
+// Call this function from the main package's `init()` function in your Ray application.
+// All other GoRay APIs MUST be called within the driver function and its spawned remote actors/tasks.
 func Init(taskReceiver any, actorFactories any, driverFunc func() int) {
 	driverFunction = driverFunc
 
@@ -109,13 +108,13 @@ type SharedObject[T0 any] struct {
 	obj *ObjectRef // todo: embed *ObjectRef
 }
 
-// This method is for internal use. Do not call it directly.
+// For internal use only. Do not call directly.
 func (s SharedObject[T0]) ObjectRef() *ObjectRef {
 	return s.obj
 }
 
 // Put stores an object in the object store.
-// The returned value can be passed to a remote function (Task) or a remote Actor method (Actor Task).
+// The returned value can be passed to a remote function (Task) or a remote actor method (Actor Task).
 func Put[T any](value T) (SharedObject[T], error) {
 	log.Debug("[Go] Put %#v\n", value)
 	data, err := remote_call.EncodeValue(value)
@@ -138,8 +137,8 @@ func Put[T any](value T) (SharedObject[T], error) {
 	}, nil
 }
 
-// Wait the requested number of ObjectRefs are ready.
-// Returns a list of IDs that are ready and a list of IDs that are not.
+// Wait until the requested number of ObjectRefs are ready.
+// Returns a list of ready ObjectRefs and a list of unready ObjectRefs.
 //
 // See [Ray Core API doc].
 //

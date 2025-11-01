@@ -30,7 +30,6 @@ func (f *Future0) Get(options ...ray.GetObjectOption) error {
 }
 """
 
-
 # future表示一次函数在ray上异步执行的返回值，Get()可以等待函数运行完成并获取其返回值，同时返回值中还加入了一个新的error类型的返回值，
 # 用于表示框架执行过程中是否发生了错误。生成的代码如下
 """
@@ -46,7 +45,6 @@ func (f *Future2[T0, T1]) Get(options ...ray.GetObjectOption) (T0, T1, error) {
 	return ray.Get2[T0, T1](f.obj, options...)
 }
 """
-
 
 _future_tpl = """
 type Future${l}[${type_decls}] struct {

@@ -1,6 +1,6 @@
 package ray
 
-// [ObjectRef] and [LocalPyCallResult] implement this interface.
+// Implemented by [ObjectRef] and [LocalPyCallResult]. Used in ray.GetN series functions.
 type Decodable interface {
 	GetInto(ptrs ...any) error
 }

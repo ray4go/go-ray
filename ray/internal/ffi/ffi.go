@@ -22,9 +22,10 @@ static void* invoke_callback(
 import "C"
 
 import (
-	"github.com/ray4go/go-ray/ray/internal/log"
 	"sync"
 	"unsafe"
+
+	"github.com/ray4go/go-ray/ray/internal/log"
 )
 
 var (

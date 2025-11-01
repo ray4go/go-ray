@@ -1,9 +1,10 @@
 package ray
 
 import (
-	"github.com/ray4go/go-ray/ray/internal/consts"
 	"errors"
 	"fmt"
+
+	"github.com/ray4go/go-ray/ray/internal/consts"
 )
 
 // Errors may be returned by goray APIs.

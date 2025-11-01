@@ -15,7 +15,6 @@ ${var_list}
 }
 """
 
-
 obj_tpl = string.Template(TPL)
 
 for l in range(1, max_returns_len + 1):

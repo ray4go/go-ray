@@ -2,7 +2,6 @@ package utils
 
 import (
 	"bytes"
-	"github.com/ray4go/go-ray/ray/internal/log"
 	"encoding/binary"
 	"fmt"
 	"go/token"
@@ -10,6 +9,8 @@ import (
 	"os/signal"
 	"reflect"
 	"syscall"
+
+	"github.com/ray4go/go-ray/ray/internal/log"
 )
 
 // DecodeBytesUnits decodes byte units from a single bytes.

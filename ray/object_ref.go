@@ -26,7 +26,7 @@ type getObjectOption struct {
 	timeout float64
 }
 
-// GetObjectOption defines options for ray.GetN, [ObjectRef.GetAll], [ObjectRef.GetInto]
+// GetObjectOption defines options for ray.GetN, [ObjectRef.GetAll] and [ObjectRef.GetInto] functions.
 // - [WithTimeout] sets the timeout for getting the object.
 type GetObjectOption func(*getObjectOption)
 
@@ -67,10 +67,10 @@ func (obj *ObjectRef) numReturn() int {
 	return len(obj.types)
 }
 
-// By default, the object will be automatically released after it is retrieved or passed to another task.
-// Use DisableAutoRelease to disable this behavior, and you need to call Release() manually to release the object
-// reference when you don't need it in current task (process) anymore. When all references to the object are released,
-// the object will be garbage collected in ray object store.
+// By default, the object reference is automatically released after it is retrieved or passed to another task.
+// Call [ObjectRef.DisableAutoRelease] to turn off this behavior, and you must then call [ObjectRef.Release] manually
+// when you no longer need the reference in the current task (process). When all references to the object are released,
+// the object will be garbage collected in the Ray object store.
 func (obj *ObjectRef) DisableAutoRelease() {
 	obj.autoRelease = false
 }
@@ -86,8 +86,9 @@ func (obj *ObjectRef) Release() {
 	}
 }
 
-// Cancel a remote function (Task) or a remote Actor method (Actor Task)
-// Noted, for actor method task, if the specified Task is pending execution, it is cancelled and not executed.
+// Cancel a remote function (Task) or a remote Actor method (Actor Task).
+//
+// Noted, for an actor method task, if the specified task is pending execution, it is canceled and not executed.
 // If the actor method task is currently executing, the task cannot be canceled because actors have states.
 // See [Ray Core API doc] for more info.
 //
@@ -104,13 +105,12 @@ func (obj *ObjectRef) Cancel(opts ...*RayOption) error {
 	return nil
 }
 
-// GetAll returns all return values of the ObjectRefs in []any, with optional timeout.
-// Returns [ErrCancelled] if the task is cancelled.
+// GetAll returns all return values of the ObjectRefs as []any.
 //
-// WithTimeout() option sets the maximum amount of time in seconds to wait before returning.
-// Setting timeout=0 will return the object immediately if it’s available.
+// WithTimeout() option sets the maximum amount of time to wait before returning.
+// Setting timeout=0 returns immediately if the object is available.
 // Returns [ErrTimeout] if the object is not available within the specified timeout.
-// Returns [ErrCancelled] if the task is cancelled.
+// Returns [ErrCancelled] if the task is canceled.
 func (obj *ObjectRef) GetAll(options ...GetObjectOption) ([]any, error) {
 	resultData, err := obj.getRaw(applyGetObjectOptions(options))
 	if err != nil {
@@ -120,10 +120,10 @@ func (obj *ObjectRef) GetAll(options ...GetObjectOption) ([]any, error) {
 	return res, nil
 }
 
-// GetInto is used to decode the result of remote task / actor method into the given pointer.
-// The number of pointers must match the number of return values of the remote task / actor method.
-// If the remote task / actor method has no return values, no pointers should be provided.
-// Pass [WithTimeout]() to the last argument to set the timeout.
+// GetInto is used to decode the result of remote task or actor method into the given pointer.
+// The number of pointers must match the number of return values.
+// If there are no return values, no pointers should be provided.
+// Pass [WithTimeout]() as the last argument to set the timeout.
 func (obj *ObjectRef) GetInto(ptrsAndOpts ...any) error {
 	ptrs := make([]any, 0, len(ptrsAndOpts))
 	opts := make([]GetObjectOption, 0, len(ptrsAndOpts))
