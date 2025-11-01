@@ -9,16 +9,19 @@ GoRay provides Golang support for the [Ray Core API] within the Ray distributed 
 package ray
 
 import (
-	"github.com/ray4go/go-ray/ray/internal/consts"
-	"github.com/ray4go/go-ray/ray/internal/ffi"
-	"github.com/ray4go/go-ray/ray/internal/log"
-	"github.com/ray4go/go-ray/ray/internal/remote_call"
-	"github.com/ray4go/go-ray/ray/internal/utils"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"reflect"
+
 	"runtime/debug"
+
+	"github.com/ray4go/go-ray/ray/internal/consts"
+	"github.com/ray4go/go-ray/ray/internal/ffi"
+	"github.com/ray4go/go-ray/ray/internal/log"
+	"github.com/ray4go/go-ray/ray/internal/remote_call"
+	"github.com/ray4go/go-ray/ray/internal/testing"
+	"github.com/ray4go/go-ray/ray/internal/utils"
 )
 
 var (
@@ -63,6 +66,7 @@ func handlePythonCmd(request int64, data []byte) (resData []byte, retCode int64)
 			retCode = consts.ErrorCode_Failed
 			resData = []byte(fmt.Sprintf("handlePythonCmd panic: %v\n%s\n", err, debug.Stack()))
 		}
+		testing.WriteCoverageWhenTesting()
 	}()
 
 	cmdId := request & consts.CmdBitsMask

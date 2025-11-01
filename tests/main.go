@@ -1,15 +1,17 @@
 package main
 
 import (
-	"github.com/ray4go/go-ray/ray"
-	"github.com/ray4go/go-ray/tests/cases"
 	"fmt"
-	"github.com/bytedance/mockey"
 	"os"
 	"regexp"
+	"runtime/coverage"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/bytedance/mockey"
+	"github.com/ray4go/go-ray/ray"
+	"github.com/ray4go/go-ray/tests/cases"
 )
 
 var (
@@ -41,6 +43,18 @@ func getTestCases(filter func(string) bool) []testing.InternalTest {
 	return res
 }
 
+func dumpCoverage() {
+	coverageDir := os.Getenv("GOCOVERDIR")
+	err := coverage.WriteMetaDir(coverageDir)
+	if err != nil {
+		fmt.Printf("WriteMetaDir error: %v\n", err)
+	}
+	err = coverage.WriteCountersDir(coverageDir)
+	if err != nil {
+		fmt.Printf("WriteCountersDir error: %v\n", err)
+	}
+}
+
 func driver() int {
 	// override os.Args
 	os.Args = []string{"go", "-test.v"}
@@ -63,6 +77,8 @@ func driver() int {
 
 	fmt.Printf("Tests finished in %s\n", time.Since(startTime))
 	fmt.Printf("Passed: %d, Failed: %d\n", passedNum, int64(len(tests))-passedNum)
+
+	dumpCoverage()
 
 	if int64(len(tests))-passedNum != 0 {
 		return 1
