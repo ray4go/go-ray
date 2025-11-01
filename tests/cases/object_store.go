@@ -224,4 +224,23 @@ func init() {
 			ray.Put(nilPtr)
 		})
 	})
+
+	AddTestCase("TestObjRelease", func(assert *require.Assertions) {
+		data := StorageTestStruct{
+			ID:    123,
+			Data:  []byte("to_be_released"),
+			Value: 3.0,
+		}
+		obj := ray.RemoteCall("CombineStoredObjects", data, data)
+		res, err := ray.Get1[StorageTestStruct](obj)
+		assert.NoError(err)
+		assert.Equal(246, res.ID)
+		obj.Release()
+
+		obj2 := ray.RemoteCall("CombineStoredObjects", data, data)
+		obj2.Release()
+		_, err2 := ray.Get1[StorageTestStruct](obj2)
+		assert.Error(err2)
+	})
+
 }

@@ -82,7 +82,7 @@ func (obj *ObjectRef) Release() {
 	binary.LittleEndian.PutUint64(objIdData, uint64(obj.id))
 	resultData, retCode := ffi.CallServer(consts.Go2PyCmd_ReleaseObject, objIdData)
 	if retCode != consts.ErrorCode_Success && retCode != consts.ErrorCode_ObjectRefNotFound {
-		panic(fmt.Sprintf("ray.Release() failed, reason: %w, detail: %s", newError(retCode), resultData))
+		panic(fmt.Sprintf("ray.Release() failed, reason: %v, detail: %s", newError(retCode), resultData))
 	}
 }
 
