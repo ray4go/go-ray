@@ -174,7 +174,7 @@ pip install -U "ray[default]"
 
 2) Install the go-ray Python driver:
 ```bash
-pip install "git+https://github.com/ray4go/go-ray"
+pip install goray
 ```
 
 3) Run the Ray job:
@@ -218,11 +218,6 @@ Cross-language features:
   - Python instantiates Go classes and calls their methods in-process
 
 Usage:
-
-Install the GoRay Python SDK:
-```bash
-pip install "git+https://github.com/ray4go/go-ray"
-```
 
 In Python:
 - Use `goray.remote` to declare Ray tasks/actors (replaces `ray.remote`).

@@ -1,7 +1,7 @@
 [project]
 name = "goray"
-description = "Python driver for goray project"
-version = "0.1.0"
+description = "Python driver for GoRay project"
+version = "1.0.0"
 authors = [
     { name = "WeiminWang", email = "wang0.618@qq.com" }
 ]
@@ -11,6 +11,9 @@ dependencies = ["msgpack"]
 ray = [
     "ray[default]"
 ]
+
+[project.urls]
+Homepage = "https://github.com/ray4go/go-ray"
 
 [tool.setuptools.packages.find]
 where = ["."]
