@@ -29,7 +29,7 @@ func registerTasks(taskReceiver any) {
 
 // RemoteCall calls the remote task by its name with the given arguments.
 // The task name matches the exported method name of the task receiver registered in [Init].
-// This call is asynchronous, returning an ObjectRef, which can be used to retrieve the result or passed as an argument
+// This call is asynchronous, returning an [ObjectRef], which can be used to retrieve the result or passed as an argument
 // to other remote tasks or actor methods.
 //
 // Ray task options are provided via [Option](key, value). For complete Ray task options, see [Ray Core API doc].

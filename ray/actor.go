@@ -27,7 +27,7 @@ type actorInstance struct {
 
 // ActorHandle represents a handle to an actor.
 //
-// Noted, currently, you can't pass an actor handle as parameter to a task.
+// Note: currently, you can't pass an [ActorHandle] as a parameter to a task.
 // Workaround: create a named actor via [NewActor](typeName, [ray.Option]("name", name))
 // and use [GetActor](name) to get the actor handle in other tasks.
 type ActorHandle struct {
@@ -67,8 +67,8 @@ func registerActors(actorFactories any) {
 }
 
 // NewActor initializes a new remote actor.
-// - typeName should match the method name of the actor constructor registered in [Init].
-// - argsAndOpts include actor constructor arguments and Ray actor instantiation options.
+//   - typeName should match the method name of the actor constructor registered in [Init].
+//   - argsAndOpts include actor constructor arguments and Ray actor instantiation options.
 //
 // Provide Ray actor options via [Option](key, value). For complete options for actor creation, see [Ray Core API doc].
 //
@@ -233,8 +233,8 @@ func (actor *ActorHandle) Kill(opts ...*RayOption) error {
 }
 
 // GetActor get a handle to a named actor.
-// Noted that the actor name is set by passing [ray.Option]("name", name) to [NewActor]().
 //
+// Noted that the actor name is set by passing [ray.Option]("name", name) to [NewActor]().
 // More supported options can be found in [Ray doc].
 //
 // [Ray doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.get_actor.html#ray.get_actor

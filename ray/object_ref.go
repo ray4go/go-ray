@@ -15,7 +15,9 @@ import (
 )
 
 // ObjectRef is a reference to an object in Ray's object store.
-// It serves as a future for the result of a remote task execution, an actor method call or [ray.Put]().
+// It serves as a future for the result of a remote task execution, an actor method call, or [ray.Put].
+//   - Use ray.GetN series functions (such as [Get0], [Get1], ...), [ObjectRef.GetAll], or [ObjectRef.GetInto] to retrieve the result.
+//   - Can be passed as an argument to remote Ray tasks (via [RemoteCall]) and actors (via [NewActor], [NewPyActor], [ActorHandle.RemoteCall]).
 type ObjectRef struct {
 	id          int64
 	types       []reflect.Type // the types of the values referred by this ObjectRef
@@ -27,7 +29,7 @@ type getObjectOption struct {
 }
 
 // GetObjectOption defines options for ray.GetN, [ObjectRef.GetAll] and [ObjectRef.GetInto] functions.
-// - [WithTimeout] sets the timeout for getting the object.
+//   - [WithTimeout] sets the timeout for getting the object.
 type GetObjectOption func(*getObjectOption)
 
 // WithTimeout sets the timeout for getting the object.
@@ -68,15 +70,18 @@ func (obj *ObjectRef) numReturn() int {
 }
 
 // By default, the object reference is automatically released after it is retrieved or passed to another task.
-// Call [ObjectRef.DisableAutoRelease] to turn off this behavior, and you must then call [ObjectRef.Release] manually
-// when you no longer need the reference in the current task (process). When all references to the object are released,
-// the object will be garbage collected in the Ray object store.
+// Try retrieving or passing an released [ObjectRef] again will result in [ObjectRefNotFound].
+// Call [ObjectRef.DisableAutoRelease] to turn off this behavior, the object reference will persist until task ends,
+// or you can call [ObjectRef.Release] manually when you no longer need the reference in the current task.
+// When all references to the object are released, the object will be garbage collected in the Ray object store.
 func (obj *ObjectRef) DisableAutoRelease() {
 	obj.autoRelease = false
 }
 
 // Release releases the current reference of the object.
 // The object will be garbage collected if there are no other references to it.
+//
+// See [ObjectRef.DisableAutoRelease] for more details.
 func (obj *ObjectRef) Release() {
 	objIdData := make([]byte, 8)
 	binary.LittleEndian.PutUint64(objIdData, uint64(obj.id))
@@ -107,8 +112,9 @@ func (obj *ObjectRef) Cancel(opts ...*RayOption) error {
 
 // GetAll returns all return values of the ObjectRefs as []any.
 //
-// WithTimeout() option sets the maximum amount of time to wait before returning.
+// [WithTimeout]() option sets the maximum amount of time to wait before returning.
 // Setting timeout=0 returns immediately if the object is available.
+//
 // Returns [ErrTimeout] if the object is not available within the specified timeout.
 // Returns [ErrCancelled] if the task is canceled.
 func (obj *ObjectRef) GetAll(options ...GetObjectOption) ([]any, error) {

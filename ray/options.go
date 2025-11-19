@@ -12,6 +12,9 @@ type RayOption struct {
 
 // Option creates a new Ray option with the given name and value.
 // Valid option names and values depend on the GoRay API being called.
+// The option value mapping from Go to Python can be found in [Go -> Python Type Conversion].
+//
+// [Go -> Python Type Conversion]: https://github.com/ray4go/go-ray/blob/master/docs/crosslang_types.md#go---python-type-conversion
 func Option(name string, value any) *RayOption {
 	return &RayOption{
 		name:  name,

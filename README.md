@@ -1,6 +1,6 @@
 # GoRay
 
-Ray Core for Golang.
+Ray Core bindings for Go.
 
 [API Documentation](https://pkg.go.dev/github.com/ray4go/go-ray/ray)
 
@@ -43,7 +43,7 @@ func init() {
 func driver() int {
   // Ray task
   answerObjRef := ray.RemoteCall("TheAnswerOfWorld")
-  objRef := ray.RemoteCall("Divide", answerObjRef, 5, ray.Option("num_cpus", 2), ray.Option("num_cpus", 2))
+  objRef := ray.RemoteCall("Divide", answerObjRef, 5, ray.Option("num_cpus", 2), ray.Option("memory", 100*1024*1024))
   res, remainder, err := ray.Get2[int64, int64](objRef)
   if err != nil {
     log.Panicf("remote task error: %v", err)
@@ -64,7 +64,6 @@ func driver() int {
 }
 
 type tasks struct{}
-type actors struct{}
 
 func (_ tasks) TheAnswerOfWorld() int64 {
   time.Sleep(1 * time.Second)
@@ -75,13 +74,15 @@ func (_ tasks) Divide(a, b int64) (int64, int64) {
   return a / b, a % b
 }
 
-// Ray actor
-type counter struct {
-  num int
-}
+type actors struct{}
 
 func (_ actors) Counter(n int) *counter {
   return &counter{num: n}
+}
+
+// Ray actor
+type counter struct {
+  num int
 }
 
 func (c *counter) Incr(n int) int {
@@ -96,7 +97,7 @@ func (c *counter) Decr(n int) int {
   return c.num
 }
 
-// main function won't be called but cannot be omitted
+// main function won't be called but cannot be omitted (it's required only for compilation)
 func main() {}
 ```
 
@@ -119,7 +120,7 @@ Tasks:
 - Parameters and return values may be composite types or structs (struct fields must be exported). Variadic arguments and multiple return values are supported.
 
 Actors:
-- Use `ray.NewActor(actorTypeName, args...)` to create a remote actor. Ray options are also supported via `ray.Option`.
+- Use `ray.NewActor(actorTypeName, args...) -> ActorHandle` to create a remote actor. Ray options are also supported via `ray.Option`.
 - `actorTypeName` matches the constructor method name of `actors` registered via `ray.Init(tasks, actors, driver)`. Constructor arguments (excluding options) are passed to that method.
 - Use `actorHandle.RemoteCall(methodName, args...) -> ObjectRef` to invoke actor methods. Semantics match `ray.RemoteCall()`.
 
@@ -138,6 +139,10 @@ Remote calls return an `ObjectRef`, which represents a future. Because Go suppor
 - Use `ObjectRef.GetAll() -> []any` and assert to concrete types.
 
 You may pass `ObjectRef` as arguments to `RemoteCall()`, but only when it has a single return value and the result type is compatible with the parameter type.
+
+Passing an `ActorHandle` as a parameter to `RemoteCall()` is not supported yet. A workaround is to create a named actor
+(via `NewActor(typeName, ray.Option("name", actorName))`) and pass the actor's name to `RemoteCall()`.
+In the remote task/actor, use `ray.GetActor(actorName)` to get the handle.
 
 ### Parameter and Return Types
 
