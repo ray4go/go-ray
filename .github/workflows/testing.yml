@@ -42,16 +42,7 @@ jobs:
       env:
         RAY_RUNTIME_ENV_IGNORE_GITIGNORE: 1
     
-    - name: Display coverage summary
-      if: always()
-      run: |
-        if [ -f /tmp/cover-filter.out ]; then
-          echo "## Test Coverage Summary"
-          go tool cover -func=/tmp/cover-filter.out | tail -n 1
-        fi
-    
     - name: Upload coverage report
-      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report

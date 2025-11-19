@@ -267,7 +267,7 @@ func init() {
 
 	AddTestCase("TestActorCallingTasks", func(assert *require.Assertions) {
 		// Test actor calling remote tasks
-		actor := ray.NewActor("NewTaskCallingActor", 1)
+		actor := ray.NewActor("NewTaskCallingActor", 1, ray.Option("num_cpus", 0.01))
 
 		ref := actor.RemoteCall("CallRemoteTask", "QuickTask", 5)
 		result, err := ref.GetAll()
@@ -277,7 +277,7 @@ func init() {
 
 	AddTestCase("TestActorBatchCallingTasks", func(assert *require.Assertions) {
 		// Test actor calling multiple remote tasks
-		actor := ray.NewActor("NewTaskCallingActor", 2)
+		actor := ray.NewActor("NewTaskCallingActor", 2, ray.Option("num_cpus", 0.01))
 
 		ref := actor.RemoteCall("BatchCallTasks", 3)
 		results, err := ref.GetAll()
@@ -292,10 +292,10 @@ func init() {
 
 	AddTestCase("TestActorCallingOtherActors", func(assert *require.Assertions) {
 		// Create two actors
-		callingActor := ray.NewActor("NewActorCallingActor", 1)
+		callingActor := ray.NewActor("NewActorCallingActor", 1, ray.Option("num_cpus", 0.01))
 
 		// Create a named counter actor
-		_ = ray.NewActor("NewActor", 100, ray.Option("name", "test_counter"))
+		_ = ray.NewActor("NewActor", 100, ray.Option("name", "test_counter"), ray.Option("num_cpus", 0.01))
 
 		// Use the calling actor to interact with the counter actor
 		ref := callingActor.RemoteCall("CallOtherActor", "test_counter", "Incr", 5)
@@ -306,7 +306,7 @@ func init() {
 
 	AddTestCase("TestNestedActorCoordination", func(assert *require.Assertions) {
 		// Create a named actor first
-		ray.NewActor("NewActor", 50, ray.Option("name", "coord_counter"))
+		ray.NewActor("NewActor", 50, ray.Option("name", "coord_counter"), ray.Option("num_cpus", 0.01))
 
 		// Test task coordinating with named actor
 		operations := []string{"incr", "incr", "decr", "incr"}

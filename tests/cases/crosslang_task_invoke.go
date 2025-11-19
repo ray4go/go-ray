@@ -69,7 +69,7 @@ def create_go_actor():
 	})
 
 	AddTestCase("TestCrosslang:get go actor in py", func(assert *require.Assertions) {
-		actor := ray.NewActor("GoNewCounter", 4, ray.Option("name", "TestCrosslangGoCounter"))
+		actor := ray.NewActor("GoNewCounter", 4, ray.Option("name", "TestCrosslangGoCounter"), ray.Option("num_cpus", 0.01))
 		assert.NotNil(actor)
 
 		ref1 := actor.RemoteCall("Incr", 5)

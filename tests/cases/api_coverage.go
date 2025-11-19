@@ -265,6 +265,7 @@ func init() {
 			ray.Option("num_cpus", 1),
 			ray.Option("memory", 200*1024*1024), // 200MB
 			ray.Option("max_restarts", 2),
+			ray.Option("num_cpus", 0.01),
 		)
 
 		// Test actor functionality
@@ -283,6 +284,7 @@ func init() {
 		actor := ray.NewActor("NewAdvancedOptionsActor", "memory_test",
 			ray.Option("num_cpus", 2),
 			ray.Option("memory", 500*1024*1024), // 500MB
+			ray.Option("num_cpus", 0.01),
 		)
 
 		ref := actor.RemoteCall("MemoryIntensiveOperation", 50) // 50x50 matrix

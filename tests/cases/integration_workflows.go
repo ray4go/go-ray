@@ -515,7 +515,7 @@ func init() {
 	})
 
 	AddTestCase("TestWorkflowCoordination", func(assert *require.Assertions) {
-		coordinator := ray.NewActor("NewWorkflowCoordinator")
+		coordinator := ray.NewActor("NewWorkflowCoordinator", ray.Option("num_cpus", 0.01))
 
 		// Start multiple workflows
 		workflowConfigs := []WorkflowConfig{
@@ -572,7 +572,7 @@ func init() {
 
 	AddTestCase("TestResourcePoolManagement", func(assert *require.Assertions) {
 		resources := []string{"gpu_1", "gpu_2", "gpu_3", "cpu_pool_1", "cpu_pool_2"}
-		pool := ray.NewActor("NewResourcePool", resources)
+		pool := ray.NewActor("NewResourcePool", resources, ray.Option("num_cpus", 0.01))
 
 		// Check initial status
 		statusRef := pool.RemoteCall("GetStatus")
@@ -625,7 +625,7 @@ func init() {
 
 	AddTestCase("TestMixedTaskActorWorkflow", func(assert *require.Assertions) {
 		// Complex workflow mixing tasks and actors
-		coordinator := ray.NewActor("NewWorkflowCoordinator")
+		coordinator := ray.NewActor("NewWorkflowCoordinator", ray.Option("num_cpus", 0.01))
 
 		// Start a workflow through coordinator
 		config := WorkflowConfig{

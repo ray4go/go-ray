@@ -2,8 +2,9 @@ package cases
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"os"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/ray4go/go-ray/ray"
 )
@@ -72,9 +73,9 @@ func (actor *actor) ChainCall(nodeIds []string, currIdx int, remainStep int) map
 		opt2 := ray.Option("num_cpus", 0)
 		var act *ray.ActorHandle
 		if actor.cross {
-			act = ray.NewPyActor("ChainCallActor", actor.cross, actor.actorTypeName, opt, opt2)
+			act = ray.NewPyActor("ChainCallActor", actor.cross, actor.actorTypeName, opt, opt2, ray.Option("num_cpus", 0.01))
 		} else {
-			act = ray.NewActor("NewActorFromChain", actor.cross, actor.actorTypeName, opt, opt2)
+			act = ray.NewActor("NewActorFromChain", actor.cross, actor.actorTypeName, opt, opt2, ray.Option("num_cpus", 0.01))
 		}
 		err := act.RemoteCall("ChainCall", nodeIds, currIdx, remainStep-1).GetInto(&hostNames)
 		if err != nil {
@@ -97,7 +98,7 @@ func init() {
 			assert.Equal(len(nodeIds), len(hostNames))
 		}
 		{
-			actor := ray.NewActor("NewActorFromChain", true, "NewActorFromChain")
+			actor := ray.NewActor("NewActorFromChain", true, "NewActorFromChain", ray.Option("num_cpus", 0.01))
 			hostNames := actor.RemoteCall("ChainCall", nodeIds, 0, 6)
 			result, err := ray.Get1[map[string]struct{}](hostNames)
 			assert.NoError(err)
@@ -118,7 +119,7 @@ func init() {
 			assert.Equal(len(nodeIds), len(hostNames))
 		}
 		{
-			actor := ray.NewActor("NewActorFromChain", false, "NewActorFromChain")
+			actor := ray.NewActor("NewActorFromChain", false, "NewActorFromChain", ray.Option("num_cpus", 0.01))
 			hostNames := actor.RemoteCall("ChainCall", nodeIds, 0, 6)
 			result, err := ray.Get1[map[string]struct{}](hostNames)
 			assert.NoError(err)

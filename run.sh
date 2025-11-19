@@ -25,6 +25,8 @@ rm -rf "$GOCOVERDIR"
 mkdir -p "$GOCOVERDIR"
 
 cd ${PKG_PATH}
+PKG_PATH=$(pwd)  # get absolute path
+
 go build -buildmode=c-shared \
   -cover \
   -covermode=atomic \
@@ -43,7 +45,7 @@ elif [ "$MODE" == "local" ]; then
   python -m goray.cli --mode local output/raytask "$@"
 fi
 
-cd ${CUR_DIR}
+cd ${PKG_PATH}
 
 go tool covdata textfmt -i="$GOCOVERDIR" -o=/tmp/cover.out
 go tool cover -html=/tmp/cover.out -o=/tmp/cover.html

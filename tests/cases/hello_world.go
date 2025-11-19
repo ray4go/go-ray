@@ -159,7 +159,7 @@ func (c *counter) Busy(n time.Duration) {
 
 func init() {
 	AddTestCase("TestActor", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewActor", 10)
+		actor := ray.NewActor("NewActor", 10, ray.Option("num_cpus", 0.01))
 		obj1 := actor.RemoteCall("Incr", 1)
 		res1, err1 := ray.Get1[int](obj1)
 		assert.Equal(nil, err1)

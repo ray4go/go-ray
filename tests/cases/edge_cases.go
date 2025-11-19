@@ -313,7 +313,7 @@ func init() {
 
 	AddTestCase("TestActorEdgeCases", func(assert *require.Assertions) {
 		return // todo
-		actor := ray.NewActor("NewEdgeCaseActor")
+		actor := ray.NewActor("NewEdgeCaseActor", ray.Option("num_cpus", 0.01))
 
 		// Test storing nil values
 		actor.RemoteCall("StoreNil", "test_key").GetAll()
@@ -331,7 +331,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorInterruption", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewEdgeCaseActor")
+		actor := ray.NewActor("NewEdgeCaseActor", ray.Option("num_cpus", 0.01))
 
 		// Start a long-running operation
 		ref := actor.RemoteCall("InterruptibleOperation", 50) // 1 second operation
@@ -343,7 +343,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorErrorRecovery", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewEdgeCaseActor")
+		actor := ray.NewActor("NewEdgeCaseActor", ray.Option("num_cpus", 0.01))
 
 		// Call that should succeed
 		ref1 := actor.RemoteCall("SimulateError", false)
@@ -366,7 +366,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorResourceCleanup", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewResourceCleanupActor")
+		actor := ray.NewActor("NewResourceCleanupActor", ray.Option("num_cpus", 0.01))
 
 		// Allocate some resources
 		actor.RemoteCall("AllocateResource", "resource1").GetAll()
@@ -398,7 +398,7 @@ func init() {
 	AddTestCase("TestRapidActorCreationDestruction", func(assert *require.Assertions) {
 		// Create and destroy multiple actors rapidly
 		for i := 0; i < 10; i++ {
-			actor := ray.NewActor("NewEdgeCaseActor")
+			actor := ray.NewActor("NewEdgeCaseActor", ray.Option("num_cpus", 0.01))
 
 			// Use the actor briefly
 			ref := actor.RemoteCall("GetCallHistory")
