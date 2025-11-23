@@ -241,7 +241,7 @@ In Go:
 
 Submit the job as you would for a standard Python Ray project.
 
-Demo: [app.go](examples/app.go), [app.py](examples/app.py)
+[Example](examples/crosslang/)
 
 Type mapping between Python and Go uses msgpack. Supported types: integers, floats, booleans, strings, binary data, lists (Go slices), maps, and nil. Map keys must be strings or integers. The Go side additionally supports structs and pointers. See the Cross-Language Type Conversion Guide: [docs/crosslang_types.md](docs/crosslang_types.md)
 

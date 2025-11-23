@@ -1,5 +1,5 @@
+import time
 import ray
-
 import goray
 
 
@@ -15,8 +15,9 @@ def hello(name: str):
 
 
 @goray.remote
-def no_return(name: str):
-    return
+def busy(sec: int) -> int:
+    time.sleep(sec)
+    return sec
 
 
 @goray.remote
@@ -34,19 +35,18 @@ class PyActor:
         return f"hello {name}"
 
     def busy(self, sec: int) -> int:
-        import time
-
         time.sleep(sec)
         return sec
 
 
-def main():
-    # python调用go声明的ray task
+@goray.remote
+def py_call_golang():
+    # python call go ray task
     hello_task = goray.golang_task("Hello")
     obj = hello_task.remote("wang")
     print(f"{ray.get(obj)=}")
 
-    # python调用go声明的ray actor
+    # python call go ray actor
     actor = (
         goray.golang_actor_class("Counter", num_cpus=1)
         .options(name="myactor")
@@ -56,23 +56,15 @@ def main():
     obj = actor.Incr.options().remote(obj)
     print(f"{ray.get(obj)=}")
 
-    # python获取go named ray actor句柄
+    # python get go named ray actor handle
     a = goray.get_golang_actor("myactor")
     obj = a.Incr.remote(10)
     print(f"{ray.get(obj)=}")
 
-    # python在当前进程内调用golang函数
+    # python call golang function in current process
     goray.golang_local_run_task("CallPython")
     goray.golang_local_run_task("RemoteCallPython")
 
-    # python在当前进程内调初始化golang类并调用其方法
+    # python call golang class in current process and call its method
     actor = goray.golang_local_new_actor("Counter", 20)
     print(f"{actor.Incr(10)=}")
-
-
-if __name__ == "__main__":
-    import os
-
-    here = os.path.dirname(os.path.abspath(__file__))
-    goray.init(f"{here}/../out/raytask")
-    main()

@@ -47,6 +47,11 @@ fi
 
 cd ${PKG_PATH}
 
+# if NO_COVERAGE env is set, skip coverage
+if [[ -n "$NO_COVERAGE" ]]; then
+  exit
+fi
+
 go tool covdata textfmt -i="$GOCOVERDIR" -o=/tmp/cover.out
 go tool cover -html=/tmp/cover.out -o=/tmp/cover.html
 
