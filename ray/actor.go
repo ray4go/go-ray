@@ -272,3 +272,13 @@ func GetActor(name string, opts ...*RayOption) (*ActorHandle, error) {
 		typ:       actorTyp,
 	}, nil
 }
+
+// GetTypedActor gets the actor handle used in goraygen type-safe wrappers.
+func GetTypedActor[T any](name string, opts ...*RayOption) (*T, error) {
+	handle, err := GetActor(name, opts...)
+	if err != nil {
+		return nil, err
+	}
+	// todo: assert T name with actor Type name
+	return utils.Convert[*T](handle), err
+}

@@ -58,16 +58,13 @@ func (f *Future${l}[${types}]) setObjectRef(obj *ray.ObjectRef) {
 func (f *Future${l}[${types}]) Get(options ...ray.GetObjectOption) (${types}, error) {
 	return ${prefix}Get${l}[${types}](f.obj, options...)
 }
-"""
-future_tpl = string.Template(_future_tpl)
 
-future1_extra = """
 // ObjectRef returns the underlying ObjectRef of the Future.
-// Used for passing the Future to a remote task / actor method call.
-func (f *Future1[T0]) ObjectRef() *ray.ObjectRef {
+func (f *Future${l}[${types}]) ObjectRef() *ray.ObjectRef {
 	return f.obj
 }
 """
+future_tpl = string.Template(_future_tpl)
 
 
 def gen_future(num_returns: int):
@@ -84,8 +81,6 @@ def gen_future(num_returns: int):
             prefix="ray." if l <= ray_max_get_num else "",
         )
     )
-    if l == 1:
-        defs += future1_extra
     return defs
 
 

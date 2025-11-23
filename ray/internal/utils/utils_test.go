@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 	"unsafe"
@@ -215,4 +216,24 @@ type CustomError struct{}
 
 func (e *CustomError) Error() string {
 	return "custom error"
+}
+
+func TestConvert(t *testing.T) {
+	require := require.New(t)
+
+	one := 1
+	type Int int
+
+	res1 := Int(one)
+	res2 := Convert[int](res1)
+	require.Equal(res2, one)
+
+	res3 := Convert[*int](&res1)
+	require.Equal(one, *res3)
+
+	rew4 := Convert[Int](one)
+	require.Equal(Convert[int](rew4), one)
+
+	res5 := Convert[*Int](&one)
+	require.Equal(Convert[int](*res5), one)
 }

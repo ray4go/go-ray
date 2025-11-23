@@ -20,7 +20,7 @@ import (
 //   - Can be passed as an argument to remote Ray tasks (via [RemoteCall]) and actors (via [NewActor], [NewPyActor], [ActorHandle.RemoteCall]).
 type ObjectRef struct {
 	id          int64
-	types       []reflect.Type // the types of the values referred by this ObjectRef
+	types       []reflect.Type // the types of the values referred by this ObjectRef. when the obj is from pytask, types will be []anyType
 	autoRelease bool           // if true, the object will be automatically released after it is retrieved or passed to another task
 }
 

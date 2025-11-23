@@ -192,3 +192,15 @@ func SliceIndexGetter[T any](s []T) func(int) T {
 		return s[i]
 	}
 }
+
+// Convert converts input to type T, the input type must have same underlying type as T
+func Convert[T any](input any) T {
+	srcVal := reflect.ValueOf(input)
+	var dst T
+	dstType := reflect.TypeOf(dst) // 目标类型
+	if !srcVal.Type().ConvertibleTo(dstType) {
+		panic(fmt.Sprintf("type %s not convertible to %s", srcVal.Type(), dstType))
+	}
+	s2Val := srcVal.Convert(dstType)
+	return s2Val.Interface().(T)
+}
