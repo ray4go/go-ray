@@ -3,10 +3,11 @@ package utils
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 	"unsafe"
+
+	"github.com/stretchr/testify/require"
 )
 
 // encodeBytesUnitsForTest is a helper function to create test data.
@@ -236,4 +237,69 @@ func TestConvert(t *testing.T) {
 
 	res5 := Convert[*Int](&one)
 	require.Equal(Convert[int](*res5), one)
+
+}
+
+func TestConvertViaEmbedding(t *testing.T) {
+	require := require.New(t)
+
+	type Base struct {
+		ID int
+	}
+	type Wrapper struct {
+		Base
+	}
+
+	// Case 1: *Wrapper{Base} from *Base (pointer to value embedding)
+	base := &Base{ID: 123}
+	wrapper := NewViaEmbedding[Wrapper](base)
+	require.Equal(123, wrapper.ID)
+
+	// Case 2: *Wrapper{*Base} from *Base (pointer to pointer embedding)
+	type WrapperPtr struct {
+		*Base
+	}
+	wrapperPtr := NewViaEmbedding[WrapperPtr](base)
+	require.Equal(123, wrapperPtr.ID)
+
+	wrapperPtr = NewViaEmbedding[WrapperPtr](&base)
+	require.Equal(123, wrapperPtr.ID)
+
+	// Case 3: *Wrapper{Base} from Base (value to value embedding)
+	// Note: NewViaEmbedding takes 'any', so passing 'Base' value works if logic supports it.
+	// Our logic checks: srcVal.Type().ConvertibleTo(fieldType)
+	// fieldType is Base. srcVal is Base. Convertible.
+	baseVal := Base{ID: 456}
+	wrapperVal := NewViaEmbedding[Wrapper](baseVal)
+	require.Equal(456, wrapperVal.ID)
+
+	require.Panics(func() {
+		// Case 4: Failure - T is not pointer
+		NewViaEmbedding[*Wrapper](base)
+	})
+
+	require.Panics(func() {
+		// Case 5: Failure - T points to non-struct
+		NewViaEmbedding[int](base)
+	})
+	require.Panics(func() {
+		// Case 6: Failure - Struct has > 1 fields
+		type MultiFieldWrapper struct {
+			Base
+			Other int
+		}
+		NewViaEmbedding[MultiFieldWrapper](base)
+	})
+	require.Panics(func() {
+		// Case 7: Failure - Struct field is not anonymous
+		type NamedFieldWrapper struct {
+			B Base
+		}
+		NewViaEmbedding[NamedFieldWrapper](base)
+	})
+	require.Panics(func() {
+		// Case 8: Failure - Input type not compatible
+		NewViaEmbedding[Wrapper]("string")
+	})
+
 }

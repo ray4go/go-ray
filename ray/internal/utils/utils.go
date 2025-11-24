@@ -204,3 +204,45 @@ func Convert[T any](input any) T {
 	s2Val := srcVal.Convert(dstType)
 	return s2Val.Interface().(T)
 }
+
+// NewViaEmbedding create *T from input where T is a struct that embeds the input type (or a pointer to it).
+// For example:
+//
+//	T is Wrapper{Base} or Wrapper{*Base}, input is Base or *Base
+func NewViaEmbedding[T any](input any) *T {
+	srcVal := reflect.ValueOf(input)
+	var dst T
+	dstType := reflect.TypeOf(dst)
+
+	if dstType.Kind() != reflect.Struct {
+		panic(fmt.Sprintf("NewViaEmbedding: %T is not a struct", input))
+	}
+	// Check if the struct has an anonymous field of the input type
+	if dstType.NumField() != 1 || !dstType.Field(0).Anonymous {
+		panic(fmt.Sprintf("NewViaEmbedding: %s must have exactly one anonymous field", dstType))
+	}
+
+	fieldType := dstType.Field(0).Type
+	newStructPtr := reflect.New(dstType)
+
+	if srcVal.Kind() == reflect.Ptr && srcVal.Type().Elem().ConvertibleTo(fieldType) {
+		// Input is pointer and field is value, try dereferencing input
+		// i.e., *Wrapper{Base} <- *Base
+		newStructPtr.Elem().Field(0).Set(srcVal.Elem().Convert(fieldType))
+	} else if srcVal.Type().ConvertibleTo(fieldType) {
+		// Direct conversion
+		// i.e., *Wrapper{*Base} <- *Base / *Wrapper{Base} <- Base / *Wrapper{*Base} <- Base
+		newStructPtr.Elem().Field(0).Set(srcVal.Convert(fieldType))
+	} else {
+		panic(fmt.Sprintf("NewViaEmbedding: cannot convert %s to field type %s", srcVal.Type(), fieldType))
+	}
+	return newStructPtr.Interface().(*T)
+}
+
+func GetStructName(val any) string {
+	typ := reflect.TypeOf(val)
+	for typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+	return typ.Name()
+}

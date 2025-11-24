@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/ray4go/go-ray/ray/internal/consts"
 	"github.com/ray4go/go-ray/ray/internal/ffi"
@@ -232,21 +233,15 @@ func (actor *ActorHandle) Kill(opts ...*RayOption) error {
 	return nil
 }
 
-// GetActor get a handle to a named actor.
-//
-// Noted that the actor name is set by passing [ray.Option]("name", name) to [NewActor]().
-// More supported options can be found in [Ray doc].
-//
-// [Ray doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.get_actor.html#ray.get_actor
-func GetActor(name string, opts ...*RayOption) (*ActorHandle, error) {
+func getActor(name string, opts ...*RayOption) (*ActorHandle, string, error) {
 	data, err := jsonEncodeOptions(opts, Option("name", name))
 	if err != nil {
-		return nil, fmt.Errorf("error to json encode ray RayOption: %w", err)
+		return nil, "", fmt.Errorf("error to json encode ray RayOption: %w", err)
 	}
 	resData, retCode := ffi.CallServer(consts.Go2PyCmd_GetActor, data)
 
 	if retCode != consts.ErrorCode_Success {
-		return nil, fmt.Errorf("GetActor failed, reason: %w, detail: %s", newError(retCode), resData)
+		return nil, "", fmt.Errorf("GetActor failed, reason: %w, detail: %s", newError(retCode), resData)
 	}
 
 	var res struct {
@@ -257,7 +252,7 @@ func GetActor(name string, opts ...*RayOption) (*ActorHandle, error) {
 
 	err = json.Unmarshal(resData, &res)
 	if err != nil {
-		return nil, fmt.Errorf("json.Unmarshal failed, reason: %w, detail: %s", err, resData)
+		return nil, "", fmt.Errorf("json.Unmarshal failed, reason: %w, detail: %s", err, resData)
 	}
 	var actorTyp *actorType
 	if res.IsGolangActor {
@@ -270,15 +265,32 @@ func GetActor(name string, opts ...*RayOption) (*ActorHandle, error) {
 	return &ActorHandle{
 		pyLocalId: res.PyLocalId,
 		typ:       actorTyp,
-	}, nil
+	}, res.ActorTypeName, nil
 }
 
-// GetTypedActor gets the actor handle used in goraygen type-safe wrappers.
+// GetActor get a handle to a named actor.
+//
+// Noted that the actor name is set by passing [ray.Option]("name", name) to [NewActor]().
+// More supported options can be found in [Ray doc].
+//
+// [Ray doc]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.get_actor.html#ray.get_actor
+func GetActor(name string, opts ...*RayOption) (*ActorHandle, error) {
+	handle, _, err := getActor(name, opts...)
+	return handle, err
+}
+
+// GetTypedActor gets the actor handle used in [goraygen] type-safe wrappers.
+//
+// [goraygen]: https://github.com/ray4go/goraygen
 func GetTypedActor[T any](name string, opts ...*RayOption) (*T, error) {
-	handle, err := GetActor(name, opts...)
+	handle, actorTypeName, err := getActor(name, opts...)
 	if err != nil {
 		return nil, err
 	}
-	// todo: assert T name with actor Type name
-	return utils.Convert[*T](handle), err
+
+	var val T
+	if expectName := strings.TrimPrefix(reflect.TypeOf(val).Name(), "Actor"); expectName != actorTypeName {
+		return nil, fmt.Errorf("actor type mismatch: got %s, want %s", actorTypeName, expectName)
+	}
+	return utils.NewViaEmbedding[T](handle), nil
 }

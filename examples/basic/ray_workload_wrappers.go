@@ -35,40 +35,41 @@ func CallOtherTask[string_0 _T1, time_Duration_1 _T2](name string_0, duration ti
 	return NewRemoteFunc[*Future1[string]]("CallOtherTask", []any{name, duration})
 }
 
+// no return value
 func NoReturnVal() *RemoteFunc[*Future0] {
 	_ = (tasks).NoReturnVal // help you to findStruct the original task
 	return NewRemoteFunc[*Future0]("NoReturnVal", []any{})
 }
 
+// multiple return values
 func MultiReturn[int_0 _T3, string_1 _T1](i int_0, s string_1) *RemoteFunc[*Future2[int, string]] {
 	_ = (tasks).MultiReturn // help you to findStruct the original task
 	return NewRemoteFunc[*Future2[int, string]]("MultiReturn", []any{i, s})
 }
 
+// custom struct can be used as parameter and return value
 func AddPoints[Point_0 _T4](ps ...Point_0) *RemoteFunc[*Future1[Point]] {
 	_ = (tasks).AddPoints // help you to findStruct the original task
 	return NewRemoteFunc[*Future1[Point]]("AddPoints", ExpandArgs([]any{}, ps))
 }
 
-type ActorCounter ray.ActorHandle
-
-func NewCounter[int_0 _T3](n int_0) *RemoteActor[*ActorCounter] {
-	_ = (actors).Counter // help you to findStruct the original actor constructor
-	return NewRemoteActor[*ActorCounter]("Counter", []any{n})
+type ActorCounter struct {
+	ray.ActorHandle
 }
 
-func (actor *ActorCounter) Kill(options ...*ray.RayOption) error {
-	return ((*ray.ActorHandle)(actor)).Kill(options...)
+func NewCounter[int_0 _T3](n int_0) *RemoteActor[ActorCounter] {
+	_ = (actors).Counter // help you to findStruct the original actor constructor
+	return NewRemoteActor[ActorCounter]("Counter", []any{n})
 }
 
 func Counter_Incr[int_0 _T3](_actor *ActorCounter, n int_0) *RemoteFunc[*Future1[int]] {
 	_ = (*counter).Incr // help you to findStruct the original actor method
-	return NewRemoteFunc[*Future1[int]]("Incr", []any{n}, (*ray.ActorHandle)(_actor))
+	return NewRemoteFunc[*Future1[int]]("Incr", []any{n}, &_actor.ActorHandle)
 }
 
 func Counter_Decr[int_0 _T3](_actor *ActorCounter, n int_0) *RemoteFunc[*Future1[int]] {
 	_ = (*counter).Decr // help you to findStruct the original actor method
-	return NewRemoteFunc[*Future1[int]]("Decr", []any{n}, (*ray.ActorHandle)(_actor))
+	return NewRemoteFunc[*Future1[int]]("Decr", []any{n}, &_actor.ActorHandle)
 }
 
 type _T0 interface {

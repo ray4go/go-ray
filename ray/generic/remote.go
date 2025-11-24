@@ -2,8 +2,9 @@ package generic
 
 import (
 	"fmt"
-	"github.com/ray4go/go-ray/ray/internal/utils"
 	"reflect"
+
+	"github.com/ray4go/go-ray/ray/internal/utils"
 
 	"github.com/ray4go/go-ray/ray"
 )
@@ -80,8 +81,8 @@ func NewRemoteActor[T any](factoryName string, args []any) *RemoteActor[T] {
 	}
 }
 
-func (r *RemoteActor[T]) Remote(options ...*ray.RayOption) T {
+func (r *RemoteActor[T]) Remote(options ...*ray.RayOption) *T {
 	args := ExpandArgs(r.args, options)
 	handle := ray.NewActor(r.factoryName, args...)
-	return utils.Convert[T](handle)
+	return utils.NewViaEmbedding[T](handle)
 }
