@@ -16,7 +16,7 @@ type StructWithUnexportedFields struct {
 	anotherPrivate bool // This won't be serialized either
 }
 
-func (testTask) ProcessStructWithUnexportedFields(s StructWithUnexportedFields) StructWithUnexportedFields {
+func (TestTask) ProcessStructWithUnexportedFields(s StructWithUnexportedFields) StructWithUnexportedFields {
 	s.PublicField = "processed_" + s.PublicField
 	s.AnotherPublic *= 2
 	// Note: private fields won't be accessible after serialization/deserialization
@@ -29,7 +29,7 @@ type Node struct {
 	Next  *Node // This could create circular references
 }
 
-func (testTask) ProcessLinkedList(head *Node) *Node {
+func (TestTask) ProcessLinkedList(head *Node) *Node {
 	// Simple processing - just double all values
 	current := head
 	for current != nil {
@@ -45,30 +45,30 @@ type SelfReferencingStruct struct {
 	Self *SelfReferencingStruct // Circular reference
 }
 
-func (testTask) ProcessSelfReferencingStruct(s SelfReferencingStruct) SelfReferencingStruct {
+func (TestTask) ProcessSelfReferencingStruct(s SelfReferencingStruct) SelfReferencingStruct {
 	return s
 }
 
 // Test channels (should not work well in distributed context)
-func (testTask) ProcessChannel(ch chan int, val int) chan int {
+func (TestTask) ProcessChannel(ch chan int, val int) chan int {
 	// This will likely fail in remote execution
 	ch <- val
 	return ch
 }
 
 // Test function types (should not serialize)
-func (testTask) ProcessFunction(fn func(int) int, val int) int {
+func (TestTask) ProcessFunction(fn func(int) int, val int) int {
 	// This will likely fail as functions can't be serialized
 	return fn(val)
 }
 
 // Test unsafe pointers (should fail)
-func (testTask) ProcessUnsafePointer(ptr unsafe.Pointer) unsafe.Pointer {
+func (TestTask) ProcessUnsafePointer(ptr unsafe.Pointer) unsafe.Pointer {
 	return ptr
 }
 
 // Test very large slices (test memory limits)
-func (testTask) ProcessVeryLargeSlice(size int) []int {
+func (TestTask) ProcessVeryLargeSlice(size int) []int {
 	// Create a large slice
 	result := make([]int, size)
 	for i := range result {
@@ -78,7 +78,7 @@ func (testTask) ProcessVeryLargeSlice(size int) []int {
 }
 
 // Test nil slices vs empty slices
-func (testTask) ProcessNilAndEmptySlices(
+func (TestTask) ProcessNilAndEmptySlices(
 	nilSlice []int,
 	emptySlice []int,
 ) (bool, bool, int, int) {
@@ -86,7 +86,7 @@ func (testTask) ProcessNilAndEmptySlices(
 }
 
 // Test nil maps vs empty maps
-func (testTask) ProcessNilAndEmptyMaps(
+func (TestTask) ProcessNilAndEmptyMaps(
 	nilMap map[string]int,
 	emptyMap map[string]int,
 ) (bool, bool, int, int) {
@@ -100,7 +100,7 @@ type StructWithMixedPointers struct {
 	Data     string
 }
 
-func (testTask) ProcessStructWithMixedPointers(s StructWithMixedPointers) StructWithMixedPointers {
+func (TestTask) ProcessStructWithMixedPointers(s StructWithMixedPointers) StructWithMixedPointers {
 	if s.ValidPtr != nil {
 		*s.ValidPtr = "processed_" + *s.ValidPtr
 	}
@@ -125,12 +125,12 @@ type NestedLevel3 struct {
 	Backup string
 }
 
-func (testTask) ProcessComplexNestedWithInterface(s ComplexNestedWithInterface) ComplexNestedWithInterface {
+func (TestTask) ProcessComplexNestedWithInterface(s ComplexNestedWithInterface) ComplexNestedWithInterface {
 	return s
 }
 
 // Test arrays vs slices behavior
-func (testTask) ProcessArraysAndSlices(
+func (TestTask) ProcessArraysAndSlices(
 	arr [5]int,
 	slice []int,
 ) ([5]int, []int) {
@@ -148,7 +148,7 @@ func (testTask) ProcessArraysAndSlices(
 }
 
 // Test empty string vs nil string pointer
-func (testTask) ProcessStringPointers(
+func (TestTask) ProcessStringPointers(
 	emptyStr string,
 	nilStrPtr *string,
 	validStrPtr *string,

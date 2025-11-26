@@ -13,18 +13,18 @@ import (
 // Test edge cases, error recovery, and robustness scenarios
 
 // Tasks for testing boundary conditions
-func (testTask) EmptySliceTask(data []int) int {
+func (TestTask) EmptySliceTask(data []int) int {
 	return len(data)
 }
 
-func (testTask) NilMapTask(data map[string]int) int {
+func (TestTask) NilMapTask(data map[string]int) int {
 	if data == nil {
 		return -1
 	}
 	return len(data)
 }
 
-func (testTask) ZeroValueTask(s string, i int, f float64, b bool) map[string]interface{} {
+func (TestTask) ZeroValueTask(s string, i int, f float64, b bool) map[string]interface{} {
 	return map[string]interface{}{
 		"string_empty": s == "",
 		"int_zero":     i == 0,
@@ -33,7 +33,7 @@ func (testTask) ZeroValueTask(s string, i int, f float64, b bool) map[string]int
 	}
 }
 
-func (testTask) LargeStringTask(size int) string {
+func (TestTask) LargeStringTask(size int) string {
 	// Create a large string
 	result := make([]byte, size)
 	for i := range result {
@@ -42,7 +42,7 @@ func (testTask) LargeStringTask(size int) string {
 	return string(result)
 }
 
-func (testTask) DeepNestedStructTask() map[string]interface{} {
+func (TestTask) DeepNestedStructTask() map[string]interface{} {
 	return map[string]interface{}{
 		"level1": map[string]interface{}{
 			"level2": map[string]interface{}{
@@ -58,7 +58,7 @@ func (testTask) DeepNestedStructTask() map[string]interface{} {
 }
 
 // Tasks that test numeric edge cases
-func (testTask) NumericBoundaryTask(maxInt int, minInt int, largeFloat float64) map[string]interface{} {
+func (TestTask) NumericBoundaryTask(maxInt int, minInt int, largeFloat float64) map[string]interface{} {
 	return map[string]interface{}{
 		"max_plus_one":   maxInt + 1,
 		"min_minus_one":  minInt - 1,
@@ -67,7 +67,7 @@ func (testTask) NumericBoundaryTask(maxInt int, minInt int, largeFloat float64) 
 	}
 }
 
-func (testTask) SlowIncrementerTask(initial int, steps int, delayMs int) int {
+func (TestTask) SlowIncrementerTask(initial int, steps int, delayMs int) int {
 	current := initial
 	for i := 0; i < steps; i++ {
 		time.Sleep(time.Duration(delayMs) * time.Millisecond)
@@ -77,7 +77,7 @@ func (testTask) SlowIncrementerTask(initial int, steps int, delayMs int) int {
 }
 
 // Tasks for testing concurrency edge cases
-func (testTask) SharedStateSimulator(id int, iterations int) []int {
+func (TestTask) SharedStateSimulator(id int, iterations int) []int {
 	results := make([]int, iterations)
 	for i := 0; i < iterations; i++ {
 		// Simulate some computation
@@ -87,7 +87,7 @@ func (testTask) SharedStateSimulator(id int, iterations int) []int {
 	return results
 }
 
-func (testTask) MemoryLeakTest(allocations int) int {
+func (TestTask) MemoryLeakTest(allocations int) int {
 	// Allocate and release memory in a loop
 	totalAllocated := 0
 	for i := 0; i < allocations; i++ {
@@ -106,7 +106,7 @@ type EdgeCaseActor struct {
 	errorCount  int
 }
 
-func (actorFactories) NewEdgeCaseActor() *EdgeCaseActor {
+func (ActorFactories) EdgeCaseActor() *EdgeCaseActor {
 	return &EdgeCaseActor{
 		state:       make(map[string]interface{}),
 		callHistory: make([]string, 0),
@@ -170,7 +170,7 @@ type ResourceCleanupActor struct {
 	isActive  bool
 }
 
-func (actorFactories) NewResourceCleanupActor() *ResourceCleanupActor {
+func (ActorFactories) ResourceCleanupActor() *ResourceCleanupActor {
 	return &ResourceCleanupActor{
 		resources: make([]string, 0),
 		isActive:  true,
@@ -313,7 +313,7 @@ func init() {
 
 	AddTestCase("TestActorEdgeCases", func(assert *require.Assertions) {
 		return // todo
-		actor := ray.NewActor("NewEdgeCaseActor", ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("EdgeCaseActor", ray.Option("num_cpus", 0.01))
 
 		// Test storing nil values
 		actor.RemoteCall("StoreNil", "test_key").GetAll()
@@ -331,7 +331,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorInterruption", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewEdgeCaseActor", ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("EdgeCaseActor", ray.Option("num_cpus", 0.01))
 
 		// Start a long-running operation
 		ref := actor.RemoteCall("InterruptibleOperation", 50) // 1 second operation
@@ -343,7 +343,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorErrorRecovery", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewEdgeCaseActor", ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("EdgeCaseActor", ray.Option("num_cpus", 0.01))
 
 		// Call that should succeed
 		ref1 := actor.RemoteCall("SimulateError", false)
@@ -366,7 +366,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorResourceCleanup", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewResourceCleanupActor", ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("ResourceCleanupActor", ray.Option("num_cpus", 0.01))
 
 		// Allocate some resources
 		actor.RemoteCall("AllocateResource", "resource1").GetAll()
@@ -398,7 +398,7 @@ func init() {
 	AddTestCase("TestRapidActorCreationDestruction", func(assert *require.Assertions) {
 		// Create and destroy multiple actors rapidly
 		for i := 0; i < 10; i++ {
-			actor := ray.NewActor("NewEdgeCaseActor", ray.Option("num_cpus", 0.01))
+			actor := ray.NewActor("EdgeCaseActor", ray.Option("num_cpus", 0.01))
 
 			// Use the actor briefly
 			ref := actor.RemoteCall("GetCallHistory")

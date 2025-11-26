@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (testTask) Divide(a, b int64) (int64, int64) {
+func (TestTask) Divide(a, b int64) (int64, int64) {
 	return a / b, a % b
 }
 
@@ -38,7 +38,7 @@ func init() {
 	})
 }
 
-func (testTask) NoReturnVal(a, b int64) {
+func (TestTask) NoReturnVal(a, b int64) {
 	return
 }
 
@@ -50,7 +50,7 @@ func init() {
 	})
 }
 
-func (testTask) Busy(name string, duration time.Duration) string {
+func (TestTask) Busy(name string, duration time.Duration) string {
 	time.Sleep(duration * time.Second)
 	return fmt.Sprintf("BusyTask %s success", name)
 }
@@ -82,7 +82,7 @@ type Point struct {
 }
 
 // 传递自定义类型的slice
-func (testTask) AddPointSlice(ps []Point) Point {
+func (TestTask) AddPointSlice(ps []Point) Point {
 	fmt.Printf("PointAddSlice %#v\n", ps)
 	res := Point{}
 	for _, p := range ps {
@@ -93,7 +93,7 @@ func (testTask) AddPointSlice(ps []Point) Point {
 }
 
 // 2参数
-func (testTask) Add2Points(p1, p2 Point) Point {
+func (TestTask) Add2Points(p1, p2 Point) Point {
 	fmt.Println("PointAdd2", p1, p2)
 	return Point{
 		X: p1.X + p2.X,
@@ -102,7 +102,7 @@ func (testTask) Add2Points(p1, p2 Point) Point {
 }
 
 // 可变参数
-func (testTask) AddPointsVar(ps ...Point) Point {
+func (TestTask) AddPointsVar(ps ...Point) Point {
 	fmt.Printf("PointAddVar %#v\n", ps)
 	res := Point{}
 	for _, p := range ps {
@@ -139,7 +139,7 @@ type counter struct {
 	num int
 }
 
-func (actorFactories) NewActor(n int) *counter {
+func (ActorFactories) Counter(n int) *counter {
 	return &counter{num: n}
 }
 
@@ -159,7 +159,7 @@ func (c *counter) Busy(n time.Duration) {
 
 func init() {
 	AddTestCase("TestActor", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewActor", 10, ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("Counter", 10, ray.Option("num_cpus", 0.01))
 		obj1 := actor.RemoteCall("Incr", 1)
 		res1, err1 := ray.Get1[int](obj1)
 		assert.Equal(nil, err1)
@@ -178,11 +178,11 @@ func init() {
 	})
 }
 
-func (testTask) MultipleReturns(arg1 any, arg2 any) (any, any) {
+func (TestTask) MultipleReturns(arg1 any, arg2 any) (any, any) {
 	return arg1, arg2
 }
 
-func (testTask) SingleReturns(arg any) any {
+func (TestTask) SingleReturns(arg any) any {
 	return arg
 }
 

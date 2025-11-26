@@ -8,11 +8,11 @@ import (
 )
 
 // Test performance and scalability scenarios
-func (testTask) QuickTask(id int) int {
+func (TestTask) QuickTask(id int) int {
 	return id * 2
 }
 
-func (testTask) MediumTask(id int, data []int) int {
+func (TestTask) MediumTask(id int, data []int) int {
 	sum := id
 	for _, v := range data {
 		sum += v
@@ -20,7 +20,7 @@ func (testTask) MediumTask(id int, data []int) int {
 	return sum
 }
 
-func (testTask) FibonacciTask(n int) int {
+func (TestTask) FibonacciTask(n int) int {
 	if n <= 1 {
 		return n
 	}
@@ -42,7 +42,7 @@ func LocalFibonacciTask(n int) int {
 	return b
 }
 
-func (testTask) MatrixMultiplyRow(rowA []float64, matrixB [][]float64) []float64 {
+func (TestTask) MatrixMultiplyRow(rowA []float64, matrixB [][]float64) []float64 {
 	cols := len(matrixB[0])
 	result := make([]float64, cols)
 
@@ -56,7 +56,7 @@ func (testTask) MatrixMultiplyRow(rowA []float64, matrixB [][]float64) []float64
 	return result
 }
 
-func (testTask) AggregateResults(results [][]float64) []float64 {
+func (TestTask) AggregateResults(results [][]float64) []float64 {
 	if len(results) == 0 {
 		return []float64{}
 	}

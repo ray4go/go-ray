@@ -8,19 +8,19 @@ import (
 )
 
 // raytasks
-type tasks struct{}
+type Tasks struct{}
 
-func (tasks) Echo(args ...any) []any {
+func (Tasks) Echo(args ...any) []any {
 	fmt.Println("Echo", args)
 	return args
 }
 
-func (tasks) Hello(name string) string {
+func (Tasks) Hello(name string) string {
 	return fmt.Sprintf("Hello %s", name)
 }
 
 // multiple return values
-func (tasks) MultiReturn(i int, s string) (int, string) {
+func (Tasks) MultiReturn(i int, s string) (int, string) {
 	return i, s
 }
 
@@ -29,7 +29,7 @@ type Point struct {
 }
 
 // custom struct can be used as parameter and return value
-func (tasks) AddPoints(ps ...Point) Point {
+func (Tasks) AddPoints(ps ...Point) Point {
 	fmt.Printf("PointAddVar %#v\n", ps)
 	res := Point{}
 	for _, p := range ps {
@@ -40,31 +40,31 @@ func (tasks) AddPoints(ps ...Point) Point {
 }
 
 // rayactors
-type actors struct{}
+type Actors struct{}
 
-type counter struct {
+type Counter struct {
 	num int
 }
 
-func (actors) Counter(n int) *counter {
+func (Actors) Counter(n int) *Counter {
 	fmt.Println("New actor, pid", os.Getpid())
-	return &counter{num: n}
+	return &Counter{num: n}
 }
 
-func (actor *counter) Incr(n int) int {
+func (actor *Counter) Incr(n int) int {
 	fmt.Printf("Incr %d -> %d\n", actor.num, actor.num+n)
 	actor.num += n
 	return actor.num
 }
 
-func (actor *counter) Decr(n int) int {
+func (actor *Counter) Decr(n int) int {
 	fmt.Printf("Decr %d -> %d\n", actor.num, actor.num-n)
 	actor.num -= n
 	return actor.num
 }
 
 func init() {
-	ray.Init(tasks{}, actors{}, driver)
+	ray.Init(Tasks{}, Actors{}, driver)
 }
 
 func driver() int {

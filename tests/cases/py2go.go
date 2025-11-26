@@ -11,7 +11,7 @@ type cnt struct {
 	num int
 }
 
-func (actorFactories) GoNewCounter(n int) *cnt {
+func (ActorFactories) GoNewCounter(n int) *cnt {
 	return &cnt{num: n}
 }
 
@@ -53,30 +53,30 @@ type GoNode struct {
 	Next *GoNode
 }
 
-func (testTask) ReturnStruct() GoNode {
+func (TestTask) ReturnStruct() GoNode {
 	return GoNode{Val: 1, Next: &GoNode{Val: 2, Next: &GoNode{Val: 3, Next: nil}}}
 }
 
-func (testTask) Pid() int {
+func (TestTask) Pid() int {
 	return os.Getpid()
 }
 
-func (testTask) Echo(args ...any) []any {
+func (TestTask) Echo(args ...any) []any {
 	return args
 }
 
-func (testTask) Single(arg any) any {
+func (TestTask) Single(arg any) any {
 	return arg
 }
 
-func (testTask) Hello(name string) string {
+func (TestTask) Hello(name string) string {
 	return "hello " + name
 }
 
-func (testTask) NoReturn(name string) {
+func (TestTask) NoReturn(name string) {
 }
 
-func (testTask) BusySleep(second int) {
+func (TestTask) BusySleep(second int) {
 	time.Sleep(time.Duration(second) * time.Second)
 }
 

@@ -16,7 +16,7 @@ type StatefulActor struct {
 	history []int
 }
 
-func (actorFactories) NewStatefulActor(initialValue int) *StatefulActor {
+func (ActorFactories) StatefulActor(initialValue int) *StatefulActor {
 	return &StatefulActor{
 		value:   initialValue,
 		history: make([]int, 0),
@@ -56,7 +56,7 @@ type ComplexActor struct {
 	items    []string
 }
 
-func (actorFactories) NewComplexActor(id string) *ComplexActor {
+func (ActorFactories) ComplexActor(id string) *ComplexActor {
 	return &ComplexActor{
 		id:       id,
 		counters: make(map[string]int),
@@ -120,7 +120,7 @@ type SlowActor struct {
 	id int
 }
 
-func (actorFactories) NewSlowActor(id int) *SlowActor {
+func (ActorFactories) SlowActor(id int) *SlowActor {
 	return &SlowActor{id: id}
 }
 
@@ -143,7 +143,7 @@ type ErrorActor struct {
 	shouldFail bool
 }
 
-func (actorFactories) NewErrorActor(shouldFail bool) *ErrorActor {
+func (ActorFactories) ErrorActor(shouldFail bool) *ErrorActor {
 	return &ErrorActor{shouldFail: shouldFail}
 }
 
@@ -168,7 +168,7 @@ type ResourceActor struct {
 	data [][]int
 }
 
-func (actorFactories) NewResourceActor(size int) *ResourceActor {
+func (ActorFactories) ResourceActor(size int) *ResourceActor {
 	data := make([][]int, size)
 	for i := range data {
 		data[i] = make([]int, size)
@@ -196,7 +196,7 @@ func (a *ResourceActor) GetSize() int {
 func init() {
 	AddTestCase("TestBasicActorLifecycle", func(assert *require.Assertions) {
 		// Test basic actor creation and method calls
-		actor := ray.NewActor("NewStatefulActor", 10, ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("StatefulActor", 10, ray.Option("num_cpus", 0.01))
 
 		// Test initial value
 		ref1 := actor.RemoteCall("GetValue")
@@ -218,7 +218,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorStateHistory", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewStatefulActor", 0, ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("StatefulActor", 0, ray.Option("num_cpus", 0.01))
 
 		// Perform sequence of operations
 		ray.Get1[int](actor.RemoteCall("Add", 10))
@@ -234,7 +234,7 @@ func init() {
 	})
 
 	AddTestCase("TestComplexActorState", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewComplexActor", "test_complex", ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("ComplexActor", "test_complex", ray.Option("num_cpus", 0.01))
 
 		// Test counter operations
 		ref1 := actor.RemoteCall("IncrementCounter", "counter1", 5)
@@ -275,7 +275,7 @@ func init() {
 
 	AddTestCase("TestActorBatchOperations", func(assert *require.Assertions) {
 		// todo: msgpack
-		actor := ray.NewActor("NewComplexActor", "batch_test", ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("ComplexActor", "batch_test", ray.Option("num_cpus", 0.01))
 
 		operations := []map[string]interface{}{
 			{"type": "increment", "name": "batch_counter", "delta": float64(5)},
@@ -299,9 +299,9 @@ func init() {
 
 	AddTestCase("TestMultipleActorInstances", func(assert *require.Assertions) {
 		// Create multiple instances of the same actor type
-		actor1 := ray.NewActor("NewStatefulActor", 100, ray.Option("num_cpus", 0.01))
-		actor2 := ray.NewActor("NewStatefulActor", 200, ray.Option("num_cpus", 0.01))
-		actor3 := ray.NewActor("NewStatefulActor", 300, ray.Option("num_cpus", 0.01))
+		actor1 := ray.NewActor("StatefulActor", 100, ray.Option("num_cpus", 0.01))
+		actor2 := ray.NewActor("StatefulActor", 200, ray.Option("num_cpus", 0.01))
+		actor3 := ray.NewActor("StatefulActor", 300, ray.Option("num_cpus", 0.01))
 
 		// Verify they have independent state
 		ref1 := actor1.RemoteCall("GetValue")
@@ -335,7 +335,7 @@ func init() {
 	AddTestCase("TestNamedActors", func(assert *require.Assertions) {
 		// Create named actor
 		actorName := "named_stateful_actor"
-		actor1 := ray.NewActor("NewStatefulActor", 42, ray.Option("name", actorName), ray.Option("num_cpus", 0.01))
+		actor1 := ray.NewActor("StatefulActor", 42, ray.Option("name", actorName), ray.Option("num_cpus", 0.01))
 
 		// Set some state
 		ray.Get1[int](actor1.RemoteCall("SetValue", 100))
@@ -352,7 +352,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorConcurrency", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewStatefulActor", 0, ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("StatefulActor", 0, ray.Option("num_cpus", 0.01))
 
 		// Launch multiple concurrent operations
 		var refs []*ray.ObjectRef
@@ -380,7 +380,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorTimeout", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewSlowActor", 1, ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("SlowActor", 1, ray.Option("num_cpus", 0.01))
 
 		// Start a slow operation
 		ref := actor.RemoteCall("VerySlowOperation", 2) // 2 seconds
@@ -391,7 +391,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorCancellation", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewSlowActor", 2, ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("SlowActor", 2, ray.Option("num_cpus", 0.01))
 
 		// Start slow operation
 		ref := actor.RemoteCall("VerySlowOperation", 5) // 5 seconds
@@ -406,7 +406,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorErrorHandling", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewErrorActor", true, ray.Option("num_cpus", 0.01)) // Will fail
+		actor := ray.NewActor("ErrorActor", true, ray.Option("num_cpus", 0.01)) // Will fail
 
 		// Call method that will panic
 		ref := actor.RemoteCall("MightFail", "test_error")
@@ -427,7 +427,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorKill", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewSlowActor", 3, ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("SlowActor", 3, ray.Option("num_cpus", 0.01))
 
 		// Start a long-running operation
 		ref := actor.RemoteCall("VerySlowOperation", 10) // 10 seconds
@@ -443,7 +443,7 @@ func init() {
 
 	AddTestCase("TestResourceIntensiveActor", func(assert *require.Assertions) {
 		// Create actor with resource constraints
-		actor := ray.NewActor("NewResourceActor", 100,
+		actor := ray.NewActor("ResourceActor", 100,
 			ray.Option("num_cpus", 1),
 			ray.Option("memory", 100*1024*1024), // 100MB
 			ray.Option("num_cpus", 0.01))
@@ -461,7 +461,7 @@ func init() {
 	})
 
 	AddTestCase("TestActorWithObjectRefs", func(assert *require.Assertions) {
-		actor := ray.NewActor("NewComplexActor", "objref_test", ray.Option("num_cpus", 0.01))
+		actor := ray.NewActor("ComplexActor", "objref_test", ray.Option("num_cpus", 0.01))
 
 		// Create ObjectRef and pass to actor
 		items := []string{"ref_item1", "ref_item2", "ref_item3"}
@@ -481,7 +481,7 @@ func init() {
 	})
 }
 
-func (actorFactories) ErrorTest() *StatefulActor {
+func (ActorFactories) ErrorTest() *StatefulActor {
 	return nil
 }
 

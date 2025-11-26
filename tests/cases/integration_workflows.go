@@ -99,7 +99,7 @@ type ResourceStatus struct {
 // Integration tests that simulate real-world usage patterns
 
 // Simulate a data processing pipeline
-func (testTask) DataIngestion(batchId int, records int) []DataRecord {
+func (TestTask) DataIngestion(batchId int, records int) []DataRecord {
 	data := make([]DataRecord, records)
 	for i := 0; i < records; i++ {
 		data[i] = DataRecord{
@@ -113,7 +113,7 @@ func (testTask) DataIngestion(batchId int, records int) []DataRecord {
 	return data
 }
 
-func (testTask) DataCleaning(records []DataRecord) []DataRecord {
+func (TestTask) DataCleaning(records []DataRecord) []DataRecord {
 	cleaned := make([]DataRecord, 0, len(records))
 	for _, record := range records {
 		// Simulate data cleaning: filter out invalid records
@@ -126,7 +126,7 @@ func (testTask) DataCleaning(records []DataRecord) []DataRecord {
 	return cleaned
 }
 
-func (testTask) DataAggregation(cleanedData []DataRecord) AggregationResult {
+func (TestTask) DataAggregation(cleanedData []DataRecord) AggregationResult {
 	categoryStats := make(map[string]int)
 	totalValue := 0
 	recordCount := len(cleanedData)
@@ -144,13 +144,13 @@ func (testTask) DataAggregation(cleanedData []DataRecord) AggregationResult {
 	}
 }
 
-func (testTask) ReportGeneration(aggregatedData AggregationResult) string {
+func (TestTask) ReportGeneration(aggregatedData AggregationResult) string {
 	return fmt.Sprintf("REPORT: Processed %d records, Total Value: %d, Average: %.2f",
 		aggregatedData.TotalRecords, aggregatedData.TotalValue, aggregatedData.AverageValue)
 }
 
 // Simulate a machine learning workflow
-func (testTask) DatasetSplit(data [][]float64, trainRatio float64) DatasetSplitData {
+func (TestTask) DatasetSplit(data [][]float64, trainRatio float64) DatasetSplitData {
 	trainSize := int(float64(len(data)) * trainRatio)
 
 	trainData := data[:trainSize]
@@ -164,7 +164,7 @@ func (testTask) DatasetSplit(data [][]float64, trainRatio float64) DatasetSplitD
 	}
 }
 
-func (testTask) ModelTraining(trainData [][]float64, epochs int) ModelResult {
+func (TestTask) ModelTraining(trainData [][]float64, epochs int) ModelResult {
 	// Simulate model training with multiple epochs
 	for epoch := 0; epoch < epochs; epoch++ {
 		// Simulate training computation
@@ -184,7 +184,7 @@ func (testTask) ModelTraining(trainData [][]float64, epochs int) ModelResult {
 	}
 }
 
-func (testTask) ModelEvaluation(model ModelResult, testData [][]float64) EvaluationResult {
+func (TestTask) ModelEvaluation(model ModelResult, testData [][]float64) EvaluationResult {
 	// Simulate evaluation on test data
 	testAccuracy := model.Accuracy * 0.98 // Slightly lower on test data
 
@@ -197,7 +197,7 @@ func (testTask) ModelEvaluation(model ModelResult, testData [][]float64) Evaluat
 }
 
 // Simulate a distributed compute workflow
-func (testTask) ComputeTask(taskId int, workload ComputeWorkload) ComputeResult {
+func (TestTask) ComputeTask(taskId int, workload ComputeWorkload) ComputeResult {
 	var result float64
 
 	switch workload.Operation {
@@ -236,7 +236,7 @@ func (testTask) ComputeTask(taskId int, workload ComputeWorkload) ComputeResult 
 	}
 }
 
-func (testTask) ResultAggregator(results []ComputeResult) AggregatedResults {
+func (TestTask) ResultAggregator(results []ComputeResult) AggregatedResults {
 	operations := make(map[string]int)
 	resultList := make([]float64, 0, len(results))
 
@@ -259,7 +259,7 @@ type WorkflowCoordinator struct {
 	results   map[string]WorkflowResults
 }
 
-func (actorFactories) NewWorkflowCoordinator() *WorkflowCoordinator {
+func (ActorFactories) NewWorkflowCoordinator() *WorkflowCoordinator {
 	return &WorkflowCoordinator{
 		workflows: make(map[string]WorkflowConfig),
 		completed: make(map[string]bool),
@@ -315,7 +315,7 @@ type ResourcePool struct {
 	usage     map[string]int  // usage count per resource
 }
 
-func (actorFactories) NewResourcePool(resourceNames []string) *ResourcePool {
+func (ActorFactories) NewResourcePool(resourceNames []string) *ResourcePool {
 	pool := &ResourcePool{
 		resources: make(map[string]bool),
 		usage:     make(map[string]int),

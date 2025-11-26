@@ -12,14 +12,14 @@ type StorageTestStruct struct {
 	Value float64
 }
 
-func (testTask) ProcessStoredObject(obj StorageTestStruct) StorageTestStruct {
+func (TestTask) ProcessStoredObject(obj StorageTestStruct) StorageTestStruct {
 	obj.ID *= 2
 	obj.Value *= 1.5
 	obj.Data = append(obj.Data, []byte("_processed")...)
 	return obj
 }
 
-func (testTask) CombineStoredObjects(obj1, obj2 StorageTestStruct) StorageTestStruct {
+func (TestTask) CombineStoredObjects(obj1, obj2 StorageTestStruct) StorageTestStruct {
 	return StorageTestStruct{
 		ID:    obj1.ID + obj2.ID,
 		Data:  append(obj1.Data, obj2.Data...),
@@ -27,7 +27,7 @@ func (testTask) CombineStoredObjects(obj1, obj2 StorageTestStruct) StorageTestSt
 	}
 }
 
-func (testTask) UseMultipleStoredObjects(objs []StorageTestStruct) int {
+func (TestTask) UseMultipleStoredObjects(objs []StorageTestStruct) int {
 	total := 0
 	for _, obj := range objs {
 		total += obj.ID
@@ -35,7 +35,7 @@ func (testTask) UseMultipleStoredObjects(objs []StorageTestStruct) int {
 	return total
 }
 
-func (testTask) ProcessPrimitiveTypes(i int, f float64, s string, b bool) (int, float64, string, bool) {
+func (TestTask) ProcessPrimitiveTypes(i int, f float64, s string, b bool) (int, float64, string, bool) {
 	return i * 2, f * 2.0, s + "_processed", !b
 }
 

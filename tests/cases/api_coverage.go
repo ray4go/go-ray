@@ -11,7 +11,7 @@ import (
 // Test coverage for APIs not covered by other test files
 
 // Task for testing CallPythonCode
-func (testTask) GetPythonEnvironment() string {
+func (TestTask) GetPythonEnvironment() string {
 	var result string
 	err := ray.CallPythonCode(`
 import sys
@@ -26,12 +26,12 @@ def foo():
 }
 
 // Tasks for testing advanced Wait scenarios
-func (testTask) VariableDelayTask(taskId int, delayMs int) int {
+func (TestTask) VariableDelayTask(taskId int, delayMs int) int {
 	time.Sleep(time.Duration(delayMs) * time.Millisecond)
 	return taskId * 100
 }
 
-func (testTask) RandomFailureTask(taskId int, shouldFail bool) int {
+func (TestTask) RandomFailureTask(taskId int, shouldFail bool) int {
 	if shouldFail {
 		panic(fmt.Sprintf("Task %d failed intentionally", taskId))
 	}
@@ -40,7 +40,7 @@ func (testTask) RandomFailureTask(taskId int, shouldFail bool) int {
 }
 
 // Task for testing ObjectRef edge cases
-func (testTask) ReturnComplexObjectRef() map[string]interface{} {
+func (TestTask) ReturnComplexObjectRef() map[string]interface{} {
 	return map[string]interface{}{
 		"id":      12345,
 		"name":    "complex_object",
@@ -50,25 +50,25 @@ func (testTask) ReturnComplexObjectRef() map[string]interface{} {
 	}
 }
 
-func (testTask) ProcessComplexObjectRef(obj map[string]interface{}) string {
+func (TestTask) ProcessComplexObjectRef(obj map[string]interface{}) string {
 	id := int(obj["id"].(float64)) // JSON numbers come as float64
 	name := obj["name"].(string)
 	return fmt.Sprintf("Processed object %d: %s", id, name)
 }
 
 // Tasks for testing various option combinations
-func (testTask) TaskWithAllOptions(value int) int {
+func (TestTask) TaskWithAllOptions(value int) int {
 	time.Sleep(100 * time.Millisecond)
 	return value * 3
 }
 
-func (testTask) LongRunningTask(duration int, value string) string {
+func (TestTask) LongRunningTask(duration int, value string) string {
 	time.Sleep(time.Duration(duration) * time.Second)
 	return fmt.Sprintf("long_task_%s_completed", value)
 }
 
 // Tasks for testing edge cases with various data types
-func (testTask) ProcessMixedTypes(
+func (TestTask) ProcessMixedTypes(
 	intVal int,
 	floatVal float64,
 	stringVal string,
@@ -101,7 +101,7 @@ type AdvancedOptionsActor struct {
 	callCount int
 }
 
-func (actorFactories) NewAdvancedOptionsActor(id string) *AdvancedOptionsActor {
+func (ActorFactories) AdvancedOptionsActor(id string) *AdvancedOptionsActor {
 	return &AdvancedOptionsActor{
 		id:        id,
 		startTime: time.Now(),
@@ -261,7 +261,7 @@ func init() {
 	AddTestCase("TestActorWithAdvancedOptions", func(assert *require.Assertions) {
 		return // todo msgpack
 		// Test actor creation with various options
-		actor := ray.NewActor("NewAdvancedOptionsActor", "advanced_test",
+		actor := ray.NewActor("AdvancedOptionsActor", "advanced_test",
 			ray.Option("num_cpus", 1),
 			ray.Option("memory", 200*1024*1024), // 200MB
 			ray.Option("max_restarts", 2),
@@ -281,7 +281,7 @@ func init() {
 
 	AddTestCase("TestActorMemoryIntensiveWithOptions", func(assert *require.Assertions) {
 		// Test memory-intensive actor operations
-		actor := ray.NewActor("NewAdvancedOptionsActor", "memory_test",
+		actor := ray.NewActor("AdvancedOptionsActor", "memory_test",
 			ray.Option("num_cpus", 2),
 			ray.Option("memory", 500*1024*1024), // 500MB
 			ray.Option("num_cpus", 0.01),

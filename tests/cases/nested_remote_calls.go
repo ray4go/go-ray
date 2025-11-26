@@ -11,7 +11,7 @@ import (
 // Test nested remote calls - calling remote tasks/actors from within tasks/actors
 
 // Task that calls other remote tasks
-func (testTask) CoordinatorTask(taskCount int) []int {
+func (TestTask) CoordinatorTask(taskCount int) []int {
 	var refs []*ray.ObjectRef
 
 	// Launch multiple remote tasks from within this task
@@ -33,12 +33,12 @@ func (testTask) CoordinatorTask(taskCount int) []int {
 	return results
 }
 
-func (testTask) WorkerTask(id, multiplier int) int {
+func (TestTask) WorkerTask(id, multiplier int) int {
 	return id * multiplier
 }
 
 // Task that creates and uses actors
-func (testTask) ActorCoordinatorTask(actorName string, operations []string) []int {
+func (TestTask) ActorCoordinatorTask(actorName string, operations []string) []int {
 	// Get or create actor from within task
 	actor, err := ray.GetActor(actorName)
 	if err != nil {
@@ -70,7 +70,7 @@ func (testTask) ActorCoordinatorTask(actorName string, operations []string) []in
 }
 
 // Task that chains multiple remote calls
-func (testTask) ChainedTask(initial int, depth int) int {
+func (TestTask) ChainedTask(initial int, depth int) int {
 	if depth <= 0 {
 		return initial
 	}
@@ -86,7 +86,7 @@ func (testTask) ChainedTask(initial int, depth int) int {
 }
 
 // Task that uses Put and Get operations
-func (testTask) DataSharingTask(data []int) int {
+func (TestTask) DataSharingTask(data []int) int {
 	// Put data into object store from within task
 	objRef, err := ray.Put(data)
 	if err != nil {
@@ -103,7 +103,7 @@ func (testTask) DataSharingTask(data []int) int {
 	return result[0].(int)
 }
 
-func (testTask) ProcessStoredData(data []int) int {
+func (TestTask) ProcessStoredData(data []int) int {
 	sum := 0
 	for _, v := range data {
 		sum += v
@@ -112,7 +112,7 @@ func (testTask) ProcessStoredData(data []int) int {
 }
 
 // Task that uses Wait functionality
-func (testTask) BatchCoordinatorTask(batchSize int) []int {
+func (TestTask) BatchCoordinatorTask(batchSize int) []int {
 	var refs []*ray.ObjectRef
 
 	// Launch batch of tasks
@@ -145,7 +145,7 @@ func (testTask) BatchCoordinatorTask(batchSize int) []int {
 	return results
 }
 
-func (testTask) SlowWorkerTask(id, delayMs int) int {
+func (TestTask) SlowWorkerTask(id, delayMs int) int {
 	time.Sleep(time.Duration(delayMs) * time.Millisecond)
 	return id * 10
 }
@@ -155,7 +155,7 @@ type TaskCallingActor struct {
 	id int
 }
 
-func (actorFactories) NewTaskCallingActor(id int) *TaskCallingActor {
+func (ActorFactories) NewTaskCallingActor(id int) *TaskCallingActor {
 	return &TaskCallingActor{id: id}
 }
 
@@ -193,7 +193,7 @@ type ActorCallingActor struct {
 	id int
 }
 
-func (actorFactories) NewActorCallingActor(id int) *ActorCallingActor {
+func (ActorFactories) NewActorCallingActor(id int) *ActorCallingActor {
 	return &ActorCallingActor{id: id}
 }
 
@@ -295,7 +295,7 @@ func init() {
 		callingActor := ray.NewActor("NewActorCallingActor", 1, ray.Option("num_cpus", 0.01))
 
 		// Create a named counter actor
-		_ = ray.NewActor("NewActor", 100, ray.Option("name", "test_counter"), ray.Option("num_cpus", 0.01))
+		_ = ray.NewActor("Counter", 100, ray.Option("name", "test_counter"), ray.Option("num_cpus", 0.01))
 
 		// Use the calling actor to interact with the counter actor
 		ref := callingActor.RemoteCall("CallOtherActor", "test_counter", "Incr", 5)
@@ -306,7 +306,7 @@ func init() {
 
 	AddTestCase("TestNestedActorCoordination", func(assert *require.Assertions) {
 		// Create a named actor first
-		ray.NewActor("NewActor", 50, ray.Option("name", "coord_counter"), ray.Option("num_cpus", 0.01))
+		ray.NewActor("Counter", 50, ray.Option("name", "coord_counter"), ray.Option("num_cpus", 0.01))
 
 		// Test task coordinating with named actor
 		operations := []string{"incr", "incr", "decr", "incr"}

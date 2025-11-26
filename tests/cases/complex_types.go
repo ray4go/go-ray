@@ -20,7 +20,7 @@ type NestedStruct struct {
 	Details []int
 }
 
-func (testTask) ProcessComplexStruct(data ComplexStruct) ComplexStruct {
+func (TestTask) ProcessComplexStruct(data ComplexStruct) ComplexStruct {
 	data.ID *= 2
 	data.Name = "processed_" + data.Name
 	data.Tags = append(data.Tags, "processed")
@@ -31,7 +31,7 @@ func (testTask) ProcessComplexStruct(data ComplexStruct) ComplexStruct {
 	return data
 }
 
-func (testTask) ProcessSliceOfStructs(structs []ComplexStruct) []ComplexStruct {
+func (TestTask) ProcessSliceOfStructs(structs []ComplexStruct) []ComplexStruct {
 	result := make([]ComplexStruct, len(structs))
 	for i, s := range structs {
 		result[i] = ComplexStruct{
@@ -52,7 +52,7 @@ func (testTask) ProcessSliceOfStructs(structs []ComplexStruct) []ComplexStruct {
 	return result
 }
 
-func (testTask) ProcessMap(data map[string]int) map[string]int {
+func (TestTask) ProcessMap(data map[string]int) map[string]int {
 	result := make(map[string]int)
 	for k, v := range data {
 		result[k+"_processed"] = v * 2

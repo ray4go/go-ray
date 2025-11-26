@@ -14,19 +14,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (t testTask) GenData(x int) int {
+func (t TestTask) GenData(x int) int {
 	return x
 }
 
-func (t testTask) MultipleReturns2(a int, b string) (int, string, bool) {
+func (t TestTask) MultipleReturns2(a int, b string) (int, string, bool) {
 	return a, b, true
 }
 
-func (t testTask) ReturnSlice() []int {
+func (t TestTask) ReturnSlice() []int {
 	return []int{1, 2, 3, 4, 5}
 }
 
-func (t testTask) ReturnMap() map[string]int {
+func (t TestTask) ReturnMap() map[string]int {
 	return map[string]int{"a": 1, "b": 2, "c": 3}
 }
 

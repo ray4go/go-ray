@@ -11,7 +11,7 @@ type CustomInt int
 type CustomString string
 type CustomSlice []int
 
-func (testTask) ProcessCustomTypes(
+func (TestTask) ProcessCustomTypes(
 	ci CustomInt,
 	cs CustomString,
 	csl CustomSlice,
@@ -20,7 +20,7 @@ func (testTask) ProcessCustomTypes(
 }
 
 // Test time.Time and other standard library types
-func (testTask) ProcessTimeAndDuration(
+func (TestTask) ProcessTimeAndDuration(
 	t time.Time,
 	d time.Duration,
 ) (time.Time, time.Duration) {
@@ -39,7 +39,7 @@ type InnerStruct struct {
 	Count int
 }
 
-func (testTask) ProcessNestedStructs(outer OuterStruct) OuterStruct {
+func (TestTask) ProcessNestedStructs(outer OuterStruct) OuterStruct {
 	outer.ID *= 2
 	outer.Inner.Value = "processed_" + outer.Inner.Value
 	outer.Inner.Count += 10
@@ -53,7 +53,7 @@ func (testTask) ProcessNestedStructs(outer OuterStruct) OuterStruct {
 }
 
 // Test deeply nested maps and slices
-func (testTask) ProcessNestedCollections(
+func (TestTask) ProcessNestedCollections(
 	nestedMap map[string]map[string]int,
 	nestedSlice [][]string,
 	mixedStructure map[string][]int,
@@ -89,7 +89,7 @@ func (testTask) ProcessNestedCollections(
 }
 
 // Test variadic functions
-func (testTask) ProcessVariadic(base int, values ...int) []int {
+func (TestTask) ProcessVariadic(base int, values ...int) []int {
 	result := make([]int, len(values))
 	for i, v := range values {
 		result[i] = base + v
@@ -98,19 +98,19 @@ func (testTask) ProcessVariadic(base int, values ...int) []int {
 }
 
 // Test multiple return values with different types
-func (testTask) MultipleReturnTypes() (int, string, []int, map[string]int, bool, error) {
+func (TestTask) MultipleReturnTypes() (int, string, []int, map[string]int, bool, error) {
 	return 42, "success", []int{1, 2, 3}, map[string]int{"key": 100}, true, nil
 }
 
 // Problematic cases that should cause panics
 
 // Test slice of interface{}
-func (testTask) TaskWithSliceOfInterface(data []interface{}) []interface{} {
+func (TestTask) TaskWithSliceOfInterface(data []interface{}) []interface{} {
 	return data
 }
 
 // Test map with interface{} values
-func (testTask) TaskWithMapOfInterface(data map[string]interface{}) map[string]interface{} {
+func (TestTask) TaskWithMapOfInterface(data map[string]interface{}) map[string]interface{} {
 	return data
 }
 
@@ -127,7 +127,7 @@ type Level2Struct struct {
 	Data interface{} // Hidden interface{} deep in structure
 }
 
-func (testTask) TaskWithDeeplyNestedInterface(s DeeplyNestedStruct) DeeplyNestedStruct {
+func (TestTask) TaskWithDeeplyNestedInterface(s DeeplyNestedStruct) DeeplyNestedStruct {
 	return s
 }
 
@@ -137,7 +137,7 @@ type LargeStruct struct {
 	Maps map[int]string
 }
 
-func (testTask) ProcessLargeStruct(large LargeStruct) LargeStruct {
+func (TestTask) ProcessLargeStruct(large LargeStruct) LargeStruct {
 	// Just modify a few elements to keep it fast
 	large.Data[0] = 999
 	large.Data[999] = 1000

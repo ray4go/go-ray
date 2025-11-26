@@ -9,27 +9,27 @@ import (
 )
 
 // Test error handling and edge cases
-func (testTask) TaskThatPanics(message string) string {
+func (TestTask) TaskThatPanics(message string) string {
 	panic("intentional panic: " + message)
 }
 
-func (testTask) DivideByZero(a, b int) int {
+func (TestTask) DivideByZero(a, b int) int {
 	return a / b
 }
 
-func (testTask) TaskWithDelay(delay int, value string) string {
+func (TestTask) TaskWithDelay(delay int, value string) string {
 	time.Sleep(time.Duration(delay) * time.Millisecond)
 	return fmt.Sprintf("delayed_%s", value)
 }
 
-func (testTask) TaskThatReturnsError(shouldFail bool) (string, error) {
+func (TestTask) TaskThatReturnsError(shouldFail bool) (string, error) {
 	if shouldFail {
 		return "", fmt.Errorf("task failed as requested")
 	}
 	return "success", nil
 }
 
-func (testTask) ProcessLargeData(size int) []int {
+func (TestTask) ProcessLargeData(size int) []int {
 	data := make([]int, size)
 	for i := 0; i < size; i++ {
 		data[i] = i * i
@@ -37,11 +37,11 @@ func (testTask) ProcessLargeData(size int) []int {
 	return data
 }
 
-func (testTask) EmptyReturns() {
+func (TestTask) EmptyReturns() {
 	// Task with no return values
 }
 
-func (testTask) MultipleReturnValues(a, b int) (int, int, string, bool) {
+func (TestTask) MultipleReturnValues(a, b int) (int, int, string, bool) {
 	return a + b, a * b, fmt.Sprintf("%d_%d", a, b), a > b
 }
 

@@ -10,25 +10,25 @@ import (
 )
 
 // raytasks
-type tasks struct{}
+type Tasks struct{}
 
-func (tasks) Echo(args ...any) []any {
+func (Tasks) Echo(args ...any) []any {
 	fmt.Println("Echo", args)
 	return args
 }
 
-func (tasks) Hello(name string) string {
+func (Tasks) Hello(name string) string {
 	return fmt.Sprintf("Hello %s", name)
 }
 
-func (tasks) Busy(name string, duration time.Duration) string {
+func (Tasks) Busy(name string, duration time.Duration) string {
 	fmt.Println("BusyTask", name, "started at", time.Now())
 	time.Sleep(duration * time.Second)
 	fmt.Println("BusyTask", name, "finished at", time.Now())
 	return fmt.Sprintf("BusyTask %s success", name)
 }
 
-func (tasks) CallOtherTask(name string, duration time.Duration) string {
+func (Tasks) CallOtherTask(name string, duration time.Duration) string {
 	obj := ray.RemoteCall("Busy", name, duration)
 	res, err := ray.Get1[string](obj)
 	fmt.Println("CallOtherTask: ", res, err)
@@ -36,12 +36,12 @@ func (tasks) CallOtherTask(name string, duration time.Duration) string {
 }
 
 // no return value
-func (tasks) NoReturnVal() {
+func (Tasks) NoReturnVal() {
 	return
 }
 
 // multiple return values
-func (tasks) MultiReturn(i int, s string) (int, string) {
+func (Tasks) MultiReturn(i int, s string) (int, string) {
 	return i, s
 }
 
@@ -50,7 +50,7 @@ type Point struct {
 }
 
 // custom struct can be used as parameter and return value
-func (tasks) AddPoints(ps ...Point) Point {
+func (Tasks) AddPoints(ps ...Point) Point {
 	fmt.Printf("PointAddVar %#v\n", ps)
 	res := Point{}
 	for _, p := range ps {
@@ -85,7 +85,7 @@ func (actor *counter) Decr(n int) int {
 }
 
 func init() {
-	ray.Init(tasks{}, actors{}, driver)
+	ray.Init(Tasks{}, actors{}, driver)
 }
 
 func driver() int {

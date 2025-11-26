@@ -29,7 +29,7 @@ def ray_nodes():
 `
 
 // 返回剩余 step 后的 hostname 列表
-func (testTask) ChainCall(nodeIds []string, currIdx int, remainStep int, cross bool) map[string]struct{} {
+func (TestTask) ChainCall(nodeIds []string, currIdx int, remainStep int, cross bool) map[string]struct{} {
 	hostName, _ := os.Hostname()
 	fmt.Println("Go task", currIdx, hostName)
 	nextNodeId := nodeIds[currIdx%len(nodeIds)]
@@ -58,7 +58,7 @@ type actor struct {
 	actorTypeName string
 }
 
-func (actorFactories) NewActorFromChain(cross bool, actorTypeName string) *actor {
+func (ActorFactories) ChainCallActor(cross bool, actorTypeName string) *actor {
 	return &actor{cross, actorTypeName}
 }
 func (actor *actor) ChainCall(nodeIds []string, currIdx int, remainStep int) map[string]struct{} {
@@ -75,7 +75,7 @@ func (actor *actor) ChainCall(nodeIds []string, currIdx int, remainStep int) map
 		if actor.cross {
 			act = ray.NewPyActor("ChainCallActor", actor.cross, actor.actorTypeName, opt, opt2, ray.Option("num_cpus", 0.01))
 		} else {
-			act = ray.NewActor("NewActorFromChain", actor.cross, actor.actorTypeName, opt, opt2, ray.Option("num_cpus", 0.01))
+			act = ray.NewActor("ChainCallActor", actor.cross, actor.actorTypeName, opt, opt2, ray.Option("num_cpus", 0.01))
 		}
 		err := act.RemoteCall("ChainCall", nodeIds, currIdx, remainStep-1).GetInto(&hostNames)
 		if err != nil {
@@ -98,7 +98,7 @@ func init() {
 			assert.Equal(len(nodeIds), len(hostNames))
 		}
 		{
-			actor := ray.NewActor("NewActorFromChain", true, "NewActorFromChain", ray.Option("num_cpus", 0.01))
+			actor := ray.NewActor("ChainCallActor", true, "ChainCallActor", ray.Option("num_cpus", 0.01))
 			hostNames := actor.RemoteCall("ChainCall", nodeIds, 0, 6)
 			result, err := ray.Get1[map[string]struct{}](hostNames)
 			assert.NoError(err)
@@ -106,7 +106,7 @@ func init() {
 		}
 
 		{
-			fut := ray.NewPyActor("ChainCallActor", false, "NewActorFromChain").RemoteCall("ChainCall", nodeIds, 0, 6)
+			fut := ray.NewPyActor("ChainCallActor", false, "ChainCallActor").RemoteCall("ChainCall", nodeIds, 0, 6)
 			var hostNames map[string]struct{}
 			err := fut.GetInto(&hostNames)
 			assert.NoError(err)
@@ -119,7 +119,7 @@ func init() {
 			assert.Equal(len(nodeIds), len(hostNames))
 		}
 		{
-			actor := ray.NewActor("NewActorFromChain", false, "NewActorFromChain", ray.Option("num_cpus", 0.01))
+			actor := ray.NewActor("ChainCallActor", false, "ChainCallActor", ray.Option("num_cpus", 0.01))
 			hostNames := actor.RemoteCall("ChainCall", nodeIds, 0, 6)
 			result, err := ray.Get1[map[string]struct{}](hostNames)
 			assert.NoError(err)

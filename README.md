@@ -28,73 +28,73 @@ Requires Go 1.21+.
 package main
 
 import (
-  "fmt"
-  "log"
-  "time"
+	"fmt"
+	"log"
+	"time"
 
-  "github.com/ray4go/go-ray/ray"
+	"github.com/ray4go/go-ray/ray"
 )
 
 func init() {
-  // Initialize and register Ray tasks, actors, and the driver
-  ray.Init(tasks{}, actors{}, driver)
+	// Initialize and register Ray Tasks, Actors, and the driver
+	ray.Init(Tasks{}, Actors{}, driver)
 }
 
 func driver() int {
-  // Ray task
-  answerObjRef := ray.RemoteCall("TheAnswerOfWorld")
-  objRef := ray.RemoteCall("Divide", answerObjRef, 5, ray.Option("num_cpus", 2), ray.Option("memory", 100*1024*1024))
-  res, remainder, err := ray.Get2[int64, int64](objRef)
-  if err != nil {
-    log.Panicf("remote task error: %v", err)
-  }
-  fmt.Printf("call Divide -> %#v, %#v \n", res, remainder)
+	// Ray task
+	answerObjRef := ray.RemoteCall("TheAnswerOfWorld")
+	objRef := ray.RemoteCall("Divide", answerObjRef, 5, ray.Option("num_cpus", 2), ray.Option("memory", 100*1024*1024))
+	res, remainder, err := ray.Get2[int64, int64](objRef)
+	if err != nil {
+		log.Panicf("remote task error: %v", err)
+	}
+	fmt.Printf("call Divide -> %#v, %#v \n", res, remainder)
 
-  // Ray actor
-  cnt := ray.NewActor("Counter", 1)
-  obj := cnt.RemoteCall("Incr", 1)
-  var res2 int
-  err2 := obj.GetInto(&res2)
-  fmt.Println("Incr ", res2, err2)
+	// Ray actor
+	cnt := ray.NewActor("Counter", 1)
+	obj := cnt.RemoteCall("Incr", 1)
+	var res2 int
+	err2 := obj.GetInto(&res2)
+	fmt.Println("Incr ", res2, err2)
 
-  obj2 := cnt.RemoteCall("Incr", 1)
-  obj3 := cnt.RemoteCall("Incr", obj2)
-  fmt.Println(obj3.GetAll())
-  return 0
+	obj2 := cnt.RemoteCall("Incr", 1)
+	obj3 := cnt.RemoteCall("Incr", obj2)
+	fmt.Println(obj3.GetAll())
+	return 0
 }
 
-type tasks struct{}
+type Tasks struct{}
 
-func (_ tasks) TheAnswerOfWorld() int64 {
-  time.Sleep(1 * time.Second)
-  return 42
+func (_ Tasks) TheAnswerOfWorld() int64 {
+	time.Sleep(1 * time.Second)
+	return 42
 }
 
-func (_ tasks) Divide(a, b int64) (int64, int64) {
-  return a / b, a % b
+func (_ Tasks) Divide(a, b int64) (int64, int64) {
+	return a / b, a % b
 }
 
-type actors struct{}
+type Actors struct{}
 
-func (_ actors) Counter(n int) *counter {
-  return &counter{num: n}
+func (_ Actors) Counter(n int) *Counter {
+	return &Counter{num: n}
 }
 
 // Ray actor
-type counter struct {
-  num int
+type Counter struct {
+	num int
 }
 
-func (c *counter) Incr(n int) int {
-  fmt.Printf("Incr %d -> %d\n", c.num, c.num+n)
-  c.num += n
-  return c.num
+func (c *Counter) Incr(n int) int {
+	fmt.Printf("Incr %d -> %d\n", c.num, c.num+n)
+	c.num += n
+	return c.num
 }
 
-func (c *counter) Decr(n int) int {
-  fmt.Printf("Decr %d -> %d\n", c.num, c.num-n)
-  c.num -= n
-  return c.num
+func (c *Counter) Decr(n int) int {
+	fmt.Printf("Decr %d -> %d\n", c.num, c.num-n)
+	c.num -= n
+	return c.num
 }
 
 // main function won't be called but cannot be omitted (it's required only for compilation)

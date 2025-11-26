@@ -1,8 +1,9 @@
 package cases
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -10,10 +11,11 @@ var (
 )
 
 // raytasks
-type testTask struct{}
+type TestTask struct{}
 
-// actorFactories holds all actor constructor methods
-type actorFactories struct{}
+// ActorFactories holds all actor constructor methods
+// rayactors
+type ActorFactories struct{}
 
 func AddTestCase(name string, f func(*require.Assertions)) {
 	testFunc := func(t *testing.T) {
@@ -30,6 +32,6 @@ func GetTestCases() []testing.InternalTest {
 	return tests
 }
 
-func RayWorkload() (testTask, actorFactories) {
-	return testTask{}, actorFactories{}
+func RayWorkload() (TestTask, ActorFactories) {
+	return TestTask{}, ActorFactories{}
 }

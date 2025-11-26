@@ -9,7 +9,7 @@ import (
 )
 
 // Test ray task options and configuration
-func (testTask) CpuIntensiveTask(iterations int) int {
+func (TestTask) CpuIntensiveTask(iterations int) int {
 	// Simulate CPU-intensive work
 	result := 0
 	for i := 0; i < iterations; i++ {
@@ -20,7 +20,7 @@ func (testTask) CpuIntensiveTask(iterations int) int {
 	return result
 }
 
-func (testTask) MemoryIntensiveTask(size int) []int {
+func (TestTask) MemoryIntensiveTask(size int) []int {
 	// Simulate memory-intensive work
 	data := make([]int, size)
 	for i := range data {
@@ -29,12 +29,12 @@ func (testTask) MemoryIntensiveTask(size int) []int {
 	return data
 }
 
-func (testTask) ResourceTrackingTask(taskId string, duration int) string {
+func (TestTask) ResourceTrackingTask(taskId string, duration int) string {
 	time.Sleep(time.Duration(duration) * time.Millisecond)
 	return "task_" + taskId + "_completed"
 }
 
-func (testTask) BatchTask(batchId int, items []string) []string {
+func (TestTask) BatchTask(batchId int, items []string) []string {
 	result := make([]string, len(items))
 	for i, item := range items {
 		result[i] = item + "_batch_" + fmt.Sprint(batchId)
