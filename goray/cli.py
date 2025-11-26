@@ -8,10 +8,10 @@ logger = logging.getLogger(__name__)
 
 def main():
     """
-    仅会在ray driver上被调用
+    only called on ray driver process
     """
     parser = argparse.ArgumentParser(
-        description="Python driver for ray-core-go application.",
+        description="GoRay application Runner",
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
@@ -26,14 +26,12 @@ def main():
         type=str,
         choices=["cluster", "local"],
         default="cluster",
-        help="指定运行模式：\n"
-        "  cluster: 在集群模式下运行\n"
-        "  local: 在ray本地模式下运行",
+        help="Ray cluster mode or local mode (default: cluster)",
     )
     parser.add_argument(
-        "go_binary_path",  # 位置参数
+        "go_binary_path",  # positional argument
         type=str,
-        help="指定 Goray 应用二进制文件的路径 (使用 go build -buildmode=c-shared 构建)",
+        help="Path to the GoRay binary file (built from `go build -buildmode=c-shared`)",
     )
     args = parser.parse_args()
 
