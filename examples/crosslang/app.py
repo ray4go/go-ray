@@ -15,9 +15,8 @@ def hello(name: str):
 
 
 @goray.remote
-def busy(sec: int) -> int:
+def busy(sec: int):
     time.sleep(sec)
-    return sec
 
 
 @goray.remote
@@ -34,9 +33,8 @@ class PyActor:
     def hello(self, name: str):
         return f"hello {name}"
 
-    def busy(self, sec: int) -> int:
+    def busy(self, sec: int):
         time.sleep(sec)
-        return sec
 
 
 @goray.remote

@@ -5,11 +5,12 @@ version = "1.0.0"
 authors = [
     { name = "WeiminWang", email = "wang0.618@qq.com" }
 ]
-dependencies = ["msgpack"]
+dependencies = ["msgpack", "ray[default]"]
 
 [project.optional-dependencies]
-ray = [
-    "ray[default]"
+docs = [
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings[python]>=0.24.0"
 ]
 
 [project.urls]

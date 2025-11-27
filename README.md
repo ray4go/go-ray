@@ -246,14 +246,11 @@ Cross-language features:
     - Python calls Go functions in-process
     - Python instantiates Go classes and calls their methods in-process
 
-Usage:
+**Usage**
 
 In Python:
 
 - Use `goray.remote` to declare Ray tasks/actors (replaces `ray.remote`).
-- Use `goray.init(libpath: str, **ray_init_args)` to initialize Ray (replaces `ray.init`).
-    - `libpath` is the path to the compiled Go shared library.
-    - `ray_init_args` are forwarded to `ray.init`.
 - Use `goray.golang_actor_class(name: str)` to get a Go Ray actor class and create actors as usual.
 - Use `goray.golang_task(name: str)` to get a Go Ray task and invoke it like a Python Ray task.
 - Use `goray.golang_local_run_task(name: str, *args)` to call a Go function in-process.
@@ -265,33 +262,32 @@ In Go:
 - `ray.NewPyActor(name, args...) -> ActorHandle` — Create a Python Ray actor.
 - `ray.LocalCallPyTask(name, args...) -> LocalPyCallResult` — Call a Python function in-process.
 
-Submit the job via `goray` with the entrypoint Python script:
+Submit the job via `goray`:
 
 ```bash
 go build -buildmode=c-shared -o ./build/raytask .
 
 # Ray standalone environment
-goray --mode local --import /path/to/entrpoint.py  ./build/raytask
+goray --mode local --py-defs /path/to/entrpoint.py  ./build/raytask
 
 # Ray cluster
 export RAY_ADDRESS="http://RAY_CLUSTER_ADDRESS"  # Replace with your cluster address
-ray job submit --working-dir=./ -- goray --import /path/to/entrpoint.py ./build/raytask
+ray job submit --working-dir=./ -- goray --py-defs /path/to/entrpoint.py ./build/raytask
 ```
 
-The Python entrypoint defines all Python tasks/actors.
+The `--py-defs` argument specifies the python file to import python ray tasks and actors. You can just define all
+python tasks/actors in this file, or import them from other files.
 
 [Example](examples/crosslang/)
 
 Type mapping between Python and Go uses msgpack. Supported types: integers, floats, booleans, strings, binary data,
 lists (Go slices), maps, and nil. Map keys must be strings or integers. The Go side additionally supports structs and
-pointers. See the Cross-Language Type Conversion Guide: [docs/crosslang_types.md](docs/crosslang_types.md)
+pointers. See the [Cross-Language Type Conversion Guide](docs/crosslang_types.md).
 
 Notes:
 
-- When Python calls Go, if the Go task/method has a single return value, Python receives a single value. For multiple
-  return values, Python receives a list.
-- Python calls from Go: Return values are always delivered to Go as a single list. Use `ray.Get1(objectRef)` or
-  `objectRef.GetInto(&val)` to read it (if any).
+- When Python calls Go, if the Go task/method has a single return value, Python receives a single value. For multiple return values, Python receives a list.
+- Go calls Python: Return values are always delivered to Go as a single value. Use `ray.Get1[T](objectRef)` or `objectRef.GetInto(&val)` to read it (if any).
 
 ### Type-safe Wrappers
 
