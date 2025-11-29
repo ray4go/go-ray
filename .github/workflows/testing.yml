@@ -38,7 +38,7 @@ jobs:
     
     - name: Run tests
       run: |
-        bash run.sh tests local --import tests/cases/registry.py
+        bash run.sh tests local --py-defs tests/cases/registry.py
       env:
         RAY_RUNTIME_ENV_IGNORE_GITIGNORE: 1
     

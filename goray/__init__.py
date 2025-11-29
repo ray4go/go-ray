@@ -10,9 +10,9 @@ from .raycore import registry
 
 
 def init(
-        libpath: str,
-        py_defs_path: str = "",
-        **ray_init_args: dict,
+    libpath: str,
+    py_defs_path: str = "",
+    **ray_init_args: dict,
 ):
     """
     Initialize GoRay and the ray environment.
@@ -51,13 +51,32 @@ def init(
 
 def remote(*args, **kwargs):
     """
-    Same as @ray.remote, but with registering the task or actor in goray, which you can call from go.
+    Same as @ray.remote, plus registering the task or actor in goray, which can be called from Go side:
+
+    For Ray task, you can call it from Go using:
+
+    - `ray.RemoteCallPyTask(name, args...)`: calls the python Ray task remotely.
+    - `ray.LocalCallPyTask(name, args...)`: calls the python Ray task locally (in-process).
+
+    For Ray actor, you can create it from Go using:
+
+    - `ray.NewPyActor(name, args...)`: creates the python Ray actor remotely.
     """
     if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
         # This is the case where the decorator is just @remote.
         # "args[0]" is the class or function under the decorator.
         return registry.make_remote(args[0], {})
     return functools.partial(registry.make_remote, options=kwargs)
+
+
+def local(func):
+    """
+    Decorator to register a python function to be called from go.
+
+    The function can be called from Go using `ray.LocalCallPyTask(name, args...) `.
+    """
+    x.export(func)
+    return func
 
 
 def golang_actor_class(name: str, **options):
@@ -75,7 +94,7 @@ def golang_actor_class(name: str, **options):
     print(ray.get(obj))
     ```
     :param name: golang actor type name.
-    :param options: [`ray.actor.ActorClass.options`](https://docs.ray.io/en/latest/ray-core/api/doc/ray.actor.ActorClass.options.html#ray.actor.ActorClass.options)
+    :param options: actor options, see [`ray.actor.ActorClass.options`](https://docs.ray.io/en/latest/ray-core/api/doc/ray.actor.ActorClass.options.html#ray.actor.ActorClass.options)
     """
     return py2go.GolangActorClass(name, **options)
 

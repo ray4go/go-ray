@@ -286,10 +286,8 @@ pointers. See the [Cross-Language Type Conversion Guide](docs/crosslang_types.md
 
 Notes:
 
-- When Python calls Go, if the Go task/method has a single return value, Python receives a single value. For multiple
-  return values, Python receives a list.
-- Python calls from Go: Return values are always delivered to Go as a single list. Use `ray.Get1(objectRef)` or
-  `objectRef.GetInto(&val)` to read it (if any).
+- When Python calls Go, if the Go task/method has a single return value, Python receives a single value. For multiple return values, Python receives a list.
+- Go calls Python: Return values are always delivered to Go as a single value. Use `ray.Get1[T](objectRef)` or `objectRef.GetInto(&val)` to read it (if any).
 
 ### Type-safe Wrappers
 

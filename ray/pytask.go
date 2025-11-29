@@ -34,6 +34,9 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) *ObjectRef {
 
 // NewPyActor creates a remote Python actor instance of the given class name with the provided arguments.
 // [ObjectRef] can be passed as arguments.
+//
+// Noted that when call python actor methods, the return value is always a single value.
+// Use ray.Get1[T](objectRef) or objectRef.GetInto(&val) to read it (if any).
 func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
 	log.Debug("[Go] NewPyActor %s %#v\n", className, argsAndOpts)
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_ActorName, className))
