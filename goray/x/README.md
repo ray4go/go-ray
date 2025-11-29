@@ -18,8 +18,6 @@ C、C++、Rust等语言高一个数量级）。
 
 ## Usage
 
-[Example](../../examples/crosslang)
-
 **Export python function:**
 
 ```python

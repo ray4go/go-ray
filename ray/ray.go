@@ -39,21 +39,21 @@ var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 }
 
 // Init the GoRay environment and register the ray tasks, actors and driver.
-//   - All exported methods on taskReceiver are registered as Ray tasks and can be invoked via [RemoteCall].
-//   - Exported methods on actorFactories are used to create actors (via [NewActor]); each method serves as the actor’s constructor.
+//   - All exported methods on taskRegister are registered as Ray tasks and can be invoked via [RemoteCall].
+//   - Exported methods on actorRegister are used to create actors (via [NewActor]); each method serves as the actor’s constructor.
 //     The method must return exactly one value (the actor instance), and should panic or return nil on failure to create the actor.
 //   - driverFunc is called when the ray application starts and should return an integer as exit code.
 //
 // Call this function from the main package's init() function in your Ray application.
 // All other GoRay APIs MUST be called within the driver function and its spawned remote actors/tasks.
-func Init(taskReceiver any, actorFactories any, driverFunc func() int) {
+func Init(taskRegister any, actorRegister any, driverFunc func() int) {
 	driverFunction = driverFunc
 
-	if taskReceiver != nil {
-		registerTasks(taskReceiver)
+	if taskRegister != nil {
+		registerTasks(taskRegister)
 	}
-	if actorFactories != nil {
-		registerActors(actorFactories)
+	if actorRegister != nil {
+		registerActors(actorRegister)
 	}
 	ffi.RegisterHandler(handlePythonCmd)
 	go utils.ExitWhenCtrlC()

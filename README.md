@@ -34,34 +34,7 @@ import (
 	"github.com/ray4go/go-ray/ray"
 )
 
-func init() {
-	// Initialize and register Ray Tasks, Actors, and the driver
-	ray.Init(Tasks{}, Actors{}, driver)
-}
-
-func driver() int {
-	// Ray task
-	answerObjRef := ray.RemoteCall("TheAnswerOfWorld")
-	objRef := ray.RemoteCall("Divide", answerObjRef, 5, ray.Option("num_cpus", 2), ray.Option("memory", 100*1024*1024))
-	res, remainder, err := ray.Get2[int64, int64](objRef)
-	if err != nil {
-		log.Panicf("remote task error: %v", err)
-	}
-	fmt.Printf("call Divide -> %#v, %#v \n", res, remainder)
-
-	// Ray actor
-	cnt := ray.NewActor("Counter", 1)
-	obj := cnt.RemoteCall("Incr", 1)
-	var res2 int
-	err2 := obj.GetInto(&res2)
-	fmt.Println("Incr ", res2, err2)
-
-	obj2 := cnt.RemoteCall("Incr", 1)
-	obj3 := cnt.RemoteCall("Incr", obj2)
-	fmt.Println(obj3.GetAll())
-	return 0
-}
-
+// ray tasks register
 type Tasks struct{}
 
 func (_ Tasks) TheAnswerOfWorld() int64 {
@@ -73,13 +46,14 @@ func (_ Tasks) Divide(a, b int64) (int64, int64) {
 	return a / b, a % b
 }
 
+// ray actors register
 type Actors struct{}
 
 func (_ Actors) Counter(n int) *Counter {
 	return &Counter{num: n}
 }
 
-// Ray actor
+// ray actor
 type Counter struct {
 	num int
 }
@@ -96,16 +70,44 @@ func (c *Counter) Decr(n int) int {
 	return c.num
 }
 
+func init() {
+	// Initialize and register Ray Tasks, Actors, and the driver
+	ray.Init(Tasks{}, Actors{}, driver)
+}
+
+func driver() int {
+	// ray task remote call
+	answerObjRef := ray.RemoteCall("TheAnswerOfWorld")
+	objRef := ray.RemoteCall("Divide", answerObjRef, 5, ray.Option("num_cpus", 2), ray.Option("memory", 100*1024*1024))
+	res, remainder, err := ray.Get2[int64, int64](objRef)
+	if err != nil {
+		log.Panicf("remote task error: %v", err)
+	}
+	fmt.Printf("call Divide -> %#v, %#v \n", res, remainder)
+
+	// ray actor remote call
+	cnt := ray.NewActor("Counter", 1)
+	obj := cnt.RemoteCall("Incr", 1)
+	var res2 int
+	err2 := obj.GetInto(&res2)
+	fmt.Println("Incr ", res2, err2)
+
+	obj2 := cnt.RemoteCall("Incr", 1)
+	obj3 := cnt.RemoteCall("Incr", obj2)
+	fmt.Println(obj3.GetAll())
+	return 0
+}
+
 // main function won't be called but cannot be omitted (it's required only for compilation)
 func main() {}
 ```
 
 ### Task and Actor Registration
 
-Use `ray.Init(tasks, actors, driver)` to register Ray tasks, actors, and the driver:
+Use `ray.Init(taskRegister, actorRegister, driver)` to register Ray tasks, actors, and the driver:
 
-- All exported methods on the `tasks` value are registered as Ray tasks.
-- Exported methods on the `actors` value are used to create actors; each method serves as the actor’s constructor.
+- All exported methods on the `taskRegister` are registered as Ray tasks.
+- Exported methods on the `actorRegister` are used to create actors; each method serves as the actor’s constructor.
 - The driver function must have signature `func() int`. It is called when the ray application starts and should return
   an integer as exit code.
 
@@ -299,7 +301,7 @@ GoRay provides a `goraygen` CLI to generate type-safe wrappers for tasks and act
 
 Workflow:
 
-1) Annotate the tasks struct with `// raytasks` and the actor factory struct with `// rayactors`.
+1) Annotate the  struct with `// raytasks` and the actor register struct with `// rayactors`.
 2) Generate wrappers:
 
 ```bash
