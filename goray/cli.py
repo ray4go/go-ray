@@ -16,9 +16,9 @@ def main():
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument(
-        "--import",
+        "--py-defs",
         type=str,
-        help="Specify a python script to import python ray tasks and actors",
+        help="Path to a python file to import python ray tasks and actors",
     )
 
     parser.add_argument(
@@ -35,15 +35,15 @@ def main():
     )
     args = parser.parse_args()
 
-    import_file = getattr(args, "import") or ""
-    if import_file:
-        utils.get_module(import_file)
+    py_defs_file = args.py_defs or ""
+    if py_defs_file:
+        utils.get_module(py_defs_file)
 
     ray_init_args = {}
     if args.mode == "cluster":
         ray_init_args = dict(address="auto")
     # args.debug
-    init(args.go_binary_path, py_module_path=import_file, **ray_init_args)
+    init(args.go_binary_path, py_defs_path=py_defs_file, **ray_init_args)
 
 
 if __name__ == "__main__":

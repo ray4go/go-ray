@@ -11,19 +11,19 @@ from .raycore import registry
 
 def init(
         libpath: str,
-        py_module_path: str = "",
+        py_defs_path: str = "",
         **ray_init_args: dict,
 ):
     """
     Initialize GoRay and the ray environment.
 
     :param libpath: path to the goray application binary (built from `go build -buildmode=c-shared`).
-    :param py_module_path: path to the python module to import python ray tasks and actors.
+    :param py_defs_path: path to a python file to import python ray tasks and actors.
     :param ray_init_args: arguments to pass to [ray.init](https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html#ray.init).
     """
     debug = False
     state.golibpath = libpath
-    state.pymodulepath = py_module_path
+    state.pymodulepath = py_defs_path
     state.debug = debug
 
     ray_init_args.setdefault("runtime_env", {})
@@ -31,7 +31,7 @@ def init(
     ray_init_args["runtime_env"]["env_vars"][consts.GORAY_BIN_PATH_ENV] = libpath
     ray_init_args["runtime_env"]["env_vars"][
         consts.GORAY_PY_MUDULE_PATH_ENV
-    ] = py_module_path
+    ] = py_defs_path
     if debug:
         ray_init_args["runtime_env"]["env_vars"]["GORAY_DEBUG_LOGGING"] = "1"
 

@@ -7,7 +7,7 @@ Instead, we provide a minimal test framework that allows manual execution of tes
 
 ```bash
 pip install -r requirements.txt
-bash ../run.sh . local --import tests/cases/registry.py
+bash ../run.sh . local --py-defs tests/cases/registry.py
 ```
 
 Set the `TEST_PATTERN` environment variable to specify test cases to run (supports regex patterns).

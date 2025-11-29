@@ -124,8 +124,8 @@ func driver() int {
 
 		a2.Kill()
 		obj4 := a2.RemoteCall("busy", 1)
-		res, err = obj4.GetAll()
-		fmt.Printf("PyActor busy %#v %#v\n", res, err != nil)
+		err = obj4.GetInto()
+		fmt.Printf("PyActor busy, result: %v\n", err == nil)
 	}
 
 	// local call python task
@@ -140,8 +140,8 @@ func driver() int {
 		fmt.Println("go call python: hello", res, err)
 	}
 	{
-		err := ray.LocalCallPyTask("no_return", "").GetInto()
-		fmt.Println("go call python: no_return", err)
+		err := ray.LocalCallPyTask("busy", 1).GetInto()
+		fmt.Println("go call python: busy", err == nil)
 	}
 	return 0
 }
