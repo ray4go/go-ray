@@ -62,7 +62,6 @@ func (TestTask) ProcessMap(data map[string]int) map[string]int {
 
 func init() {
 	AddTestCase("TestComplexStruct", func(assert *require.Assertions) {
-		return // todo msgpack
 		input := ComplexStruct{
 			ID:   123,
 			Name: "test",

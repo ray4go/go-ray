@@ -20,6 +20,11 @@ func (f *Future0) Get(options ...ray.GetObjectOption) error {
 	return ray.Get0(f.obj, options...)
 }
 
+// ObjectRef returns the underlying ObjectRef of the Future.
+func (f *Future0) ObjectRef() *ray.ObjectRef {
+	return f.obj
+}
+
 type Future1[T0 any] struct {
 	obj *ray.ObjectRef
 }

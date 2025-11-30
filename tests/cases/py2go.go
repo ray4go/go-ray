@@ -1,10 +1,11 @@
 package cases
 
 import (
-	"github.com/ray4go/go-ray/ray"
-	"github.com/stretchr/testify/require"
 	"os"
 	"time"
+
+	"github.com/ray4go/go-ray/ray"
+	"github.com/stretchr/testify/require"
 )
 
 type cnt struct {
@@ -29,22 +30,22 @@ func (actor *cnt) Pid() int {
 	return os.Getpid()
 }
 
-func (_ *cnt) Echo(args ...any) []any {
+func (*cnt) Echo(args ...any) []any {
 	return args
 }
 
-func (_ *cnt) Single(arg any) any {
+func (*cnt) Single(arg any) any {
 	return arg
 }
 
-func (_ *cnt) Hello(name string) string {
+func (*cnt) Hello(name string) string {
 	return "hello " + name
 }
 
-func (_ *cnt) NoReturn(name string) {
+func (*cnt) NoReturn(name string) {
 }
 
-func (_ *cnt) BusySleep(second int) {
+func (*cnt) BusySleep(second int) {
 	time.Sleep(time.Duration(second) * time.Second)
 }
 

@@ -1,9 +1,10 @@
 package cases
 
 import (
+	"time"
+
 	"github.com/ray4go/go-ray/ray"
 	"github.com/stretchr/testify/require"
-	"time"
 )
 
 // Test custom types and type aliases
@@ -98,7 +99,7 @@ func (TestTask) ProcessVariadic(base int, values ...int) []int {
 }
 
 // Test multiple return values with different types
-func (TestTask) MultipleReturnTypes() (int, string, []int, map[string]int, bool, error) {
+func (TestTask) MultipleReturnTypes() (int, string, []int, map[string]int, bool, *int) {
 	return 42, "success", []int{1, 2, 3}, map[string]int{"key": 100}, true, nil
 }
 
@@ -248,10 +249,8 @@ func init() {
 
 	// Test multiple return types
 	AddTestCase("TestMultipleReturnTypes", func(assert *require.Assertions) {
-		return
-		assert.Panics(func() {
-			ray.RemoteCall("MultipleReturnTypes").GetAll()
-		})
+		_, err := ray.RemoteCall("MultipleReturnTypes").GetAll()
+		assert.NoError(err)
 	})
 
 	// Test large structures

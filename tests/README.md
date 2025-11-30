@@ -10,7 +10,7 @@ pip install -r requirements.txt
 bash ../run.sh . local --py-defs tests/cases/registry.py
 ```
 
-Set the `TEST_PATTERN` environment variable to specify test cases to run (supports regex patterns).
+Set the `TEST_PATTEN` environment variable to specify test cases to run (supports regex pattens).
 
 ## Writing test cases
 

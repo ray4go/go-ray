@@ -51,7 +51,7 @@ func (TestTask) ReturnComplexObjectRef() map[string]interface{} {
 }
 
 func (TestTask) ProcessComplexObjectRef(obj map[string]interface{}) string {
-	id := int(obj["id"].(float64)) // JSON numbers come as float64
+	id := int(obj["id"].(int64))
 	name := obj["name"].(string)
 	return fmt.Sprintf("Processed object %d: %s", id, name)
 }
@@ -206,17 +206,16 @@ func init() {
 		assert.Equal(2, failureCount)
 	})
 
-	// todo:
-	//AddTestCase("TestComplexObjectRefChaining", func(assert *require.Assertions) {
-	//	// Test chaining with complex objects
-	//
-	//	ref1 := ray.RemoteCall("ReturnComplexObjectRef")
-	//	ref2 := ray.RemoteCall("ProcessComplexObjectRef", ref1)
-	//
-	//	result, err := ref2.Get1()
-	//	assert.NoError(err)
-	//	assert.Equal("Processed object 12345: complex_object", result)
-	//})
+	AddTestCase("TestComplexObjectRefChaining", func(assert *require.Assertions) {
+		// Test chaining with complex objects
+
+		ref1 := ray.RemoteCall("ReturnComplexObjectRef")
+		ref2 := ray.RemoteCall("ProcessComplexObjectRef", ref1)
+
+		result, err := ray.Get1[string](ref2)
+		assert.NoError(err)
+		assert.Equal("Processed object 12345: complex_object", result)
+	})
 
 	AddTestCase("TestMixedTypeProcessing", func(assert *require.Assertions) {
 		// Test task with many different parameter types
@@ -259,10 +258,9 @@ func init() {
 	})
 
 	AddTestCase("TestActorWithAdvancedOptions", func(assert *require.Assertions) {
-		return // todo msgpack
 		// Test actor creation with various options
 		actor := ray.NewActor("AdvancedOptionsActor", "advanced_test",
-			ray.Option("num_cpus", 1),
+			ray.Option("num_cpus", 0.1),
 			ray.Option("memory", 200*1024*1024), // 200MB
 			ray.Option("max_restarts", 2),
 			ray.Option("num_cpus", 0.01),
@@ -275,7 +273,7 @@ func init() {
 
 		statusMap := status[0].(map[string]interface{})
 		assert.Equal("advanced_test", statusMap["id"])
-		assert.Equal(1, statusMap["call_count"])
+		assert.Equal(int64(1), statusMap["call_count"])
 		assert.Greater(statusMap["uptime"].(float64), 0.0)
 	})
 

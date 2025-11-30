@@ -28,6 +28,11 @@ func (f *Future0) setObjectRef(obj *ray.ObjectRef) {
 func (f *Future0) Get(options ...ray.GetObjectOption) error {
 	return ray.Get0(f.obj, options...)
 }
+
+// ObjectRef returns the underlying ObjectRef of the Future.
+func (f *Future0) ObjectRef() *ray.ObjectRef {
+	return f.obj
+}
 """
 
 # future表示一次函数在ray上异步执行的返回值，Get()可以等待函数运行完成并获取其返回值，同时返回值中还加入了一个新的error类型的返回值，

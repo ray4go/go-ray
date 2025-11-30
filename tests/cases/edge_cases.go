@@ -312,7 +312,6 @@ func init() {
 	})
 
 	AddTestCase("TestActorEdgeCases", func(assert *require.Assertions) {
-		return // todo
 		actor := ray.NewActor("EdgeCaseActor", ray.Option("num_cpus", 0.01))
 
 		// Test storing nil values

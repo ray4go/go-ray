@@ -58,7 +58,7 @@ func dumpCoverage() {
 func driver() int {
 	// override os.Args
 	os.Args = []string{"go", "-test.v"}
-	patten := os.Getenv("TEST_PATTERN")
+	patten := os.Getenv("TEST_PATTEN")
 	//os.Args = []string{"go", "-test.coverprofile", "/tmp/out.cov"}
 	matchAll := func(pat, str string) (bool, error) {
 		return true, nil
