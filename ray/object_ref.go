@@ -70,7 +70,7 @@ func (obj *ObjectRef) numReturn() int {
 }
 
 // By default, the object reference is automatically released after it is retrieved or passed to another task.
-// Try retrieving or passing an released [ObjectRef] again will result in [ObjectRefNotFound].
+// Try retrieving or passing an released [ObjectRef] again will result in [ErrObjectRefNotFound].
 // Call [ObjectRef.DisableAutoRelease] to turn off this behavior, the object reference will persist until task ends,
 // or you can call [ObjectRef.Release] manually when you no longer need the reference in the current task.
 // When all references to the object are released, the object will be garbage collected in the Ray object store.

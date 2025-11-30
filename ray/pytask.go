@@ -63,7 +63,7 @@ type LocalPyCallResult struct {
 // Get returns the result of the local Python call.
 func (r LocalPyCallResult) Get() (any, error) {
 	if r.code != consts.ErrorCode_Success {
-		return nil, fmt.Errorf("Error: Local Call Python failed: retCode=%v, message=%s", r.code, r.data)
+		return nil, fmt.Errorf("local call Python failed: retCode=%v, message=%s", r.code, r.data)
 	}
 	res := remote_call.DecodeWithType(r.data, nil, utils.SliceIndexGetter([]reflect.Type{anyType}))
 	if len(res) == 0 {
@@ -83,7 +83,7 @@ func (r LocalPyCallResult) Get() (any, error) {
 // [GoRay Cross-Language Call Type Conversion Guide]: https://github.com/ray4go/go-ray/blob/master/docs/crosslang_types.md
 func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 	if r.code != consts.ErrorCode_Success {
-		return fmt.Errorf("Error: Local Call Python failed: retCode=%v, message=%s", r.code, r.data)
+		return fmt.Errorf("local call Python failed: retCode=%v, message=%s", r.code, r.data)
 	}
 	if len(ptrs) == 0 {
 		return nil
