@@ -17,6 +17,8 @@ var anyType = reflect.TypeOf((*any)(nil)).Elem()
 
 // RemoteCallPyTask executes a remote Python ray task by name with the provided arguments and options.
 // Like in [RemoteCall], [ObjectRef] values can be passed as arguments.
+//
+// Noted that the return value of Python ray task is always a single value (if any). Use ray.Get1[T](objectRef) or objectRef.GetInto(&val) to read it.
 func RemoteCallPyTask(name string, argsAndOpts ...any) *ObjectRef {
 	log.Debug("[Go] RemoteCallPyTask %s %#v\n", name, argsAndOpts)
 	argsAndOpts = append(argsAndOpts, Option("task_name", name))
@@ -35,8 +37,8 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) *ObjectRef {
 // NewPyActor creates a remote Python actor instance of the given class name with the provided arguments.
 // [ObjectRef] can be passed as arguments.
 //
-// Noted that when call python actor methods, the return value is always a single value.
-// Use ray.Get1[T](objectRef) or objectRef.GetInto(&val) to read it (if any).
+// Noted that when call python actor methods, the return value is always a single value (if any).
+// Use ray.Get1[T](objectRef) or objectRef.GetInto(&val) to read it.
 func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
 	log.Debug("[Go] NewPyActor %s %#v\n", className, argsAndOpts)
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_ActorName, className))
@@ -72,8 +74,9 @@ func (r LocalPyCallResult) Get() (any, error) {
 }
 
 // GetInto decodes the result into the provided pointers.
-// The number of pointers must match the number of return values of the Python function.
+//
 // If the Python function has no return values, no arguments should be provided.
+// If the Python function has return value, only one pointer should be provided.
 //
 // For type conversion between Python and Go, see [GoRay Cross-Language Call Type Conversion Guide].
 //

@@ -1,25 +1,25 @@
 import functools
 import logging
-import sys
 
 import ray
-from . import consts, state, utils, x
+from . import consts, state, x
 from .raycore import common
 from .raycore import py2go
 from .raycore import registry
 
 
-def init(
+def start(
     libpath: str,
     py_defs_path: str = "",
     **ray_init_args: dict,
 ):
     """
-    Initialize GoRay and the ray environment.
+    Initialize GoRay and Ray environment. Start the Go driver function.
 
     :param libpath: path to the goray application binary (built from `go build -buildmode=c-shared`).
     :param py_defs_path: path to a python file to import python ray tasks and actors.
     :param ray_init_args: arguments to pass to [ray.init](https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html#ray.init).
+    :return: int, the return code of the driver function.
     """
     debug = False
     state.golibpath = libpath
@@ -38,15 +38,12 @@ def init(
     ray.init(**ray_init_args)
     lib = common.load_go_lib()
 
-    try:
-        msg, code = lib.start_driver()
-        if code != 0:
-            logging.error(f"[py] driver error[{code}]: {msg}")
-            sys.exit(1)
-        else:
-            sys.exit(int(msg))
-    except KeyboardInterrupt:
-        print("Exiting...")
+    msg, code = lib.start_driver()
+    if code != 0:
+        logging.error(f"go driver error[{code}]: {msg}")
+        return code
+    else:
+        return int(msg)
 
 
 def remote(*args, **kwargs):

@@ -1,7 +1,8 @@
 import argparse
 import logging
+import sys
 
-from . import init, utils
+from . import start, utils
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,9 @@ def main():
     ray_init_args = {}
     if args.mode == "cluster":
         ray_init_args = dict(address="auto")
-    init(args.go_binary_path, py_defs_path=py_defs_file, **ray_init_args)
+
+    ret = start(args.go_binary_path, py_defs_path=py_defs_file, **ray_init_args)
+    sys.exit(ret)
 
 
 if __name__ == "__main__":

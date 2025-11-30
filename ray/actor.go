@@ -279,7 +279,7 @@ func GetActor(name string, opts ...*RayOption) (*ActorHandle, error) {
 	return handle, err
 }
 
-// GetTypedActor gets the actor handle used in [goraygen] type-safe wrappers.
+// GetTypedActor gets the type-safe actor handle used in [goraygen] wrappers.
 //
 // [goraygen]: https://github.com/ray4go/goraygen
 func GetTypedActor[T any](name string, opts ...*RayOption) (*T, error) {

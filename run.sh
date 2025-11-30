@@ -32,7 +32,7 @@ go build -buildmode=c-shared \
   -covermode=atomic \
   -coverpkg="github.com/ray4go/go-ray/..." \
   -ldflags "-X github.com/ray4go/go-ray/ray/internal/testing.coverageDir=$GOCOVERDIR" \
-  -o ${PROJ_PATH}/output/raytask \
+  -o ${PROJ_PATH}/output/rayapp \
   -gcflags="all=-l -N"  .
 # https://go.dev/doc/build-cover
 
@@ -40,9 +40,9 @@ export RAY_RUNTIME_ENV_IGNORE_GITIGNORE=1
 cd ${PROJ_PATH}
 
 if [ "$MODE" == "remote" ]; then
-  ray job submit --working-dir=./ -- python -m goray.cli output/raytask "$@"
+  ray job submit --working-dir=./ -- python -m goray.cli output/rayapp "$@"
 elif [ "$MODE" == "local" ]; then
-  python -m goray.cli --mode local output/raytask "$@"
+  python -m goray.cli --mode local output/rayapp "$@"
 fi
 
 cd ${PKG_PATH}

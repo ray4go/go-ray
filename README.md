@@ -180,7 +180,7 @@ parameters, see the [Ray official API docs](https://docs.ray.io/en/latest/ray-co
 ### Compilation
 
 ```bash
-go build -buildmode=c-shared -o ./build/raytask .
+go build -buildmode=c-shared -o ./build/rayapp .
 ```
 
 You must compile with `-buildmode=c-shared` to produce a shared library.
@@ -204,7 +204,7 @@ pip install goray
 3) Run the Ray job:
 
 ```bash
-goray --mode local ./build/raytask
+goray --mode local ./build/rayapp
 ```
 
 #### Ray cluster
@@ -215,7 +215,7 @@ Submit a job:
 
 ```bash
 export RAY_ADDRESS="http://RAY_CLUSTER_ADDRESS"  # Replace with your cluster address
-ray job submit --working-dir=./ -- goray ./build/raytask
+ray job submit --working-dir=./ -- goray ./build/rayapp
 ```
 
 Notes:
@@ -238,58 +238,21 @@ binary by other means, you may use an absolute path.
 
 Cross-language features:
 
-- Cross-language invocation of Ray tasks and actors
+- Cross-language remote call of Ray tasks and actors
     - Call Python Ray tasks from Go; call Go Ray tasks from Python
-    - Create Python actors and call from Go; create Go actors and call from Python
+    - Create and call Python actors from Go; create and call Go actors from Python
     - Pass Go `ObjectRef`s to Python, and vice versa
-    - Get a named Go actor handle from Python, and vice versa
+    - Create a named actor in Go, and get its handle in Python, and vice versa
 - Local cross-language calls (in-process)
     - Go calls Python functions in-process
     - Python calls Go functions in-process
     - Python instantiates Go classes and calls their methods in-process
 
-**Usage**
+More details and examples:
 
-In Python:
+- [GoRay Cross-Language Programming Documentation](docs/crosslang.md)
+- [Example](examples/crosslang/)
 
-- Use `goray.remote` to declare Ray tasks/actors (replaces `ray.remote`).
-- Use `goray.golang_actor_class(name: str)` to get a Go Ray actor class and create actors as usual.
-- Use `goray.golang_task(name: str)` to get a Go Ray task and invoke it like a Python Ray task.
-- Use `goray.golang_local_run_task(name: str, *args)` to call a Go function in-process.
-- Use `goray.golang_local_new_actor(name: str, *args)` to instantiate a Go class in-process.
-
-In Go:
-
-- `ray.RemoteCallPyTask(name, args...) -> ObjectRef` — Submit a Python Ray task.
-- `ray.NewPyActor(name, args...) -> ActorHandle` — Create a Python Ray actor.
-- `ray.LocalCallPyTask(name, args...) -> LocalPyCallResult` — Call a Python function in-process.
-
-Submit the job via `goray`:
-
-```bash
-go build -buildmode=c-shared -o ./build/raytask .
-
-# Ray standalone environment
-goray --mode local --py-defs /path/to/entrpoint.py  ./build/raytask
-
-# Ray cluster
-export RAY_ADDRESS="http://RAY_CLUSTER_ADDRESS"  # Replace with your cluster address
-ray job submit --working-dir=./ -- goray --py-defs /path/to/entrpoint.py ./build/raytask
-```
-
-The `--py-defs` argument specifies the python file to import python ray tasks and actors. You can just define all
-python tasks/actors in this file, or import them from other files.
-
-[Example](examples/crosslang/)
-
-Type mapping between Python and Go uses msgpack. Supported types: integers, floats, booleans, strings, binary data,
-lists (Go slices), maps, and nil. Map keys must be strings or integers. The Go side additionally supports structs and
-pointers. See the [Cross-Language Type Conversion Guide](docs/crosslang_types.md).
-
-Notes:
-
-- When Python calls Go, if the Go task/method has a single return value, Python receives a single value. For multiple return values, Python receives a list.
-- Go calls Python: Return values are always delivered to Go as a single value. Use `ray.Get1[T](objectRef)` or `objectRef.GetInto(&val)` to read it (if any).
 
 ### Type-safe Wrappers
 
