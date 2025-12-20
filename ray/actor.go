@@ -41,7 +41,6 @@ var (
 	actorInstances = make([]*actorInstance, 0)
 )
 
-// 传入actor类型的指针
 // todo: consider to use New(...) (pointer, error) as the constructor func signature
 func registerActors(actorFactories any) {
 	actorFactoriesVal := reflect.ValueOf(actorFactories)

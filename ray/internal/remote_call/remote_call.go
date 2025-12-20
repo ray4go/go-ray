@@ -32,14 +32,16 @@ type RemoteObjectRef struct {
 }
 
 /*
-remote call args 包含
-  - 函数调用的普通参数
-  - 函数调用的 ObjectRef 参数
+remote call args contains:
+  - normal function call arguments
+  - function call ObjectRef arguments
   - ray options
 
 encode result: 2 bytes units
   - first unit is raw args data;
   - second unit is json encoded options and ObjectRef info.
+
+each bytes unit format: | length:8byte:int64 | data:${length}byte:[]byte |
 */
 func EncodeRemoteCallArgs(callable *utils.CallableType, argsAndOpts []any) []byte {
 	args, objRefs, opts := splitFuncCallRawArgs(argsAndOpts)
@@ -175,6 +177,7 @@ func EncodeValue(v any) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// encode a list of items into msgpack bytes one by one, then concatenated together
 func EncodeSlice(items []any) []byte {
 	var buffer bytes.Buffer
 	enc := codec.NewEncoder(&buffer, &msgpackHandle)
