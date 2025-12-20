@@ -73,12 +73,12 @@ def handle_run_py_local_task(data: bytes) -> tuple[bytes, int]:
 def handle_run_python_func_code(data: bytes) -> tuple[bytes, int]:
     args_data, options, _, _ = funccall.decode_funccall_args(data)
     func_code = options.pop("func_code")
-    try:
-        # todo: use ast to get function name
-        func_name = func_code.split("def ", 1)[1].split("(", 1)[0].strip()
-    except Exception as e:
+    func_names = utils.parse_function_name(func_code)
+    if len(func_names) == 0:
         return b"Invalid python function code: can't get function name", ErrCode.Failed
-
+    if len(func_names) > 1:
+        return b"Invalid python function code: multiple function definitions found", ErrCode.Failed
+    func_name = func_names[0]
     args = decode_args(args_data, [], [])
     args_list = ",".join(f"arg{i}" for i in range(len(args)))
     func_call_code = f"__res__ = {func_name}({args_list})"

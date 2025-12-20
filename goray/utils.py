@@ -1,3 +1,4 @@
+import ast
 import collections
 import contextlib
 import functools
@@ -37,9 +38,9 @@ def unpack_bytes_units(data: bytes) -> list[bytes]:
     offset = 0
     units = []
     while offset < len(data):
-        length = int.from_bytes(data[offset : offset + 8], byteorder="little")
+        length = int.from_bytes(data[offset: offset + 8], byteorder="little")
         offset += 8
-        units.append(data[offset : offset + length])
+        units.append(data[offset: offset + length])
         offset += length
     assert offset == len(
         data
@@ -61,7 +62,7 @@ class ThreadSafeLocalStore:
     The released key will not be reused in right away, just like the process id generation strategy.
     """
 
-    MAX_SIZE = 2**63 - 1
+    MAX_SIZE = 2 ** 63 - 1
 
     _no_set = object()
 
@@ -88,7 +89,7 @@ class ThreadSafeLocalStore:
 
     def __contains__(self, key: int):
         return (
-            key in self._kvstore and self._kvstore[key] != ThreadSafeLocalStore._no_set
+                key in self._kvstore and self._kvstore[key] != ThreadSafeLocalStore._no_set
         )
 
     def __getitem__(self, key: int):
@@ -187,3 +188,20 @@ def get_module(path):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
     return module
+
+
+def parse_function_name(code: str) -> list[str]:
+    """
+    Returns a list of names of all top-level functions defined in the given code.
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return []
+
+    function_names = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef):
+            function_names.append(node.name)
+
+    return function_names
