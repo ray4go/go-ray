@@ -15,10 +15,11 @@ import (
 
 var anyType = reflect.TypeOf((*any)(nil)).Elem()
 
-// RemoteCallPyTask executes a remote Python ray task by name with the provided arguments and options.
-// Like in [RemoteCall], [ObjectRef] values can be passed as arguments.
+// RemoteCallPyTask executes a remote Python ray task.
 //
-// Noted that the return value of Python ray task is always a single value (if any). Use ray.Get1[T](objectRef) or objectRef.GetInto(&val) to read it.
+// See [GoRay Cross-Language Programming] for more details.
+//
+// [GoRay Cross-Language Programming]: https://github.com/ray4go/go-ray/blob/master/docs/crosslang.md
 func RemoteCallPyTask(name string, argsAndOpts ...any) *ObjectRef {
 	log.Debug("[Go] RemoteCallPyTask %s %#v\n", name, argsAndOpts)
 	argsAndOpts = append(argsAndOpts, Option("task_name", name))
@@ -34,11 +35,11 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) *ObjectRef {
 	}
 }
 
-// NewPyActor creates a remote Python actor instance of the given class name with the provided arguments.
-// [ObjectRef] can be passed as arguments.
+// NewPyActor initializes a new remote Python actor.
 //
-// Noted that when call python actor methods, the return value is always a single value (if any).
-// Use ray.Get1[T](objectRef) or objectRef.GetInto(&val) to read it.
+// See [GoRay Cross-Language Programming] for more details.
+//
+// [GoRay Cross-Language Programming]: https://github.com/ray4go/go-ray/blob/master/docs/crosslang.md
 func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
 	log.Debug("[Go] NewPyActor %s %#v\n", className, argsAndOpts)
 	argsAndOpts = append(argsAndOpts, Option(consts.GorayOptionKey_ActorName, className))

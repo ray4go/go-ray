@@ -1,6 +1,6 @@
 # GoRay
 
-Ray Core bindings for Go.
+Go bindings for Ray Core.
 
 [API Documentation](https://pkg.go.dev/github.com/ray4go/go-ray/ray)
 
@@ -8,8 +8,58 @@ Ray Core bindings for Go.
 
 - **Pure Go** — Build Ray applications in Go without touching Python
 - **Seamless Polyglot** — Hybrid Python–Go development with cross-language Task/Actor invocation
-- **Zero Hacks** — Clean implementation with strong compatibility
+- **Strong compatibility** — Clean implementation with zero hacks
 - **Type-safe Remote Calls** — Compile-time safety and full IDE support via code generation
+
+
+## Quick Start
+
+Init a go project:
+
+```bash
+mkdir goray-app && cd goray-app
+go mod init rayapp
+```
+
+Add a main.go file:
+
+```golang
+package main
+
+import (
+	"fmt"
+	"github.com/ray4go/go-ray/ray"
+)
+
+type Tasks struct{}
+
+func (Tasks) Square(x float64) float64 {
+	return x * x
+}
+
+func driver() int {
+	obj := ray.RemoteCall("Square", 2.0)
+	res, err := ray.Get1[float64](obj)
+	fmt.Printf("Square(2.0) = %f, err: %v\n", res, err)
+	return 0
+}
+
+func init() {
+	ray.Init(Tasks{}, nil, driver)
+}
+
+func main() {}
+```
+
+Build and run the application:
+
+```bash
+go mod tidy
+go build -buildmode=c-shared -o rayapp .
+
+pip install "ray[default]" goray
+goray rayapp
+```
 
 ## Usage
 
@@ -21,7 +71,7 @@ go get github.com/ray4go/go-ray/ray
 
 Requires Go 1.21+.
 
-### Hello, World
+### Example GoRay Application
 
 ```go
 package main
@@ -104,12 +154,13 @@ func main() {}
 
 ### Task and Actor Registration
 
-Use `ray.Init(taskRegister, actorRegister, driver)` to register Ray tasks, actors, and the driver:
+Use `ray.Init(taskRegister, actorRegister, driver, ...rayOptions)` to register Ray tasks, actors, and the driver and init the Ray environment:
 
 - All exported methods on the `taskRegister` are registered as Ray tasks.
 - Exported methods on the `actorRegister` are used to create actors; each method serves as the actor’s constructor.
 - The driver function must have signature `func() int`. It is called when the ray application starts and should return
   an integer as exit code.
+- `rayOptions` are used to provide the [`ray.init()`](https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html#ray.init) options. In most cases, it's enough to pass no options.
 
 `ray.Init()` should be called in the main package's `init()` function. All other GoRay APIs must be called within the
 driver function and its spawned remote actors/tasks.

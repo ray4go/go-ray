@@ -105,6 +105,9 @@ export RAY_ADDRESS="http://RAY_CLUSTER_ADDRESS"  # Replace with your cluster add
 ray job submit --working-dir=./ -- goray --py-defs app.py ./build/rayapp
 ```
 
+When call python task and actor methods, the return value is always a single value (if any).
+Use `ray.Get1[T](objectRef)` or `objectRef.GetInto(&val)` to get result.
+
 ### Python remote call Go tasks and actors
 
 Define Go Ray tasks and actors in a Go file:

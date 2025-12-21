@@ -67,8 +67,8 @@ func registerActors(actorFactories any) {
 }
 
 // NewActor initializes a new remote actor.
-//   - typeName should match the method name of the actor constructor registered in [Init].
-//   - argsAndOpts include actor constructor arguments and Ray actor instantiation options.
+//   - typeName should match the method name of the actorRegister registered in [Init].
+//   - argsAndOpts include actor constructor arguments and Ray actor instantiation options. [ObjectRef] can be passed as constructor arguments.
 //
 // Provide Ray actor options via [Option](key, value). For complete options for actor creation, see [Ray Core API doc].
 //
