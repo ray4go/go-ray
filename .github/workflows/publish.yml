@@ -3,7 +3,7 @@ name: Publish Package
 on:
   push:
     tags:
-      - 'v*'  # Trigger on tags starting with 'v', e.g., v1.0.0
+      - 'ray/v*'  # Trigger on tags starting with 'ray/v', e.g., ray/v1.0.0
 
 jobs:
   publish:
@@ -28,8 +28,9 @@ jobs:
 
       - name: Update package version
         run: |
-          # Extract version from tag (remove 'v' prefix)
-          VERSION=${GITHUB_REF#refs/tags/v}
+          # Extract version from tag (remove 'ray/v' prefix)
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#ray/v}
           echo "Setting package version to: $VERSION"
           uv version $VERSION
 
@@ -57,6 +58,6 @@ jobs:
           echo "Publishing Go module version: $TAG"
           
           # Trigger Go proxy to update module version
-          GOPROXY=proxy.golang.org go list -m github.com/ray4go/go-ray@$TAG
+          GOPROXY=proxy.golang.org go list -m github.com/ray4go/go-ray/ray@$TAG
           
           echo "Go module version update triggered successfully"
