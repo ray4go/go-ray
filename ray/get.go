@@ -13,13 +13,13 @@ func appendOptions(options []GetObjectOption, ptrs ...any) []any {
 }
 
 // Get0 is used to wait remote task / actor method execution finish.
-// [WithTimeout]() can be used as GetObjectOption to set timeout.
+// [WithTimeout]() can be used as options to set timeout.
 func Get0(obj Decodable, options ...GetObjectOption) error {
 	return obj.GetInto(appendOptions(options)...)
 }
 
-// Get1 is used to get the result of task / actor method with 1 return value.
-// [WithTimeout]() can be used as GetObjectOption to set timeout.
+// Get1 is used to get the result of task / actor method with 1 return value(s).
+// [WithTimeout]() can be used as options to set timeout.
 func Get1[T0 any](obj Decodable, options ...GetObjectOption) (T0, error) {
 	var (
 		r0 T0
@@ -28,8 +28,8 @@ func Get1[T0 any](obj Decodable, options ...GetObjectOption) (T0, error) {
 	return r0, err
 }
 
-// Get2 is used to get the result of task / actor method with 2 return value.
-// [WithTimeout]() can be used as GetObjectOption to set timeout.
+// Get2 is used to get the result of task / actor method with 2 return value(s).
+// [WithTimeout]() can be used as options to set timeout.
 func Get2[T0 any, T1 any](obj Decodable, options ...GetObjectOption) (T0, T1, error) {
 	var (
 		r0 T0
@@ -39,8 +39,8 @@ func Get2[T0 any, T1 any](obj Decodable, options ...GetObjectOption) (T0, T1, er
 	return r0, r1, err
 }
 
-// Get3 is used to get the result of task / actor method with 3 return value.
-// [WithTimeout]() can be used as GetObjectOption to set timeout.
+// Get3 is used to get the result of task / actor method with 3 return value(s).
+// [WithTimeout]() can be used as options to set timeout.
 func Get3[T0 any, T1 any, T2 any](obj Decodable, options ...GetObjectOption) (T0, T1, T2, error) {
 	var (
 		r0 T0
@@ -51,8 +51,8 @@ func Get3[T0 any, T1 any, T2 any](obj Decodable, options ...GetObjectOption) (T0
 	return r0, r1, r2, err
 }
 
-// Get4 is used to get the result of task / actor method with 4 return value.
-// [WithTimeout]() can be used as GetObjectOption to set timeout.
+// Get4 is used to get the result of task / actor method with 4 return value(s).
+// [WithTimeout]() can be used as options to set timeout.
 func Get4[T0 any, T1 any, T2 any, T3 any](obj Decodable, options ...GetObjectOption) (T0, T1, T2, T3, error) {
 	var (
 		r0 T0
@@ -64,8 +64,8 @@ func Get4[T0 any, T1 any, T2 any, T3 any](obj Decodable, options ...GetObjectOpt
 	return r0, r1, r2, r3, err
 }
 
-// Get5 is used to get the result of task / actor method with 5 return value.
-// [WithTimeout]() can be used as GetObjectOption to set timeout.
+// Get5 is used to get the result of task / actor method with 5 return value(s).
+// [WithTimeout]() can be used as options to set timeout.
 func Get5[T0 any, T1 any, T2 any, T3 any, T4 any](obj Decodable, options ...GetObjectOption) (T0, T1, T2, T3, T4, error) {
 	var (
 		r0 T0

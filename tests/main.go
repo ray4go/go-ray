@@ -20,7 +20,7 @@ var (
 
 func init() {
 	task, actors := cases.RayWorkload()
-	ray.Init(task, actors, driver)
+	ray.Init(task, actors, driver, cases.RayInitOptions...)
 }
 
 func getTestCases(filter func(string) bool) []testing.InternalTest {

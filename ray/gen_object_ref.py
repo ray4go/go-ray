@@ -4,8 +4,8 @@ import textwrap
 max_returns_len = 16
 
 TPL = """
-// Get${l} is used to get the result of task / actor method with ${l} return value.
-// [WithTimeout]() can be used as GetObjectOption to set timeout. 
+// Get${l} is used to get the result of task / actor method with ${l} return value(s).
+// [WithTimeout]() can be used as options to set timeout. 
 func Get${l}[${T_any_list}](obj Decodable, options ...GetObjectOption) (${T_list}, error) {
 	var (
 ${var_list}

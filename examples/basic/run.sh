@@ -3,4 +3,4 @@
 cd "$(dirname "$0")"
 
 go build -buildmode=c-shared -o ../../output/raytask .
-goray --mode local  ../../output/raytask
+goray ../../output/raytask

@@ -14,8 +14,7 @@ class ErrCode(enum.IntEnum):
 
 
 class Go2PyCmd(enum.IntEnum):
-    CMD_INIT = 0
-    CMD_EXECUTE_REMOTE_TASK = enum.auto()
+    CMD_EXECUTE_REMOTE_TASK = 0
     CMD_GET_OBJECT = enum.auto()
     CMD_PUT_OBJECT = enum.auto()
     CMD_WAIT_OBJECT = enum.auto()
@@ -35,7 +34,8 @@ class Go2PyCmd(enum.IntEnum):
 
 
 class Py2GoCmd(enum.IntEnum):
-    CMD_START_DRIVER = 0
+    CMD_GET_INIT_OPTIONS = 0
+    CMD_START_DRIVER = enum.auto()
     CMD_GET_TASK_ACTOR_LIST = enum.auto()
     CMD_GET_ACTOR_METHODS = enum.auto()
 

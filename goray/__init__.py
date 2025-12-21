@@ -18,25 +18,27 @@ def start(
 
     :param libpath: path to the goray application binary (built from `go build -buildmode=c-shared`).
     :param py_defs_path: path to a python file to import python ray tasks and actors.
-    :param ray_init_args: arguments to pass to [ray.init](https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html#ray.init).
+    :param ray_init_args: arguments to pass to [`ray.init()`](https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html#ray.init).
+       The arguments here will overwrite the ones provided in golang side (via [`ray.Init()`](https://pkg.go.dev/github.com/ray4go/go-ray/ray#Init)) per key.
     :return: int, the return code of the driver function.
     """
-    debug = False
     state.golibpath = libpath
     state.pymodulepath = py_defs_path
-    state.debug = debug
+    state.debug = False  # not expose to user yet
 
-    ray_init_args.setdefault("runtime_env", {})
-    ray_init_args["runtime_env"].setdefault("env_vars", {})
-    ray_init_args["runtime_env"]["env_vars"][consts.GORAY_BIN_PATH_ENV] = libpath
-    ray_init_args["runtime_env"]["env_vars"][
-        consts.GORAY_PY_MUDULE_PATH_ENV
-    ] = py_defs_path
-    if debug:
-        ray_init_args["runtime_env"]["env_vars"]["GORAY_DEBUG_LOGGING"] = "1"
-
-    ray.init(**ray_init_args)
     lib = common.load_go_lib()
+    init_args = lib.get_init_options()
+    init_args.update(ray_init_args)
+
+    # inject goray runtime env
+    init_args.setdefault("runtime_env", {})
+    init_args["runtime_env"].setdefault("env_vars", {})
+    init_args["runtime_env"]["env_vars"][consts.GORAY_BIN_PATH_ENV] = libpath
+    init_args["runtime_env"]["env_vars"][consts.GORAY_PY_MUDULE_PATH_ENV] = py_defs_path
+    if state.debug:
+        init_args["runtime_env"]["env_vars"]["GORAY_DEBUG_LOGGING"] = "1"
+
+    ray.init(**init_args)
 
     msg, code = lib.start_driver()
     if code != 0:

@@ -204,7 +204,7 @@ pip install goray
 3) Run the Ray job:
 
 ```bash
-goray --mode local ./build/rayapp
+goray ./build/rayapp
 ```
 
 #### Ray cluster
@@ -215,7 +215,7 @@ Submit a job:
 
 ```bash
 export RAY_ADDRESS="http://RAY_CLUSTER_ADDRESS"  # Replace with your cluster address
-ray job submit --working-dir=./ -- goray ./build/rayapp
+ray job submit --working-dir=./ -- goray --cluster ./build/rayapp
 ```
 
 Notes:

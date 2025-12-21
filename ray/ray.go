@@ -1,5 +1,5 @@
 /*
-GoRay provides Golang support for the [Ray Core API] within the Ray distributed framework.
+GoRay provides Golang bindings for the [Ray Core API] within the Ray distributed framework.
 
 [User Guide]
 
@@ -26,9 +26,11 @@ import (
 
 var (
 	driverFunction func() int
+	rayInitOptions []*RayOption
 )
 
 var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
+	consts.Py2GoCmd_GetInitOptions:   handleGetInitOptions,
 	consts.Py2GoCmd_StartDriver:      handleStartDriver,
 	consts.Py2GoCmd_GetTaskActorList: handleGetTaskAndActorList,
 	consts.Py2GoCmd_GetActorMethods:  handleGetActorMethods,
@@ -43,10 +45,13 @@ var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 //   - Exported methods on actorRegister are used to create actors (via [NewActor]); each method serves as the actor’s constructor.
 //     The method must return exactly one value (the actor instance), and should panic or return nil on failure to create the actor.
 //   - driverFunc is called when the ray application starts and should return an integer as exit code.
+//   - options are used to set the [ray.init()] options. In most cases, it's enough to pass no options.
 //
 // Call this function from the main package's init() function in your Ray application.
 // All other GoRay APIs MUST be called within the driver function and its spawned remote actors/tasks.
-func Init(taskRegister any, actorRegister any, driverFunc func() int) {
+//
+// [ray.init()]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html#ray.init
+func Init(taskRegister any, actorRegister any, driverFunc func() int, options ...*RayOption) {
 	driverFunction = driverFunc
 
 	if taskRegister != nil {
@@ -55,6 +60,7 @@ func Init(taskRegister any, actorRegister any, driverFunc func() int) {
 	if actorRegister != nil {
 		registerActors(actorRegister)
 	}
+	rayInitOptions = options
 	ffi.RegisterHandler(handlePythonCmd)
 	go utils.ExitWhenCtrlC()
 }
@@ -77,6 +83,14 @@ func handlePythonCmd(request int64, data []byte) (resData []byte, retCode int64)
 		return []byte(fmt.Sprintf("[Go] Error: handlePythonCmd invalid cmdId %v\n", cmdId)), 1
 	}
 	return handler(index, data)
+}
+
+func handleGetInitOptions(_ int64, _ []byte) ([]byte, int64) {
+	data, err := jsonEncodeOptions(rayInitOptions)
+	if err != nil {
+		return []byte(fmt.Sprintf("json encode ray  failed: %v", err)), consts.ErrorCode_Failed
+	}
+	return data, consts.ErrorCode_Success
 }
 
 func handleStartDriver(_ int64, _ []byte) ([]byte, int64) {

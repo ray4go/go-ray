@@ -79,6 +79,14 @@ class GoCommander:
             )
         return res, code
 
+    def get_init_options(self) -> dict[str, typing.Any]:
+        data, code = self.execute(Py2GoCmd.CMD_GET_INIT_OPTIONS, 0, b"")
+        if code != 0:
+            raise Exception(
+                f"CMD_GET_INIT_OPTIONS error: {data.decode('utf-8')}"
+            )
+        return json.loads(data)
+
     def start_driver(self) -> tuple[str, int]:
         data, code = self.execute(Py2GoCmd.CMD_START_DRIVER, 0, b"")
         return data.decode("utf8"), code

@@ -12,8 +12,7 @@ const (
 )
 
 const (
-	Go2PyCmd_Init = iota
-	Go2PyCmd_ExeRemoteTask
+	Go2PyCmd_ExeRemoteTask = iota
 	Go2PyCmd_GetObject
 	Go2PyCmd_PutObject
 	Go2PyCmd_WaitObject
@@ -33,7 +32,8 @@ const (
 )
 
 const (
-	Py2GoCmd_StartDriver = iota
+	Py2GoCmd_GetInitOptions = iota
+	Py2GoCmd_StartDriver
 	Py2GoCmd_GetTaskActorList
 	Py2GoCmd_GetActorMethods
 

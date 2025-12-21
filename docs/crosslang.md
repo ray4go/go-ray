@@ -98,7 +98,7 @@ Run the Ray application:
 go build -buildmode=c-shared -o ./build/rayapp .
 
 # Ray standalone environment
-goray --mode local --py-defs app.py  ./build/rayapp
+goray --py-defs app.py  ./build/rayapp
 
 # Ray cluster
 export RAY_ADDRESS="http://RAY_CLUSTER_ADDRESS"  # Replace with your cluster address

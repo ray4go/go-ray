@@ -40,9 +40,9 @@ export RAY_RUNTIME_ENV_IGNORE_GITIGNORE=1
 cd ${PROJ_PATH}
 
 if [ "$MODE" == "remote" ]; then
-  ray job submit --working-dir=./ -- python -m goray.cli output/rayapp "$@"
+  ray job submit --working-dir=./ -- python -m goray.cli --cluster output/rayapp "$@"
 elif [ "$MODE" == "local" ]; then
-  python -m goray.cli --mode local output/rayapp "$@"
+  python -m goray.cli output/rayapp "$@"
 fi
 
 cd ${PKG_PATH}
