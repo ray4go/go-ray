@@ -2,7 +2,11 @@ import functools
 import logging
 
 import ray
-from . import consts, state, x
+import gorayffi
+import gorayffi.actor
+from gorayffi import consts
+import gorayffi.handlers
+from . import state
 from .raycore import common
 from .raycore import py2go
 from .raycore import registry
@@ -74,7 +78,7 @@ def local(func):
 
     The function can be called from Go using `ray.LocalCallPyTask(name, args...) `.
     """
-    x.export(func)
+    gorayffi.handlers.export_python_func(func)
     return func
 
 
@@ -120,10 +124,10 @@ def golang_local_run_task(name: str, *args):
     Unlike remote tasks, this function is blocking and returns the result directly.
     """
     lib = common.load_go_lib()
-    return x.CrossLanguageClient(lib).func_call(name, *args)
+    return lib.call_golang_func(name, args)
 
 
-def golang_local_new_actor(name: str, *args) -> x.GolangLocalActor:
+def golang_local_new_actor(name: str, *args) -> gorayffi.actor.GolangLocalActor:
     """
     Create a golang actor locally (in current process).
 
@@ -137,4 +141,4 @@ def golang_local_new_actor(name: str, *args) -> x.GolangLocalActor:
     ```
     """
     lib = common.load_go_lib()
-    return x.CrossLanguageClient(lib).new_type(name, *args)
+    return gorayffi.actor.GolangLocalActor(lib, name, *args)

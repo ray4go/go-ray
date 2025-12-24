@@ -1,54 +1,25 @@
 import io
+import json
 import logging
+import struct
 import traceback
 import typing
 
 import msgpack
 
-from .. import funccall, utils
-from ..consts import *
-
-# name to function
-_python_export_funcs = {}
-
-
-def add_python_export_func(func):
-    global _python_export_funcs
-    _python_export_funcs[func.__name__] = func
-
-
-def decode_args(
-    raw_args: bytes,
-    object_positions: list[int],
-    object_refs: typing.Sequence[tuple[bytes, int]],
-) -> list:
-    unpacker = msgpack.Unpacker(io.BytesIO(raw_args), strict_map_key=False)
-    args = []
-    for unpacked in unpacker:
-        args.append(unpacked)
-
-    for idx, (raw_res, code) in zip(object_positions, object_refs):
-        if code != 0:  # ray task for this object failed
-            origin_err_msg = raw_res.decode("utf-8")
-            err_msg = f"ray task for the object in {idx}th argument error[{ErrCode(code).name}]: {origin_err_msg}"
-            raise Exception(err_msg)
-        args.insert(idx, msgpack.unpackb(raw_res, strict_map_key=False))
-    return args
+from . import funccall, utils, registry
+from .consts import *
 
 
 def run_task(
     func_name: str,
     raw_args: bytes,
-    object_positions: list[int],
-    *object_refs: tuple[bytes, int],
 ) -> tuple[bytes, int]:
-    global _python_export_funcs
-
-    func = _python_export_funcs.get(func_name)
+    func = registry.get_export_python_func(func_name)
     if func is None:
         return utils.error_msg(f"python task {func_name} not found"), ErrCode.Failed
 
-    args = decode_args(raw_args, object_positions, object_refs)
+    args = list(msgpack.Unpacker(io.BytesIO(raw_args), strict_map_key=False))
 
     try:
         res = func(*args)
@@ -63,15 +34,14 @@ def run_task(
 
 
 def handle_run_py_local_task(data: bytes) -> tuple[bytes, int]:
-    args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
-        data
-    )
+    args_data, options = funccall.decode_funccall_arguments(data)
     func_name = options.pop(TASK_NAME_OPTION_KEY)
-    return run_task(func_name, args_data, object_positions, *object_refs)
+
+    return run_task(func_name, args_data)
 
 
 def handle_run_python_func_code(data: bytes) -> tuple[bytes, int]:
-    args_data, options, _, _ = funccall.decode_funccall_args(data)
+    args_data, options = funccall.decode_funccall_arguments(data)
     func_code = options.pop("func_code")
     func_names = utils.parse_function_name(func_code)
     if len(func_names) == 0:
@@ -79,7 +49,7 @@ def handle_run_python_func_code(data: bytes) -> tuple[bytes, int]:
     if len(func_names) > 1:
         return b"Invalid python function code: multiple function definitions found", ErrCode.Failed
     func_name = func_names[0]
-    args = decode_args(args_data, [], [])
+    args = list(msgpack.Unpacker(io.BytesIO(args_data), strict_map_key=False))
     args_list = ",".join(f"arg{i}" for i in range(len(args)))
     func_call_code = f"__res__ = {func_name}({args_list})"
     args = {f"arg{i}": arg for i, arg in enumerate(args)}
@@ -106,21 +76,20 @@ handlers = {
 }
 
 
-def handle(cmd: int, data: bytes) -> tuple[bytes, int]:
-    if cmd not in handlers:
-        return (
-            utils.error_msg(
-                f"Go2PyCmd {Go2PyCmd(cmd).name} is not available in cross lang only mode"
-            ),
-            ErrCode.Failed,
-        )
+def cmds_dispatcher(
+    cmd2handler: dict[int, typing.Callable[[bytes], tuple[bytes, int]]]
+) -> typing.Callable[[int, bytes], tuple[bytes, int]]:
+    def handler(cmd: int, data: bytes) -> tuple[bytes, int]:
+        if cmd not in cmd2handler:
+            return utils.error_msg(f"Unknown Go2PyCmd {cmd}"), ErrCode.Failed
 
-    func = handlers[cmd]
-    try:
-        return func(data)
-    except Exception as e:
-        error_string = (
-            f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()
-        )
-        # logger.error(error_string)
-        return error_string.encode("utf8"), ErrCode.Failed
+        func = cmd2handler[cmd]
+        try:
+            return func(data)
+        except Exception as e:
+            error_string = (
+                f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()
+            )
+            return error_string.encode("utf8"), ErrCode.Failed
+
+    return handler

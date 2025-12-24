@@ -2,7 +2,7 @@ import inspect
 
 import ray
 
-from .. import x
+import gorayffi.registry
 
 # name -> (func_or_class, options)
 _user_tasks = {}
@@ -15,10 +15,8 @@ def make_remote(function_or_class, options: dict):
     else:
         _user_tasks[function_or_class.__name__] = (function_or_class, options)
 
-    if not inspect.isclass(function_or_class):
-        # also register the function in x module for local cross-language calls
-        # (local go-call-python only works for python functions yet)
-        x.export(function_or_class)
+    # also register the function in x module for local cross-language calls
+    gorayffi.registry.export_python(function_or_class)
 
     if options:
         return ray.remote(**options)(function_or_class)

@@ -4,16 +4,16 @@ import logging
 import ray
 
 from . import common, actor_wrappers
-from .. import funccall, state, utils
-from ..consts import *
-from ..x import actor
+from .. import state
+from gorayffi.consts import *
+from gorayffi import actor, utils
 
 logger = logging.getLogger(__name__)
 
 
 def handle_new_actor(data: bytes) -> tuple[bytes, int]:
     encoded_args, options, object_positions, object_refs = (
-        funccall.decode_funccall_args(data)
+        common.decode_remote_func_call_args(data)
     )
     actor_type_name = options.pop(ACTOR_NAME_OPTION_KEY)
     actor_methods = options.pop(ACTOR_METHOD_LIST_OPTION_KEY)
@@ -38,7 +38,7 @@ def handle_new_actor(data: bytes) -> tuple[bytes, int]:
 
 
 def handle_actor_method_call(data: bytes) -> tuple[bytes, int]:
-    raw_args, options, object_positions, object_refs = funccall.decode_funccall_args(
+    raw_args, options, object_positions, object_refs = common.decode_remote_func_call_args(
         data
     )
     method_name = options.pop(TASK_NAME_OPTION_KEY)

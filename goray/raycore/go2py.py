@@ -4,9 +4,10 @@ import msgpack
 import ray
 
 from . import common, registry, actor_wrappers
-from .. import funccall, state, utils
-from ..consts import *
-from ..x import handlers as x_handlers
+from .. import  state
+from gorayffi import utils
+from gorayffi.consts import *
+from gorayffi import handlers as x_handlers
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
@@ -37,7 +38,7 @@ def run_task(
     func, _ = registry.get_py_task(func_name)
     if func is None:
         return f"[py] task {func_name} not found".encode("utf-8"), ErrCode.Failed
-    args = x_handlers.decode_args(raw_args, object_positions, object_refs)
+    args = common.decode_args(raw_args, object_positions, object_refs)
 
     try:
         res = func(*args)
@@ -52,7 +53,7 @@ def run_task(
 
 
 def handle_run_py_task(data: bytes) -> tuple[bytes, int]:
-    args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
+    args_data, options, object_positions, object_refs = common.decode_remote_func_call_args(
         data
     )
     func_name = options.pop("task_name")
@@ -76,7 +77,7 @@ def handle_run_py_task(data: bytes) -> tuple[bytes, int]:
 
 
 def handle_new_py_actor(data: bytes) -> tuple[bytes, int]:
-    args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
+    args_data, options, object_positions, object_refs = common.decode_remote_func_call_args(
         data
     )
     class_name = options.pop(ACTOR_NAME_OPTION_KEY)

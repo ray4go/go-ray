@@ -5,8 +5,8 @@ import logging
 import ray
 
 from . import common, actor_wrappers
-from .. import utils, consts
-from ..x import actor
+from gorayffi import utils, consts
+from gorayffi import actor
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
