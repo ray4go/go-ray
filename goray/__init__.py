@@ -5,7 +5,7 @@ import ray
 import gorayffi
 import gorayffi.actor
 from gorayffi import consts
-import gorayffi.handlers
+import gorayffi.registry
 from . import state
 from .raycore import common
 from .raycore import py2go
@@ -74,11 +74,12 @@ def remote(*args, **kwargs):
 
 def local(func):
     """
-    Decorator to register a python function to be called from go.
+    Decorator to register a python function/class to be called from go.
 
-    The function can be called from Go using `ray.LocalCallPyTask(name, args...) `.
+    - Python function can be called from Go using `ray.LocalCallPyTask(name, args...)`.
+    - Python class can be called from Go using `ray.NewLocalPyClassInstance(name, args...)`.
     """
-    gorayffi.handlers.export_python_func(func)
+    gorayffi.registry.export_python(func)
     return func
 
 

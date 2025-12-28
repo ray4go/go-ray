@@ -8,7 +8,7 @@ Go bindings for Ray Core.
 
 - **Pure Go** — Build Ray applications in Go without touching Python
 - **Seamless Polyglot** — Hybrid Python–Go development with cross-language Task/Actor invocation
-- **Strong compatibility** — Clean implementation with zero hacks
+- **Strong Compatibility** — Clean implementation with zero hacks
 - **Type-safe Remote Calls** — Compile-time safety and full IDE support via code generation
 
 
@@ -243,7 +243,7 @@ You must compile with `-buildmode=c-shared` to produce a shared library.
 1) Install the official Ray Python SDK:
 
 ```bash
-pip install -U "ray[default]"
+pip install "ray[default]"
 ```
 
 2) Install the go-ray Python driver:
