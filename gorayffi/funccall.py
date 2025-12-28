@@ -1,6 +1,7 @@
 import json
 
-from . import  utils
+from . import utils
+
 
 def encode_golang_funccall_arguments(
     name: str,

@@ -35,9 +35,9 @@ def unpack_bytes_units(data: bytes) -> list[bytes]:
     offset = 0
     units = []
     while offset < len(data):
-        length = int.from_bytes(data[offset: offset + 8], byteorder="little")
+        length = int.from_bytes(data[offset : offset + 8], byteorder="little")
         offset += 8
-        units.append(data[offset: offset + length])
+        units.append(data[offset : offset + length])
         offset += length
     assert offset == len(
         data
@@ -110,15 +110,11 @@ class ThreadSafeLocalStore:
     It's thread safe.
     It's a local store, meaning that when pickle and unpickle this object, the store will be reset.
 
-    When add a new value, it will return an integer key. The key is assigned in a round-robi
-
-
-
-    n fashion.
+    When add a new value, it will return an integer key. The key is assigned in a round-robin fashion.
     The released key will not be reused in right away, just like the process id generation strategy.
     """
 
-    MAX_SIZE = 2 ** 63 - 1
+    MAX_SIZE = 2**63 - 1
 
     _no_set = object()
 

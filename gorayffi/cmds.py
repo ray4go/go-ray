@@ -1,6 +1,7 @@
 """
 expose all golang api to python
 """
+
 import functools
 import io
 import json
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class GoCommander:
     def __init__(
-            self, cmd_execute_func: typing.Callable[[int, int, bytes], tuple[bytes, int]]
+        self, cmd_execute_func: typing.Callable[[int, int, bytes], tuple[bytes, int]]
     ):
         self.execute = cmd_execute_func
 
@@ -52,11 +53,11 @@ class GoCommander:
         return returns
 
     def raw_call_golang_func(
-            self,
-            func_name: str,
-            raw_args: bytes,
-            object_positions: list[int],
-            *resolved_object_refs: tuple[bytes, int],
+        self,
+        func_name: str,
+        raw_args: bytes,
+        object_positions: list[int],
+        *resolved_object_refs: tuple[bytes, int],
     ) -> tuple[bytes, int]:
         """
         low level api to call golang func
@@ -76,17 +77,19 @@ class GoCommander:
         except Exception as e:
             logging.exception(f"[py] python ffi.execute(CMD_RUN_TASK) error {e}")
             return (
-                f"[goray error] python ffi.execute(CMD_RUN_TASK) error: {e}".encode("utf-8"),
+                f"[goray error] python ffi.execute(CMD_RUN_TASK) error: {e}".encode(
+                    "utf-8"
+                ),
                 ErrCode.Failed,
             )
         return res, code
 
     def new_golang_actor(
-            self,
-            actor_class_name: str,
-            encoded_args: bytes,
-            object_positions: list[int],
-            *object_refs: tuple[bytes, int],
+        self,
+        actor_class_name: str,
+        encoded_args: bytes,
+        object_positions: list[int],
+        *object_refs: tuple[bytes, int],
     ):
         """
         create a new golang actor instance, arguments are encoded raw bytes, return the go obj id
@@ -108,12 +111,12 @@ class GoCommander:
         return int(res.decode("utf-8"))
 
     def raw_call_golang_method(
-            self,
-            go_obj_id: int,
-            method_name: str,
-            encoded_args: bytes,
-            object_positions: list[int],
-            *object_refs: tuple[bytes, int],
+        self,
+        go_obj_id: int,
+        method_name: str,
+        encoded_args: bytes,
+        object_positions: list[int],
+        *object_refs: tuple[bytes, int],
     ) -> tuple[bytes, int]:
         """
         low level api to call golang actor method, arguments and return values are encoded raw bytes
@@ -124,16 +127,19 @@ class GoCommander:
         if err != 0:
             return data, err
 
-        logger.debug(
-            f"[py] run actor method {method_name=}, {go_obj_id=}"
-        )
+        logger.debug(f"[py] run actor method {method_name=}, {go_obj_id=}")
         try:
-            res, code = self.execute(
-                Py2GoCmd.CMD_ACTOR_METHOD_CALL, go_obj_id, data
-            )
+            res, code = self.execute(Py2GoCmd.CMD_ACTOR_METHOD_CALL, go_obj_id, data)
         except Exception as e:
-            logging.exception(f"[py] python ffi.execute(CMD_ACTOR_METHOD_CALL) error {e}")
-            return utils.error_msg(f"python ffi.execute(CMD_ACTOR_METHOD_CALL) error: {e}"), ErrCode.Failed
+            logging.exception(
+                f"[py] python ffi.execute(CMD_ACTOR_METHOD_CALL) error {e}"
+            )
+            return (
+                utils.error_msg(
+                    f"python ffi.execute(CMD_ACTOR_METHOD_CALL) error: {e}"
+                ),
+                ErrCode.Failed,
+            )
         return res, code
 
     def close_actor(self, go_obj_id: int) -> tuple[str, int]:
@@ -145,9 +151,7 @@ class GoCommander:
         """get init options from go ray.Init()"""
         data, code = self.execute(Py2GoCmd.CMD_GET_INIT_OPTIONS, 0, b"")
         if code != 0:
-            raise Exception(
-                f"CMD_GET_INIT_OPTIONS error: {data.decode('utf-8')}"
-            )
+            raise Exception(f"CMD_GET_INIT_OPTIONS error: {data.decode('utf-8')}")
         return json.loads(data)
 
     def start_driver(self) -> tuple[str, int]:

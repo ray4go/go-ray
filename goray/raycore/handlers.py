@@ -19,7 +19,6 @@ handlers = {
     # go call py
     Go2PyCmd.CMD_EXECUTE_PY_REMOTE_TASK: go2py.handle_run_py_task,
     Go2PyCmd.CMD_NEW_PY_ACTOR: go2py.handle_new_py_actor,
-
     # local call
     **cross_lang_handlers.handlers,
 }

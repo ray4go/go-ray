@@ -8,7 +8,7 @@ from typing import Any, Union
 import msgpack
 
 from . import cmds
-from . import funccall, utils, consts
+from . import consts
 
 logger = logging.getLogger(__name__)
 

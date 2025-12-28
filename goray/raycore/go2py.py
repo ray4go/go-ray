@@ -3,11 +3,10 @@ import logging
 import msgpack
 import ray
 
-from . import common, registry, actor_wrappers
-from .. import  state
 from gorayffi import utils
 from gorayffi.consts import *
-from gorayffi import handlers as x_handlers
+from . import common, registry, actor_wrappers
+from .. import state
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
@@ -53,8 +52,8 @@ def run_task(
 
 
 def handle_run_py_task(data: bytes) -> tuple[bytes, int]:
-    args_data, options, object_positions, object_refs = common.decode_remote_func_call_args(
-        data
+    args_data, options, object_positions, object_refs = (
+        common.decode_remote_func_call_args(data)
     )
     func_name = options.pop("task_name")
     func, opts = registry.get_py_task(func_name)
@@ -77,8 +76,8 @@ def handle_run_py_task(data: bytes) -> tuple[bytes, int]:
 
 
 def handle_new_py_actor(data: bytes) -> tuple[bytes, int]:
-    args_data, options, object_positions, object_refs = common.decode_remote_func_call_args(
-        data
+    args_data, options, object_positions, object_refs = (
+        common.decode_remote_func_call_args(data)
     )
     class_name = options.pop(ACTOR_NAME_OPTION_KEY)
 

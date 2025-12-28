@@ -1,12 +1,11 @@
 import functools
 import io
-import json
 import struct
 import typing
 
 import msgpack
 
-from gorayffi import consts, utils, handlers as cross_lang_handlers, funccall
+from gorayffi import consts, handlers as cross_lang_handlers, funccall
 from gorayffi import ffi
 from . import handlers
 from .. import state
@@ -20,7 +19,9 @@ def load_go_lib():
     if not state.golibpath:
         raise Exception("init() must be called first")
 
-    lib = ffi.load_go_lib(state.golibpath, cross_lang_handlers.cmds_dispatcher(handlers.handlers))
+    lib = ffi.load_go_lib(
+        state.golibpath, cross_lang_handlers.cmds_dispatcher(handlers.handlers)
+    )
 
     if state.pymodulepath:
         get_module(state.pymodulepath)
@@ -115,9 +116,9 @@ def decode_remote_func_call_args(data: bytes):
 
 
 def decode_args(
-        raw_args: bytes,
-        object_positions: list[int],
-        object_refs: typing.Sequence[tuple[bytes, int]],
+    raw_args: bytes,
+    object_positions: list[int],
+    object_refs: typing.Sequence[tuple[bytes, int]],
 ) -> list:
     unpacker = msgpack.Unpacker(io.BytesIO(raw_args), strict_map_key=False)
     args = []
@@ -127,7 +128,7 @@ def decode_args(
     for idx, (raw_res, code) in zip(object_positions, object_refs):
         if code != 0:  # ray task for this object failed
             origin_err_msg = raw_res.decode("utf-8")
-            err_msg = f"ray task for the object in {idx}th argument error[{ErrCode(code).name}]: {origin_err_msg}"
+            err_msg = f"ray task for the object in {idx}th argument error[{consts.ErrCode(code).name}]: {origin_err_msg}"
             raise Exception(err_msg)
         args.insert(idx, msgpack.unpackb(raw_res, strict_map_key=False))
     return args

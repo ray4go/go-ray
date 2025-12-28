@@ -2,9 +2,9 @@ import logging
 
 import ray
 
-from . import common
-from .. import  state
 from gorayffi.consts import *
+from . import common
+from .. import state
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,8 @@ def run_task(
 
 
 def handle_run_remote_task(data: bytes) -> tuple[bytes, int]:
-    args_data, options, object_positions, object_refs = common.decode_remote_func_call_args(
-        data
+    args_data, options, object_positions, object_refs = (
+        common.decode_remote_func_call_args(data)
     )
     task_name = options.pop(TASK_NAME_OPTION_KEY)
 

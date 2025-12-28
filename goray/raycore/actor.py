@@ -3,10 +3,10 @@ import logging
 
 import ray
 
+from gorayffi import actor, utils
+from gorayffi.consts import *
 from . import common, actor_wrappers
 from .. import state
-from gorayffi.consts import *
-from gorayffi import actor, utils
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +38,8 @@ def handle_new_actor(data: bytes) -> tuple[bytes, int]:
 
 
 def handle_actor_method_call(data: bytes) -> tuple[bytes, int]:
-    raw_args, options, object_positions, object_refs = common.decode_remote_func_call_args(
-        data
+    raw_args, options, object_positions, object_refs = (
+        common.decode_remote_func_call_args(data)
     )
     method_name = options.pop(TASK_NAME_OPTION_KEY)
     actor_local_id = options.pop(PY_LOCAL_ACTOR_ID_KEY)
@@ -50,7 +50,9 @@ def handle_actor_method_call(data: bytes) -> tuple[bytes, int]:
         return utils.error_msg("actor not found!"), ErrCode.Failed
 
     actor_handle = state.actors[actor_local_id]
-    method = getattr(actor_handle, method_name + actor_wrappers.METHOD_WITH_ENCODED_ARGS_SUFFIX)
+    method = getattr(
+        actor_handle, method_name + actor_wrappers.METHOD_WITH_ENCODED_ARGS_SUFFIX
+    )
     fut = method.options(**options).remote(
         method_name, raw_args, object_positions, *object_refs
     )

@@ -1,18 +1,15 @@
 import logging
 from typing import Any, Union, Type
 
-import io
-import typing
 import msgpack
 import ray
 
+from gorayffi import actor
+from gorayffi.consts import *
 from . import common
 from . import registry
-from gorayffi.consts import *
-from gorayffi import actor
 
 logger = logging.getLogger(__name__)
-
 
 
 class GoActor(actor.GoActor):
@@ -107,6 +104,7 @@ class PyActor:
 
 METHOD_WITH_ENCODED_ARGS_SUFFIX = "__"
 
+
 def new_remote_actor_type(
     cls: Union[Type[GoActor], Type[PyActor]],
     actor_type_name: str,
@@ -114,7 +112,8 @@ def new_remote_actor_type(
     namespace: str,
 ):
     go_methods = {
-        name + METHOD_WITH_ENCODED_ARGS_SUFFIX: cls.call_method_with_encoded_args for name in method_names
+        name + METHOD_WITH_ENCODED_ARGS_SUFFIX: cls.call_method_with_encoded_args
+        for name in method_names
     }
     py_method = {
         name: common.method_bind(cls.call_method_with_native_args, name)

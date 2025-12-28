@@ -47,7 +47,10 @@ def handle_run_python_func_code(data: bytes) -> tuple[bytes, int]:
     if len(func_names) == 0:
         return b"Invalid python function code: can't get function name", ErrCode.Failed
     if len(func_names) > 1:
-        return b"Invalid python function code: multiple function definitions found", ErrCode.Failed
+        return (
+            b"Invalid python function code: multiple function definitions found",
+            ErrCode.Failed,
+        )
     func_name = func_names[0]
     args = list(msgpack.Unpacker(io.BytesIO(args_data), strict_map_key=False))
     args_list = ",".join(f"arg{i}" for i in range(len(args)))
@@ -86,7 +89,10 @@ def handle_new_python_class_instance(data: bytes) -> tuple[bytes, int]:
     try:
         instance = cls(*args)
     except Exception as e:
-        return utils.error_msg(f"create python class {class_name} error: {e}"), ErrCode.Failed
+        return (
+            utils.error_msg(f"create python class {class_name} error: {e}"),
+            ErrCode.Failed,
+        )
 
     instance_id = _python_class_instances.add(instance)
     return _uint64_le_packer.pack(instance_id), ErrCode.Success
@@ -103,7 +109,10 @@ def handle_class_instance_method_call(data: bytes) -> tuple[bytes, int]:
     try:
         res = getattr(obj_handle, method_name)(*args)
     except Exception as e:
-        return utils.error_msg(f"call python class instance method error: {e}"), ErrCode.Failed
+        return (
+            utils.error_msg(f"call python class instance method error: {e}"),
+            ErrCode.Failed,
+        )
 
     return msgpack.packb(res, use_bin_type=True), ErrCode.Success
 
@@ -122,7 +131,6 @@ def handle_close_python_class_instance(data: bytes) -> tuple[bytes, int]:
 handlers = {
     Go2PyCmd.CMD_EXECUTE_PY_LOCAL_TASK: handle_run_py_local_task,
     Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_func_code,
-
     Go2PyCmd.CMD_NEW_CLASS_INSTANCE: handle_new_python_class_instance,
     Go2PyCmd.CMD_LOCAL_METHOD_CALL: handle_class_instance_method_call,
     Go2PyCmd.CMD_CLOSE_CLASS_INSTANCE: handle_close_python_class_instance,
@@ -130,7 +138,7 @@ handlers = {
 
 
 def cmds_dispatcher(
-    cmd2handler: dict[int, typing.Callable[[bytes], tuple[bytes, int]]]
+    cmd2handler: dict[int, typing.Callable[[bytes], tuple[bytes, int]]],
 ) -> typing.Callable[[int, bytes], tuple[bytes, int]]:
     def handler(cmd: int, data: bytes) -> tuple[bytes, int]:
         if cmd not in cmd2handler:
@@ -141,7 +149,8 @@ def cmds_dispatcher(
             return func(data)
         except Exception as e:
             error_string = (
-                f"[python] handle {Go2PyCmd(cmd).name} error {e}\n" + traceback.format_exc()
+                f"[python] handle {Go2PyCmd(cmd).name} error {e}\n"
+                + traceback.format_exc()
             )
             return error_string.encode("utf8"), ErrCode.Failed
 

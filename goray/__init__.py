@@ -2,10 +2,11 @@ import functools
 import logging
 
 import ray
+
 import gorayffi
 import gorayffi.actor
-from gorayffi import consts
 import gorayffi.registry
+from gorayffi import consts
 from . import state
 from .raycore import common
 from .raycore import py2go
