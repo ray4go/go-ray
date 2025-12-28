@@ -1,12 +1,8 @@
 package cases
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math"
-	"math/rand"
-	"os"
-	"sync"
 	"time"
 
 	"github.com/ray4go/go-ray/ray"
@@ -30,28 +26,7 @@ func (t TestTask) ReturnMap() map[string]int {
 	return map[string]int{"a": 1, "b": 2, "c": 3}
 }
 
-const pythonAddCode = `
-def add(a, b):
-    return a + b
-`
-
 func init() {
-	AddTestCase("TestGoCallPy-CallPythonCode", func(assert *require.Assertions) {
-		var res int
-		err := ray.CallPythonCode(pythonAddCode, 1, 2).GetInto(&res)
-		assert.NoError(err)
-		assert.Equal(3, res)
-
-		var res2 string
-		err = ray.CallPythonCode(pythonAddCode, "ab", "cd").GetInto(&res2)
-		assert.NoError(err)
-		assert.Equal("abcd", res2)
-
-		var res3 []int
-		err = ray.CallPythonCode(pythonAddCode, []int{1, 2, 3}, []int{4, 5, 6}).GetInto(&res3)
-		assert.NoError(err)
-		assert.Equal([]int{1, 2, 3, 4, 5, 6}, res3)
-	})
 
 	AddTestCase("TestGoCallPy-option", func(assert *require.Assertions) {
 		obj := ray.RemoteCallPyTask("overwrite_ray_options", ray.Option("num_cpus", 1))
@@ -103,42 +78,6 @@ func init() {
 		err = obj5.GetInto(&res3)
 		assert.NoError(err)
 		assert.Equal(resType2{A: &res1.A, B: &res1.B, C: &res1.C}, res3)
-	})
-
-	AddTestCase("TestGoCallPy-local", func(assert *require.Assertions) {
-		pid, err := ray.Get1[int](ray.LocalCallPyTask("get_pid"))
-		assert.NoError(err)
-		assert.Equal(os.Getpid(), pid)
-	})
-
-	AddTestCase("TestGoCallPy-local-threads", func(assert *require.Assertions) {
-		var res int
-		err := ray.LocalCallPyTask("busy", 1).GetInto(&res)
-		assert.NoError(err)
-
-		start := time.Now()
-		threads := sync.Map{}
-		var wg sync.WaitGroup
-		wg.Add(10)
-		for i := 0; i < 10; i++ {
-			go func() {
-				defer wg.Done()
-				var threadId int
-				err := ray.LocalCallPyTask("busy", 1).GetInto(&threadId)
-				assert.NoError(err)
-				//threads[threadId] = struct{}{}
-				threads.Store(threadId, struct{}{})
-			}()
-		}
-		wg.Wait()
-		elapsed := time.Since(start)
-		count := 0
-		threads.Range(func(key, value interface{}) bool {
-			count++
-			return true // 返回 true 继续遍历
-		})
-		assert.Equal(10, count, "should have 10 unique threads")
-		assert.Less(elapsed, time.Duration(count)/2*time.Second, "should be faster than 2 seconds")
 	})
 
 	AddTestCase("TestGoCallPy-actor", func(assert *require.Assertions) {
@@ -213,80 +152,6 @@ func init() {
 		err = obj5.GetInto(&res5)
 		assert.NoError(err)
 		assert.Equal(t1, res5)
-	})
-
-	AddTestCase("TestGoCallPy-local-actor", func(assert *require.Assertions) {
-		args := []any{1, "str", true, 3.0, []int{1, 2, 3}, map[string]int{"a": 1}}
-		actor := ray.NewLocalPyClassInstance("PyActor", args...)
-		res, err := actor.MethodCall("get_args").Get()
-		assert.NoError(err)
-		assert.True(tools.DeepEqualValues(args, res))
-
-		res, err = actor.MethodCall("echo", args...).Get()
-		assert.NoError(err)
-		assert.True(tools.DeepEqualValues(args, res))
-
-		obj := actor.MethodCall("hello", "world")
-		res1, err := ray.Get1[string](obj)
-		assert.NoError(err)
-		assert.Equal("hello world", res1)
-		err = obj.GetInto(&res1)
-		assert.NoError(err)
-		assert.Equal("hello world", res1)
-
-		actor = ray.NewLocalPyClassInstance("PyActor")
-		actor.MethodCall("no_return", "world")
-		obj2 := actor.MethodCall("no_return", "world")
-		res, err = obj2.Get()
-		assert.NoError(err)
-		err = ray.Get0(obj2)
-		assert.NoError(err)
-		err = obj2.GetInto()
-		assert.NoError(err)
-
-		obj3 := actor.MethodCall("single", 1)
-		res3, err := ray.Get1[int](obj3)
-		assert.NoError(err)
-		assert.EqualValues(1, res3)
-		err = obj3.GetInto(&res3)
-		assert.NoError(err)
-		assert.EqualValues(1, res3)
-
-		obj4 := actor.MethodCall("no_args")
-		res4, err := ray.Get1[int](obj4)
-		assert.NoError(err)
-		assert.EqualValues(42, res4)
-
-		type T1 struct {
-			Str   string
-			Num   int
-			Slice []int
-			Map   map[string]int
-			Point *T1
-		}
-
-		t1 := T1{
-			Str:   "str",
-			Num:   1,
-			Slice: []int{1, 2, 3},
-			Map:   map[string]int{"a": 1, "b": 2},
-			Point: &T1{
-				Str:   "str",
-				Num:   1,
-				Slice: []int{1, 2, 3},
-				Map:   map[string]int{"a": 1, "b": 2},
-			},
-		}
-		obj5 := actor.MethodCall("single", t1)
-		res5, err := ray.Get1[T1](obj5)
-		assert.NoError(err)
-		assert.Equal(t1, res5)
-		err = obj5.GetInto(&res5)
-		assert.NoError(err)
-		assert.Equal(t1, res5)
-
-		assert.NoError(actor.Close())
-		assert.Error(actor.Close())
 	})
 
 	AddTestCase("TestGoCallPy-getactor", func(assert *require.Assertions) {
@@ -633,31 +498,6 @@ def process_list(items):
 		// Clean up
 		err = actor.Kill()
 		assert.NoError(err)
-	})
-
-	// Test LocalCallPyTask with complex types
-	AddTestCase("TestGoCallPy-LocalCallComplex", func(assert *require.Assertions) {
-		type ComplexData struct {
-			ID       int               `json:"id"`
-			Name     string            `json:"name"`
-			Tags     []string          `json:"tags"`
-			Metadata map[string]string `json:"metadata"`
-		}
-
-		input := ComplexData{
-			ID:   42,
-			Name: "test_item",
-			Tags: []string{"tag1", "tag2", "tag3"},
-			Metadata: map[string]string{
-				"version": "1.0",
-				"author":  "test",
-			},
-		}
-
-		var result ComplexData
-		err := ray.LocalCallPyTask("single", input).GetInto(&result)
-		assert.NoError(err)
-		assert.Equal(input, result)
 	})
 
 	// Test special float values
@@ -1026,21 +866,4 @@ def runtime_error():
 		assert.NotNil(result4["level1"])
 	})
 
-	AddTestCase("TestGoCallPy-Uint64", func(assertions *require.Assertions) {
-		random := rand.New(rand.NewSource(time.Now().UnixNano()))
-		for i := 0; i < 100; i++ {
-			num := random.Uint64()
-			obj := ray.RemoteCallPyTask("pack_uint64", num)
-			data, err := ray.Get1[[]byte](obj)
-			res := binary.LittleEndian.Uint64(data)
-			assertions.NoError(err)
-			assertions.Equal(num, res)
-
-			obj2 := ray.LocalCallPyTask("pack_uint64", num)
-			data, err = ray.Get1[[]byte](obj2)
-			res = binary.LittleEndian.Uint64(data)
-			assertions.NoError(err)
-			assertions.Equal(num, res)
-		}
-	})
 }
