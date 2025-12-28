@@ -70,9 +70,62 @@ def handle_run_python_func_code(data: bytes) -> tuple[bytes, int]:
     return msgpack.packb(res, use_bin_type=True), ErrCode.Success
 
 
+_python_class_instances = utils.ThreadSafeLocalStore()  # instance_id -> instance
+_uint64_le_packer = struct.Struct("<Q")
+
+
+def handle_new_python_class_instance(data: bytes) -> tuple[bytes, int]:
+    args_data, options = funccall.decode_funccall_arguments(data)
+    class_name = options.pop(ACTOR_NAME_OPTION_KEY)
+
+    cls = registry.get_export_python_class(class_name)
+    if cls is None:
+        return utils.error_msg(f"python class {class_name} not found"), ErrCode.Failed
+
+    args = list(msgpack.Unpacker(io.BytesIO(args_data), strict_map_key=False))
+    try:
+        instance = cls(*args)
+    except Exception as e:
+        return utils.error_msg(f"create python class {class_name} error: {e}"), ErrCode.Failed
+
+    instance_id = _python_class_instances.add(instance)
+    return _uint64_le_packer.pack(instance_id), ErrCode.Success
+
+
+def handle_class_instance_method_call(data: bytes) -> tuple[bytes, int]:
+    args_data, options = funccall.decode_funccall_arguments(data)
+    method_name = options.pop(TASK_NAME_OPTION_KEY)
+    instance_id = options.pop(PY_LOCAL_ACTOR_ID_KEY)
+    if instance_id not in _python_class_instances:
+        return utils.error_msg("python class instance not found!"), ErrCode.Failed
+    obj_handle = _python_class_instances[instance_id]
+    args = list(msgpack.Unpacker(io.BytesIO(args_data), strict_map_key=False))
+    try:
+        res = getattr(obj_handle, method_name)(*args)
+    except Exception as e:
+        return utils.error_msg(f"call python class instance method error: {e}"), ErrCode.Failed
+
+    return msgpack.packb(res, use_bin_type=True), ErrCode.Success
+
+
+def handle_close_python_class_instance(data: bytes) -> tuple[bytes, int]:
+    options = json.loads(data)
+    instance_id = options.pop(PY_LOCAL_ACTOR_ID_KEY)
+
+    if instance_id not in _python_class_instances:
+        return utils.error_msg("python class instance not found!"), ErrCode.Failed
+
+    _python_class_instances.release(instance_id)
+    return b"", 0
+
+
 handlers = {
     Go2PyCmd.CMD_EXECUTE_PY_LOCAL_TASK: handle_run_py_local_task,
     Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_func_code,
+
+    Go2PyCmd.CMD_NEW_CLASS_INSTANCE: handle_new_python_class_instance,
+    Go2PyCmd.CMD_LOCAL_METHOD_CALL: handle_class_instance_method_call,
+    Go2PyCmd.CMD_CLOSE_CLASS_INSTANCE: handle_close_python_class_instance,
 }
 
 

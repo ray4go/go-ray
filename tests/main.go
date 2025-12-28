@@ -5,7 +5,8 @@ import (
 	"os"
 	"regexp"
 	"runtime/coverage"
-	"sync/atomic"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,8 +16,15 @@ import (
 )
 
 var (
-	passedNum int64 = 0
+	mutex      = &sync.Mutex{}
+	failedTest = make([]string, 0)
 )
+
+func addFailedTest(testName string) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	failedTest = append(failedTest, testName)
+}
 
 func init() {
 	task, actors := cases.RayWorkload()
@@ -34,8 +42,8 @@ func getTestCases(filter func(string) bool) []testing.InternalTest {
 			Name: test_.Name,
 			F: func(t *testing.T) {
 				test_.F(t)
-				if !t.Failed() {
-					atomic.AddInt64(&passedNum, 1)
+				if t.Failed() {
+					addFailedTest(test_.Name)
 				}
 			},
 		})
@@ -76,11 +84,13 @@ func driver() int {
 	testing.Main(matchAll, tests, nil, nil)
 
 	fmt.Printf("Tests finished in %s\n", time.Since(startTime))
-	fmt.Printf("Passed: %d, Failed: %d\n", passedNum, int64(len(tests))-passedNum)
-
+	fmt.Printf("Passed: %d, Failed: %d\n", len(tests)-len(failedTest), len(failedTest))
+	if len(failedTest) > 0 {
+		fmt.Printf("Failed Cases: %s\n", strings.Join(failedTest, ", "))
+	}
 	dumpCoverage()
 
-	if int64(len(tests))-passedNum != 0 {
+	if len(failedTest) != 0 {
 		return 1
 	}
 	return 0

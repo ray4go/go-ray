@@ -215,6 +215,80 @@ func init() {
 		assert.Equal(t1, res5)
 	})
 
+	AddTestCase("TestGoCallPy-local-actor", func(assert *require.Assertions) {
+		args := []any{1, "str", true, 3.0, []int{1, 2, 3}, map[string]int{"a": 1}}
+		actor := ray.NewLocalPyClassInstance("PyActor", args...)
+		res, err := actor.MethodCall("get_args").Get()
+		assert.NoError(err)
+		assert.True(tools.DeepEqualValues(args, res))
+
+		res, err = actor.MethodCall("echo", args...).Get()
+		assert.NoError(err)
+		assert.True(tools.DeepEqualValues(args, res))
+
+		obj := actor.MethodCall("hello", "world")
+		res1, err := ray.Get1[string](obj)
+		assert.NoError(err)
+		assert.Equal("hello world", res1)
+		err = obj.GetInto(&res1)
+		assert.NoError(err)
+		assert.Equal("hello world", res1)
+
+		actor = ray.NewLocalPyClassInstance("PyActor")
+		actor.MethodCall("no_return", "world")
+		obj2 := actor.MethodCall("no_return", "world")
+		res, err = obj2.Get()
+		assert.NoError(err)
+		err = ray.Get0(obj2)
+		assert.NoError(err)
+		err = obj2.GetInto()
+		assert.NoError(err)
+
+		obj3 := actor.MethodCall("single", 1)
+		res3, err := ray.Get1[int](obj3)
+		assert.NoError(err)
+		assert.EqualValues(1, res3)
+		err = obj3.GetInto(&res3)
+		assert.NoError(err)
+		assert.EqualValues(1, res3)
+
+		obj4 := actor.MethodCall("no_args")
+		res4, err := ray.Get1[int](obj4)
+		assert.NoError(err)
+		assert.EqualValues(42, res4)
+
+		type T1 struct {
+			Str   string
+			Num   int
+			Slice []int
+			Map   map[string]int
+			Point *T1
+		}
+
+		t1 := T1{
+			Str:   "str",
+			Num:   1,
+			Slice: []int{1, 2, 3},
+			Map:   map[string]int{"a": 1, "b": 2},
+			Point: &T1{
+				Str:   "str",
+				Num:   1,
+				Slice: []int{1, 2, 3},
+				Map:   map[string]int{"a": 1, "b": 2},
+			},
+		}
+		obj5 := actor.MethodCall("single", t1)
+		res5, err := ray.Get1[T1](obj5)
+		assert.NoError(err)
+		assert.Equal(t1, res5)
+		err = obj5.GetInto(&res5)
+		assert.NoError(err)
+		assert.Equal(t1, res5)
+
+		assert.NoError(actor.Close())
+		assert.Error(actor.Close())
+	})
+
 	AddTestCase("TestGoCallPy-getactor", func(assert *require.Assertions) {
 		id := 123
 		actor := ray.NewPyActor("PyActor", id, ray.Option("name", "test_go_actor"))
