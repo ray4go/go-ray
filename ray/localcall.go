@@ -129,7 +129,7 @@ func (h *PythonObjectHandle) MethodCall(methodName string, args ...any) LocalPyC
 	}
 }
 
-// Close closes the local Python class instance.
+// Close closes the local Python class instance. So it can be garbage collected in Python side.
 func (h *PythonObjectHandle) Close() error {
 	opts := []*RayOption{
 		Option(consts.GorayOptionKey_PyLocalActorId, h.pyLocalId),
