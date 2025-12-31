@@ -100,7 +100,7 @@ def load_go_lib(
             logger.debug("Error: libc.malloc failed")
             # 通过设置 out_len 为 0 表示失败
             ret_code_ptr.contents.value = 0
-            return None
+            return ctypes.c_void_p(0)
 
         # 4. 将 Python bytes 数据复制到新分配的 C 内存中
         ctypes.memmove(out_buffer_ptr, response_bytes, response_len)

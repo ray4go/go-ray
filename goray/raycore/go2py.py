@@ -16,7 +16,7 @@ def ray_run_task_from_go(
     func_name: str,
     raw_args: bytes,
     object_positions: list[int],
-    *object_refs: list[tuple[bytes, int]],
+    *object_refs: tuple[bytes, int],
 ) -> tuple[bytes, int]:
     common.load_go_lib()
     # wired, run_task can't access global _user_tasks_actors, so we pass it as an argument

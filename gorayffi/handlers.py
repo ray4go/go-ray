@@ -55,7 +55,7 @@ def handle_run_python_func_code(data: bytes) -> tuple[bytes, int]:
     args = list(msgpack.Unpacker(io.BytesIO(args_data), strict_map_key=False))
     args_list = ",".join(f"arg{i}" for i in range(len(args)))
     func_call_code = f"__res__ = {func_name}({args_list})"
-    args = {f"arg{i}": arg for i, arg in enumerate(args)}
+    context = {f"arg{i}": arg for i, arg in enumerate(args)}
     code = f"{func_code}\n{func_call_code}"
     try:
         """
@@ -64,12 +64,12 @@ def handle_run_python_func_code(data: bytes) -> tuple[bytes, int]:
         the code will be executed as if it were embedded in a class definition.
         https://docs.python.org/3/library/functions.html#exec
         """
-        exec(code, args)
+        exec(code, context)
     except Exception as e:
         error_string = f"Call python function error: {e}\n" + traceback.format_exc()
         return error_string.encode("utf-8"), ErrCode.Failed
 
-    res = args["__res__"]
+    res = context["__res__"]
     return msgpack.packb(res, use_bin_type=True), ErrCode.Success
 
 

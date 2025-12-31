@@ -43,14 +43,14 @@ class GoActor:
     ):
         self.cmder = cmder
 
+        encoded_object_refs: list[tuple[bytes, int]] = []
         if caller_type == CallerLang.Python:
             go_encoded_args = _encode_native_args(
                 *go_encoded_object_refs_or_py_native_args
             )
-            go_object_positions = []
-            encoded_object_refs = []
+            go_object_positions  = []
         else:
-            encoded_object_refs = go_encoded_object_refs_or_py_native_args
+            encoded_object_refs = go_encoded_object_refs_or_py_native_args  # type: ignore
 
         self.go_instance_index = self.cmder.new_golang_actor(
             actor_class_name,
@@ -113,7 +113,6 @@ class GolangLocalActor:
     ):
         self._cmder = cmder
         self._actor_class_name = actor_class_name
-        self._actor = None
 
         self._method_names = self._cmder.get_golang_actor_methods(actor_class_name)
         self._actor = GoActor(
@@ -136,7 +135,7 @@ class GolangLocalActor:
         return f"<GolangLocalActor {self._actor_class_name} id={self._actor.go_instance_index}>"
 
     def __del__(self):
-        if self._actor is None:
+        if not hasattr(self, "_actor"):
             return
         msg, code = self._cmder.close_actor(self._actor.go_instance_index)
         if code != 0:
