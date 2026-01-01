@@ -1,0 +1,32 @@
+name: Lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install lint dependencies
+      run: |
+        pip install flake8 mypy
+        pip install -e ".[ray]"
+
+    - name: Run flake8
+      run: |
+        flake8 --max-line-length=128 goray gorayffi
+
+    - name: Run mypy
+      run: |
+        mypy goray gorayffi
