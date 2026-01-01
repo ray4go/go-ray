@@ -2,7 +2,7 @@ import argparse
 import logging
 import sys
 
-from . import start, utils
+from . import start, common
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ def main():
 
     py_defs_file = args.py_defs or ""
     if py_defs_file:
-        utils.get_module(py_defs_file)
+        common.get_module(py_defs_file)
 
     ray_init_args = {}
     if args.cluster:

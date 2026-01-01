@@ -4,7 +4,7 @@ import ray
 
 from gorayffi.consts import *
 from . import common
-from .. import state
+from . import state
 
 logger = logging.getLogger(__name__)
 

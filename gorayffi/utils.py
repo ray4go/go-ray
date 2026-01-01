@@ -27,24 +27,6 @@ def init_logger(logger):
         enable_logger(logger, level=logging.DEBUG)
 
 
-def pack_bytes_units(data: list[bytes]) -> bytes:
-    return b"".join([len(d).to_bytes(8, byteorder="little") + d for d in data])
-
-
-def unpack_bytes_units(data: bytes) -> list[bytes]:
-    offset = 0
-    units = []
-    while offset < len(data):
-        length = int.from_bytes(data[offset : offset + 8], byteorder="little")
-        offset += 8
-        units.append(data[offset : offset + length])
-        offset += length
-    assert offset == len(
-        data
-    ), f"unpack_bytes_units failed, read finish with {offset=} while {len(data)=}"
-    return units
-
-
 def _get_caller_info(frame_index):
     """
     获取当前调用栈中上方第 frame_index 个调用的模块名和行号。

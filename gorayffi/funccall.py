@@ -1,7 +1,5 @@
 import json
 
-from . import utils
-
 
 def encode_golang_funccall_arguments(
     name: str,
@@ -27,7 +25,7 @@ def encode_golang_funccall_arguments(
             )
             return err_msg.encode("utf-8"), code
         data.append(pos.to_bytes(8, byteorder="little") + raw_res)
-    return utils.pack_bytes_units(data), 0
+    return pack_bytes_units(data), 0
 
 
 def decode_funccall_arguments(data: bytes):
@@ -38,6 +36,24 @@ def decode_funccall_arguments(data: bytes):
     - first unit is encoded args data;
     - second unit is json encoded args data, which contains function/method name;
     """
-    raw_args, opts_data = utils.unpack_bytes_units(data)
+    raw_args, opts_data = unpack_bytes_units(data)
     options: dict = json.loads(opts_data)
     return raw_args, options
+
+
+def pack_bytes_units(data: list[bytes]) -> bytes:
+    return b"".join([len(d).to_bytes(8, byteorder="little") + d for d in data])
+
+
+def unpack_bytes_units(data: bytes) -> list[bytes]:
+    offset = 0
+    units = []
+    while offset < len(data):
+        length = int.from_bytes(data[offset : offset + 8], byteorder="little")
+        offset += 8
+        units.append(data[offset : offset + length])
+        offset += length
+    assert offset == len(
+        data
+    ), f"unpack_bytes_units failed, read finish with {offset=} while {len(data)=}"
+    return units

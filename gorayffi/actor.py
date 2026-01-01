@@ -48,7 +48,7 @@ class GoActor:
             go_encoded_args = _encode_native_args(
                 *go_encoded_object_refs_or_py_native_args
             )
-            go_object_positions  = []
+            go_object_positions = []
         else:
             encoded_object_refs = go_encoded_object_refs_or_py_native_args  # type: ignore
 

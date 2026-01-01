@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import ctypes
 import logging
-import typing
 from ctypes.util import find_library
+from typing import Callable
 
-from . import cmds
 
-# execute 需要在 register_handler 之后调用
 __all__ = [
     "load_go_lib",
 ]
@@ -15,19 +13,34 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 # lib path -> GoCommander
-_loaded_libs: dict[str, cmds.GoCommander] = {}
+_loaded_libs: dict[str, Callable[[int, int, bytes], tuple[bytes, int]]] = {}
 
 # vars needed to put in global to prevent GC
 _global_vars = []
 
 cmdBitsLen = 10
-cmdBitsMask = (1 << cmdBitsLen) - 1
 
 
 def load_go_lib(
     libpath: str,
-    handle_func: typing.Callable[[int, bytes], tuple[bytes, int]],
-) -> cmds.GoCommander:
+    handle_func: Callable[[int, bytes], tuple[bytes, int]],
+) -> Callable[[int, int, bytes], tuple[bytes, int]]:
+    """
+    Load a go shared library and build a command-based protocol between python and golang.
+
+    :param libpath: The path to the go shared library.
+    :param handle_func: The function to handle the go commands.
+        Signature: handle_func(cmd: int, data: bytes) -> tuple[bytes, int]
+        - cmd: The command to handle.
+        - data: The data to handle.
+        return: The response to send to golang: (data, ret_code)
+    :return: The function to send commands to golang.
+        Signature: execute(cmd: int, index: int, data: bytes) -> tuple[bytes, int]
+        - cmd: The command to send to golang.
+        - index: extra int32 info to send to golang.
+        - data: The data to send to golang.
+        return: The response from golang: (data, ret_code)
+    """
     if libpath in _loaded_libs:
         return _loaded_libs[libpath]
 
@@ -152,7 +165,7 @@ def load_go_lib(
             if out_ptr:
                 go_lib.FreeMemory(out_ptr)
 
-    _loaded_libs[libpath] = cmds.GoCommander(execute)
+    _loaded_libs[libpath] = execute
     return _loaded_libs[libpath]
 
 

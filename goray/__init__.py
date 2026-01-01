@@ -5,12 +5,11 @@ import ray
 
 import gorayffi
 import gorayffi.actor
-import gorayffi.registry
 from gorayffi import consts
 from . import state
-from .raycore import common
-from .raycore import py2go
-from .raycore import registry
+from . import common
+from . import py2go
+from . import registry
 
 
 def start(
@@ -70,6 +69,7 @@ def remote(*args, **kwargs):
         # This is the case where the decorator is just @remote.
         # "args[0]" is the class or function under the decorator.
         return registry.make_remote(args[0], {})
+
     return functools.partial(registry.make_remote, options=kwargs)
 
 
@@ -80,7 +80,7 @@ def local(func):
     - Python function can be called from Go using `ray.LocalCallPyTask(name, args...)`.
     - Python class can be called from Go using `ray.NewLocalPyClassInstance(name, args...)`.
     """
-    gorayffi.registry.export_python(func)
+    registry.make_local(func)
     return func
 
 

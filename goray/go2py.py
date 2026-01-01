@@ -6,7 +6,7 @@ import ray
 from gorayffi import utils
 from gorayffi.consts import *
 from . import common, registry, actor_wrappers
-from .. import state
+from . import state
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
@@ -19,7 +19,6 @@ def ray_run_task_from_go(
     *object_refs: tuple[bytes, int],
 ) -> tuple[bytes, int]:
     common.load_go_lib()
-    # wired, run_task can't access global _user_tasks_actors, so we pass it as an argument
     return run_task(
         func_name,
         raw_args,

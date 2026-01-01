@@ -1,6 +1,6 @@
 from gorayffi import handlers as cross_lang_handlers
 from gorayffi.consts import *
-from . import actor, go2py, object, task
+from . import actor, go2py, object, task, registry
 
 handlers = {
     # task
@@ -20,5 +20,8 @@ handlers = {
     Go2PyCmd.CMD_EXECUTE_PY_REMOTE_TASK: go2py.handle_run_py_task,
     Go2PyCmd.CMD_NEW_PY_ACTOR: go2py.handle_new_py_actor,
     # local call
-    **cross_lang_handlers.handlers,
+    **cross_lang_handlers.get_handlers(
+        python_func_getter=registry.local_funcs.get,
+        python_class_getter=registry.local_classes.get,
+    ),
 }

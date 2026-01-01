@@ -110,7 +110,7 @@ def new_remote_actor_type(
     actor_type_name: str,
     method_names: list[str],
     namespace: str,
-):
+) -> ray.actor.ActorClass:
     go_methods = {
         name + METHOD_WITH_ENCODED_ARGS_SUFFIX: cls.call_method_with_encoded_args
         for name in method_names
@@ -120,38 +120,8 @@ def new_remote_actor_type(
         for name in method_names
     }
     ActorCls = ray.remote(
-        common.copy_class(
+        common.make_sub_class(
             cls, actor_type_name, namespace=namespace, **go_methods, **py_method
         )
     )
     return ActorCls
-
-
-class PyNativeActorWrapper:
-    """
-    Actor wrapper for python native actor (@ray.remote, not @goray.remote), and call from go.
-
-    This object will not be seen by ray.
-    """
-
-    def __init__(self, actor):
-        self._actor = actor
-
-    # args and returns is go msgpack-encoded
-    # used for go calling
-    def call_method_with_encoded_args(
-        self,
-        method_name: str,
-        encoded_args: bytes,
-        object_positions: list[int],
-        *object_refs: tuple[bytes, int],
-        ray_options: dict = {},
-    ) -> "ray.types.ObjectRef":
-        try:
-            remote_method = getattr(self._actor, method_name)
-        except AttributeError:
-            raise AttributeError(
-                f"Method {method_name} not found in actor {self._actor}"
-            )
-        args = common.decode_args(encoded_args, object_positions, object_refs)
-        return remote_method.options(ray_options).remote(*args)

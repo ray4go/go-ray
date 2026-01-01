@@ -6,7 +6,7 @@ import ray
 from gorayffi import actor, utils
 from gorayffi.consts import *
 from . import common, actor_wrappers
-from .. import state
+from . import state
 
 logger = logging.getLogger(__name__)
 

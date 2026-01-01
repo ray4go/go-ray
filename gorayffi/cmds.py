@@ -90,7 +90,7 @@ class GoCommander:
         encoded_args: bytes,
         object_positions: list[int],
         *object_refs: tuple[bytes, int],
-    ):
+    ) -> int:
         """
         create a new golang actor instance, arguments are encoded raw bytes, return the go obj id
         """

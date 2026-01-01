@@ -1,21 +1,25 @@
+import functools
 import io
 import json
 import logging
 import struct
 import traceback
-import typing
+from typing import Callable, Optional
 
 import msgpack
 
-from . import funccall, utils, registry
+from . import funccall, utils
 from .consts import *
 
 
-def run_task(
-    func_name: str,
-    raw_args: bytes,
+def handle_run_py_local_task(
+    data: bytes,
+    python_func_getter: Callable[[str], Optional[Callable]],
 ) -> tuple[bytes, int]:
-    func = registry.get_export_python_func(func_name)
+    raw_args, options = funccall.decode_funccall_arguments(data)
+    func_name = options.pop(TASK_NAME_OPTION_KEY)
+
+    func = python_func_getter(func_name)
     if func is None:
         return utils.error_msg(f"python task {func_name} not found"), ErrCode.Failed
 
@@ -31,13 +35,6 @@ def run_task(
         )
 
     return msgpack.packb(res, use_bin_type=True), ErrCode.Success
-
-
-def handle_run_py_local_task(data: bytes) -> tuple[bytes, int]:
-    args_data, options = funccall.decode_funccall_arguments(data)
-    func_name = options.pop(TASK_NAME_OPTION_KEY)
-
-    return run_task(func_name, args_data)
 
 
 def handle_run_python_func_code(data: bytes) -> tuple[bytes, int]:
@@ -73,15 +70,18 @@ def handle_run_python_func_code(data: bytes) -> tuple[bytes, int]:
     return msgpack.packb(res, use_bin_type=True), ErrCode.Success
 
 
-_python_class_instances = utils.ThreadSafeLocalStore()  # instance_id -> instance
 _uint64_le_packer = struct.Struct("<Q")
 
 
-def handle_new_python_class_instance(data: bytes) -> tuple[bytes, int]:
+def handle_new_python_class_instance(
+    data: bytes,
+    python_class_getter: Callable[[str], Optional[Callable]],
+    class_instances_store: utils.ThreadSafeLocalStore,
+) -> tuple[bytes, int]:
     args_data, options = funccall.decode_funccall_arguments(data)
     class_name = options.pop(ACTOR_NAME_OPTION_KEY)
 
-    cls = registry.get_export_python_class(class_name)
+    cls = python_class_getter(class_name)
     if cls is None:
         return utils.error_msg(f"python class {class_name} not found"), ErrCode.Failed
 
@@ -94,17 +94,20 @@ def handle_new_python_class_instance(data: bytes) -> tuple[bytes, int]:
             ErrCode.Failed,
         )
 
-    instance_id = _python_class_instances.add(instance)
+    instance_id = class_instances_store.add(instance)
     return _uint64_le_packer.pack(instance_id), ErrCode.Success
 
 
-def handle_class_instance_method_call(data: bytes) -> tuple[bytes, int]:
+def handle_class_instance_method_call(
+    data: bytes,
+    class_instances_store: utils.ThreadSafeLocalStore,
+) -> tuple[bytes, int]:
     args_data, options = funccall.decode_funccall_arguments(data)
     method_name = options.pop(TASK_NAME_OPTION_KEY)
     instance_id = options.pop(PY_LOCAL_ACTOR_ID_KEY)
-    if instance_id not in _python_class_instances:
+    if instance_id not in class_instances_store:
         return utils.error_msg("python class instance not found!"), ErrCode.Failed
-    obj_handle = _python_class_instances[instance_id]
+    obj_handle = class_instances_store[instance_id]
     args = list(msgpack.Unpacker(io.BytesIO(args_data), strict_map_key=False))
     try:
         res = getattr(obj_handle, method_name)(*args)
@@ -117,41 +120,41 @@ def handle_class_instance_method_call(data: bytes) -> tuple[bytes, int]:
     return msgpack.packb(res, use_bin_type=True), ErrCode.Success
 
 
-def handle_close_python_class_instance(data: bytes) -> tuple[bytes, int]:
+def handle_close_python_class_instance(
+    data: bytes,
+    class_instances_store: utils.ThreadSafeLocalStore,
+) -> tuple[bytes, int]:
     options = json.loads(data)
     instance_id = options.pop(PY_LOCAL_ACTOR_ID_KEY)
 
-    if instance_id not in _python_class_instances:
+    if instance_id not in class_instances_store:
         return utils.error_msg("python class instance not found!"), ErrCode.Failed
 
-    _python_class_instances.release(instance_id)
+    class_instances_store.release(instance_id)
     return b"", 0
 
 
-handlers = {
-    Go2PyCmd.CMD_EXECUTE_PY_LOCAL_TASK: handle_run_py_local_task,
-    Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_func_code,
-    Go2PyCmd.CMD_NEW_CLASS_INSTANCE: handle_new_python_class_instance,
-    Go2PyCmd.CMD_LOCAL_METHOD_CALL: handle_class_instance_method_call,
-    Go2PyCmd.CMD_CLOSE_CLASS_INSTANCE: handle_close_python_class_instance,
-}
-
-
-def cmds_dispatcher(
-    cmd2handler: dict[int, typing.Callable[[bytes], tuple[bytes, int]]],
-) -> typing.Callable[[int, bytes], tuple[bytes, int]]:
-    def handler(cmd: int, data: bytes) -> tuple[bytes, int]:
-        if cmd not in cmd2handler:
-            return utils.error_msg(f"Unknown Go2PyCmd {cmd}"), ErrCode.Failed
-
-        func = cmd2handler[cmd]
-        try:
-            return func(data)
-        except Exception as e:
-            error_string = (
-                f"[python] handle {Go2PyCmd(cmd).name} error {e}\n"
-                + traceback.format_exc()
-            )
-            return error_string.encode("utf8"), ErrCode.Failed
-
-    return handler
+def get_handlers(
+    python_func_getter: Callable[[str], Optional[Callable]],
+    python_class_getter: Callable[[str], Optional[Callable]],
+) -> dict[int, Callable[[bytes], tuple[bytes, int]]]:
+    class_instances_store = utils.ThreadSafeLocalStore()  # instance_id -> instance
+    return {
+        Go2PyCmd.CMD_EXECUTE_PYTHON_CODE: handle_run_python_func_code,
+        Go2PyCmd.CMD_EXECUTE_PY_LOCAL_TASK: functools.partial(
+            handle_run_py_local_task, python_func_getter=python_func_getter
+        ),
+        Go2PyCmd.CMD_NEW_CLASS_INSTANCE: functools.partial(
+            handle_new_python_class_instance,
+            python_class_getter=python_class_getter,
+            class_instances_store=class_instances_store,
+        ),
+        Go2PyCmd.CMD_LOCAL_METHOD_CALL: functools.partial(
+            handle_class_instance_method_call,
+            class_instances_store=class_instances_store,
+        ),
+        Go2PyCmd.CMD_CLOSE_CLASS_INSTANCE: functools.partial(
+            handle_close_python_class_instance,
+            class_instances_store=class_instances_store,
+        ),
+    }
