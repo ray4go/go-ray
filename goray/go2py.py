@@ -3,8 +3,7 @@ import logging
 import msgpack
 import ray
 
-from gorayffi import utils
-from gorayffi.consts import *
+from gorayffi import utils, consts
 from . import common, registry, actor_wrappers
 from . import state
 
@@ -35,7 +34,7 @@ def run_task(
 ) -> tuple[bytes, int]:
     func, _ = registry.get_py_task(func_name)
     if func is None:
-        return f"[py] task {func_name} not found".encode("utf-8"), ErrCode.Failed
+        return f"[py] task {func_name} not found".encode("utf-8"), consts.ErrCode.Failed
     args = common.decode_args(raw_args, object_positions, object_refs)
 
     try:
@@ -44,10 +43,10 @@ def run_task(
         logging.exception(f"[py] execute error {e}")
         return (
             f"[goray error] python run task error: {e}".encode("utf-8"),
-            ErrCode.Failed,
+            consts.ErrCode.Failed,
         )
 
-    return msgpack.packb(res, use_bin_type=True), ErrCode.Success
+    return msgpack.packb(res, use_bin_type=True), consts.ErrCode.Success
 
 
 def handle_run_py_task(data: bytes) -> tuple[bytes, int]:
@@ -61,7 +60,7 @@ def handle_run_py_task(data: bytes) -> tuple[bytes, int]:
             utils.error_msg(
                 f"python task {func_name} not found, all py tasks: {registry.all_py_tasks()}"
             ),
-            ErrCode.Failed,
+            consts.ErrCode.Failed,
         )
     opts = dict(opts)
     opts.update(options)
@@ -78,11 +77,11 @@ def handle_new_py_actor(data: bytes) -> tuple[bytes, int]:
     args_data, options, object_positions, object_refs = (
         common.decode_remote_func_call_args(data)
     )
-    class_name = options.pop(ACTOR_NAME_OPTION_KEY)
+    class_name = options.pop(consts.ACTOR_NAME_OPTION_KEY)
 
     cls, opts = registry.get_py_actor(class_name)
     if cls is None:
-        return utils.error_msg(f"python actor {class_name} not found"), ErrCode.Failed
+        return utils.error_msg(f"python actor {class_name} not found"), consts.ErrCode.Failed
 
     common.inject_runtime_env(options)
     method_names = common.get_class_methods(cls)
@@ -90,10 +89,10 @@ def handle_new_py_actor(data: bytes) -> tuple[bytes, int]:
         actor_wrappers.PyActor,
         class_name,
         method_names,
-        namespace=ActorSourceLang.PY,
+        namespace=consts.ActorSourceLang.PY,
     )
     actor_handle = ActorCls.options(**options).remote(
         class_name, args_data, object_positions, *object_refs
     )
     actor_local_id = state.actors.add(actor_handle)
-    return common.uint64_le_packer.pack(actor_local_id), ErrCode.Success
+    return common.uint64_le_packer.pack(actor_local_id), consts.ErrCode.Success

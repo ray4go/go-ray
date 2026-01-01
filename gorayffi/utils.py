@@ -53,7 +53,7 @@ def _get_caller_info(frame_index):
             return os.path.basename(filename), lineno
         else:
             return "", -1
-    except Exception as e:
+    except Exception:
         return "", -1
 
 
@@ -96,7 +96,7 @@ class ThreadSafeLocalStore:
     The released key will not be reused in right away, just like the process id generation strategy.
     """
 
-    MAX_SIZE = 2**63 - 1
+    MAX_SIZE = 2 ** 63 - 1
 
     _no_set = object()
 
@@ -136,7 +136,7 @@ class ThreadSafeLocalStore:
         assert value is not None, "value can't be None"
         with self._write_lock:
             if len(self._reused_keys):
-                key = self._reused_keys.popleft()
+                key: int = self._reused_keys.popleft()
             else:
                 key = len(self._kvstore)
             self._kvstore[key] = value

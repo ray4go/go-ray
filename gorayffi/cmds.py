@@ -10,8 +10,7 @@ import typing
 
 import msgpack
 
-from . import funccall, utils
-from .consts import *
+from . import funccall, utils, consts
 
 logger = logging.getLogger(__name__)
 
@@ -24,19 +23,19 @@ class GoCommander:
 
     @functools.cache
     def get_golang_tasks_info(self) -> tuple[list[str], list[str]]:
-        data, err = self.execute(Py2GoCmd.CMD_GET_TASK_ACTOR_LIST, 0, b"")
+        data, err = self.execute(consts.Py2GoCmd.CMD_GET_TASK_ACTOR_LIST, 0, b"")
         if err != 0:
             raise Exception(data.decode("utf-8"))
-        return json.loads(data)
+        return json.loads(data)  # type: ignore
 
     @functools.cache
     def get_golang_actor_methods(self, actor_class_name: str) -> list[str]:
         data, err = self.execute(
-            Py2GoCmd.CMD_GET_ACTOR_METHODS, 0, actor_class_name.encode()
+            consts.Py2GoCmd.CMD_GET_ACTOR_METHODS, 0, actor_class_name.encode()
         )
         if err != 0:
             raise Exception(data.decode("utf-8"))
-        return json.loads(data)
+        return json.loads(data)  # type: ignore
 
     def call_golang_func(self, func_name: str, args: tuple):
         raw_args = b"".join(msgpack.packb(arg, use_bin_type=True) for arg in args)
@@ -73,14 +72,14 @@ class GoCommander:
 
         logger.debug(f"[py] local_run_task {func_name=}, {object_positions=}")
         try:
-            res, code = self.execute(Py2GoCmd.CMD_RUN_TASK, 0, data)
+            res, code = self.execute(consts.Py2GoCmd.CMD_RUN_TASK, 0, data)
         except Exception as e:
             logging.exception(f"[py] python ffi.execute(CMD_RUN_TASK) error {e}")
             return (
                 f"[goray error] python ffi.execute(CMD_RUN_TASK) error: {e}".encode(
                     "utf-8"
                 ),
-                ErrCode.Failed,
+                consts.ErrCode.Failed,
             )
         return res, code
 
@@ -104,8 +103,8 @@ class GoCommander:
             raise Exception(data.decode("utf-8"))
         logger.debug(f"[py] new golang actor {actor_class_name}")
 
-        res, code = self.execute(Py2GoCmd.CMD_NEW_ACTOR, 0, data)
-        if code != ErrCode.Success:
+        res, code = self.execute(consts.Py2GoCmd.CMD_NEW_ACTOR, 0, data)
+        if code != consts.ErrCode.Success:
             raise Exception("create golang actor error: " + res.decode("utf-8"))
 
         return int(res.decode("utf-8"))
@@ -129,7 +128,7 @@ class GoCommander:
 
         logger.debug(f"[py] run actor method {method_name=}, {go_obj_id=}")
         try:
-            res, code = self.execute(Py2GoCmd.CMD_ACTOR_METHOD_CALL, go_obj_id, data)
+            res, code = self.execute(consts.Py2GoCmd.CMD_ACTOR_METHOD_CALL, go_obj_id, data)
         except Exception as e:
             logging.exception(
                 f"[py] python ffi.execute(CMD_ACTOR_METHOD_CALL) error {e}"
@@ -138,23 +137,23 @@ class GoCommander:
                 utils.error_msg(
                     f"python ffi.execute(CMD_ACTOR_METHOD_CALL) error: {e}"
                 ),
-                ErrCode.Failed,
+                consts.ErrCode.Failed,
             )
         return res, code
 
     def close_actor(self, go_obj_id: int) -> tuple[str, int]:
         """close the actor instance"""
-        res, code = self.execute(Py2GoCmd.CMD_CLOSE_ACTOR, go_obj_id, b"")
+        res, code = self.execute(consts.Py2GoCmd.CMD_CLOSE_ACTOR, go_obj_id, b"")
         return res.decode("utf8"), code
 
     def get_init_options(self) -> dict[str, typing.Any]:
         """get init options from go ray.Init()"""
-        data, code = self.execute(Py2GoCmd.CMD_GET_INIT_OPTIONS, 0, b"")
+        data, code = self.execute(consts.Py2GoCmd.CMD_GET_INIT_OPTIONS, 0, b"")
         if code != 0:
             raise Exception(f"CMD_GET_INIT_OPTIONS error: {data.decode('utf-8')}")
-        return json.loads(data)
+        return json.loads(data)  # type: ignore
 
     def start_driver(self) -> tuple[str, int]:
         """start the driver function register in go ray.Init()"""
-        data, code = self.execute(Py2GoCmd.CMD_START_DRIVER, 0, b"")
+        data, code = self.execute(consts.Py2GoCmd.CMD_START_DRIVER, 0, b"")
         return data.decode("utf8"), code

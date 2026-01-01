@@ -107,7 +107,7 @@ def load_go_lib(
         # 分配内存以存放返回数据
         # !! 关键: 必须使用 C 的 malloc 分配内存。
         # 这块内存的生命周期将由调用者(Go)管理。
-        out_buffer_ptr = libc.malloc(response_len)
+        out_buffer_ptr: ctypes.c_void_p = libc.malloc(response_len)
         if not out_buffer_ptr:
             # 内存分配失败
             logger.debug("Error: libc.malloc failed")
@@ -133,7 +133,7 @@ def load_go_lib(
     """
     Python call GO
     用于 Py2GoCmd_* 类型的请求，如 Py2GoCmd_RunTask、Py2GoCmd_NewActor、Py2GoCmd_ActorMethodCall
-    
+
     C API: void* Execute(long long request, void* in_data, long long in_data_len, long long* out_len, long long* ret_code)
     - 入参bytes, python分配，python回收，Execute返回时生命周期结束
     - 返回值bytes, go分配，python回收，数据用完后生命周期结束

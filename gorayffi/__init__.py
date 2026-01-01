@@ -1,7 +1,7 @@
 import traceback
 from typing import Callable
 
-from . import cmds, ffi, handlers, utils, consts
+from . import cmds, ffi, utils, consts
 
 
 def load_go_lib(

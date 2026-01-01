@@ -4,8 +4,7 @@ from typing import Any, Union, Type
 import msgpack
 import ray
 
-from gorayffi import actor
-from gorayffi.consts import *
+from gorayffi import actor, consts
 from . import common
 from . import registry
 
@@ -77,9 +76,9 @@ class PyActor:
             logging.exception(f"[py] execute error {e}")
             return (
                 f"[goray error] python run task error: {e}".encode("utf-8"),
-                ErrCode.Failed,
+                consts.ErrCode.Failed,
             )
-        return msgpack.packb(res, use_bin_type=True), ErrCode.Success
+        return msgpack.packb(res, use_bin_type=True), consts.ErrCode.Success
 
     # args and returns is python native
     # used for python calling
@@ -119,7 +118,7 @@ def new_remote_actor_type(
         name: common.method_bind(cls.call_method_with_native_args, name)
         for name in method_names
     }
-    ActorCls = ray.remote(
+    ActorCls: ray.actor.ActorClass = ray.remote(
         common.make_sub_class(
             cls, actor_type_name, namespace=namespace, **go_methods, **py_method
         )

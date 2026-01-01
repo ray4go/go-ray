@@ -49,9 +49,9 @@ def unpack_bytes_units(data: bytes) -> list[bytes]:
     offset = 0
     units = []
     while offset < len(data):
-        length = int.from_bytes(data[offset : offset + 8], byteorder="little")
+        length = int.from_bytes(data[offset:offset + 8], byteorder="little")
         offset += 8
-        units.append(data[offset : offset + length])
+        units.append(data[offset:offset + length])
         offset += length
     assert offset == len(
         data
