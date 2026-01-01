@@ -9,9 +9,8 @@ Specifically, it supports the following features:
     - Pass Go task `ObjectRef` to Python task, and vice versa
     - Create a named actor in Go, and get its handle in Python, and vice versa *
 - Local cross-language call (in-process)
-    - Go calls Python functions in-process
-    - Python calls Go functions in-process
-    - Python creates Go objects and calls their methods in-process
+    - Python call Go functions, create Go type instances and invoke methods
+    - Go call Python functions, create Python class instances and invoke methods
 
 > *Currently, when you create a Python named actors in Python, it's not supported to get its handle in Go.
 > This will be supported in future releases.
@@ -31,6 +30,7 @@ In Go:
 - `ray.RemoteCallPyTask(name, args...) -> ObjectRef` — Submit a Python Ray task.
 - `ray.NewPyActor(name, args...) -> ActorHandle` — Create a Python Ray actor.
 - `ray.LocalCallPyTask(name, args...) -> LocalPyCallResult` — Call a Python function in-process.
+- `ray.NewLocalPyClassInstance(name, args...) -> LocalPyCallResult` — Create a Python class instance in-process.
 
 ## User Guide
 
@@ -195,7 +195,7 @@ After `goray.start()` returns, you can continue to call your Python/Go Ray tasks
 
 Now you can run your custom entrypoint to start the GoRay application:
 
-```python
+```bash
 # Ray standalone environment
 python entrypoint.py
 

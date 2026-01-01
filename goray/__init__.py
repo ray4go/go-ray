@@ -2,10 +2,14 @@ import functools
 import logging
 
 import ray
-from . import consts, state, x
-from .raycore import common
-from .raycore import py2go
-from .raycore import registry
+
+import gorayffi
+import gorayffi.actor
+from gorayffi import consts
+from . import state
+from . import common
+from . import py2go
+from . import registry
 
 
 def start(
@@ -65,16 +69,18 @@ def remote(*args, **kwargs):
         # This is the case where the decorator is just @remote.
         # "args[0]" is the class or function under the decorator.
         return registry.make_remote(args[0], {})
+
     return functools.partial(registry.make_remote, options=kwargs)
 
 
 def local(func):
     """
-    Decorator to register a python function to be called from go.
+    Decorator to register a python function/class to be called from go.
 
-    The function can be called from Go using `ray.LocalCallPyTask(name, args...) `.
+    - Python function can be called from Go using `ray.LocalCallPyTask(name, args...)`.
+    - Python class can be called from Go using `ray.NewLocalPyClassInstance(name, args...)`.
     """
-    x.export(func)
+    registry.make_local(func)
     return func
 
 
@@ -120,10 +126,10 @@ def golang_local_run_task(name: str, *args):
     Unlike remote tasks, this function is blocking and returns the result directly.
     """
     lib = common.load_go_lib()
-    return x.CrossLanguageClient(lib).func_call(name, *args)
+    return lib.call_golang_func(name, args)
 
 
-def golang_local_new_actor(name: str, *args) -> x.GolangLocalActor:
+def golang_local_new_actor(name: str, *args) -> gorayffi.actor.GolangLocalActor:
     """
     Create a golang actor locally (in current process).
 
@@ -137,4 +143,4 @@ def golang_local_new_actor(name: str, *args) -> x.GolangLocalActor:
     ```
     """
     lib = common.load_go_lib()
-    return x.CrossLanguageClient(lib).new_type(name, *args)
+    return gorayffi.actor.GolangLocalActor(lib, name, *args)

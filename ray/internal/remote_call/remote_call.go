@@ -42,6 +42,8 @@ encode result: 2 bytes units
   - second unit is json encoded options and ObjectRef info.
 
 each bytes unit format: | length:8byte:int64 | data:${length}byte:[]byte |
+
+todo: return the arg number instead of pass callable to check
 */
 func EncodeRemoteCallArgs(callable *utils.CallableType, argsAndOpts []any) []byte {
 	args, objRefs, opts := splitFuncCallRawArgs(argsAndOpts)

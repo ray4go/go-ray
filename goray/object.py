@@ -3,8 +3,9 @@ import logging
 
 import ray
 
+from gorayffi import consts
 from . import common
-from .. import consts, state
+from . import state
 
 logger = logging.getLogger(__name__)
 

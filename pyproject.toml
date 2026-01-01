@@ -5,9 +5,12 @@ version = "1.0.0"
 authors = [
     { name = "WeiminWang", email = "wang0.618@qq.com" }
 ]
-dependencies = ["msgpack", "ray[default]"]
+dependencies = ["msgpack"]
 
 [project.optional-dependencies]
+ray = [
+    "ray[default]"
+]
 docs = [
     "mkdocs-material>=9.0.0",
     "mkdocstrings[python]>=0.24.0"
@@ -18,7 +21,7 @@ Homepage = "https://github.com/ray4go/go-ray"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["goray*"]
+include = ["goray", "gorayffi"]
 
 [build-system]
 requires = ["setuptools >= 77.0.3"]

@@ -1,4 +1,4 @@
-from goray.utils import parse_function_name
+from gorayffi.utils import parse_function_name
 
 def test_parse_function_name():
     code = """

@@ -2,10 +2,9 @@ import argparse
 import logging
 import sys
 
-from . import start, utils
+from . import start, common
 
 logger = logging.getLogger(__name__)
-
 
 helper = """\
 GoRay application runner.
@@ -13,6 +12,7 @@ GoRay application runner.
 By default, it will autodetect an existing Ray cluster or start a new Ray instance if no existing cluster is found.
 Use `--cluster` to explicitly connect to an existing local cluster.
 """
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -41,7 +41,7 @@ def main():
 
     py_defs_file = args.py_defs or ""
     if py_defs_file:
-        utils.get_module(py_defs_file)
+        common.get_module(py_defs_file)
 
     ray_init_args = {}
     if args.cluster:

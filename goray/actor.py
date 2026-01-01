@@ -3,20 +3,19 @@ import logging
 
 import ray
 
+from gorayffi import actor, utils, consts
 from . import common, actor_wrappers
-from .. import funccall, state, utils
-from ..consts import *
-from ..x import actor
+from . import state
 
 logger = logging.getLogger(__name__)
 
 
 def handle_new_actor(data: bytes) -> tuple[bytes, int]:
     encoded_args, options, object_positions, object_refs = (
-        funccall.decode_funccall_args(data)
+        common.decode_remote_func_call_args(data)
     )
-    actor_type_name = options.pop(ACTOR_NAME_OPTION_KEY)
-    actor_methods = options.pop(ACTOR_METHOD_LIST_OPTION_KEY)
+    actor_type_name = options.pop(consts.ACTOR_NAME_OPTION_KEY)
+    actor_methods = options.pop(consts.ACTOR_METHOD_LIST_OPTION_KEY)
     logger.debug(f"[py] new actor {actor_type_name}, {options=}, {object_positions=}")
 
     common.inject_runtime_env(options)
@@ -24,7 +23,7 @@ def handle_new_actor(data: bytes) -> tuple[bytes, int]:
         actor_wrappers.GoActor,
         actor_type_name,
         actor_methods,
-        namespace=ActorSourceLang.GO,
+        namespace=consts.ActorSourceLang.GO,
     )
     actor_handle = ActorCls.options(**options).remote(
         actor_type_name,
@@ -38,19 +37,21 @@ def handle_new_actor(data: bytes) -> tuple[bytes, int]:
 
 
 def handle_actor_method_call(data: bytes) -> tuple[bytes, int]:
-    raw_args, options, object_positions, object_refs = funccall.decode_funccall_args(
-        data
+    raw_args, options, object_positions, object_refs = (
+        common.decode_remote_func_call_args(data)
     )
-    method_name = options.pop(TASK_NAME_OPTION_KEY)
-    actor_local_id = options.pop(PY_LOCAL_ACTOR_ID_KEY)
+    method_name = options.pop(consts.TASK_NAME_OPTION_KEY)
+    actor_local_id = options.pop(consts.PY_LOCAL_ACTOR_ID_KEY)
     logger.debug(
         f"[py] actor method call {actor_local_id=}, {method_name}, {options=}, {object_positions=}"
     )
     if actor_local_id not in state.actors:
-        return utils.error_msg("actor not found!"), ErrCode.Failed
+        return utils.error_msg("actor not found!"), consts.ErrCode.Failed
 
     actor_handle = state.actors[actor_local_id]
-    method = getattr(actor_handle, method_name + actor_wrappers.METHOD_WITH_ENCODED_ARGS_SUFFIX)
+    method = getattr(
+        actor_handle, method_name + actor_wrappers.METHOD_WITH_ENCODED_ARGS_SUFFIX
+    )
     fut = method.options(**options).remote(
         method_name, raw_args, object_positions, *object_refs
     )
@@ -60,9 +61,9 @@ def handle_actor_method_call(data: bytes) -> tuple[bytes, int]:
 
 def handle_kill_actor(data: bytes) -> tuple[bytes, int]:
     options = json.loads(data)
-    actor_local_id = options.pop(PY_LOCAL_ACTOR_ID_KEY)
+    actor_local_id = options.pop(consts.PY_LOCAL_ACTOR_ID_KEY)
     if actor_local_id not in state.actors:
-        return utils.error_msg(f"actor id {actor_local_id} not found!"), ErrCode.Failed
+        return utils.error_msg(f"actor id {actor_local_id} not found!"), consts.ErrCode.Failed
     actor_handle = state.actors[actor_local_id]
     ray.kill(actor_handle, **options)
     return b"", 0
@@ -70,8 +71,8 @@ def handle_kill_actor(data: bytes) -> tuple[bytes, int]:
 
 def _actor_class_name(actor_handle: ray.actor.ActorHandle) -> str:
     try:
-        return actor_handle._ray_actor_creation_function_descriptor.class_name
-    except Exception as e:
+        return actor_handle._ray_actor_creation_function_descriptor.class_name  # type: ignore
+    except Exception:
         # Actor(Go.Hello, b6018165d88f27ae4fde1bc801000000)
         return (
             str(actor_handle).removeprefix("Actor(").removesuffix(")").split(",", 1)[0]
@@ -88,20 +89,20 @@ def handle_get_actor(data: bytes) -> tuple[bytes, int]:
     # it's not a good way, but we have no better choice.
     try:
         source, name = actor_full_name.split(".", 1)
-        assert source in (ActorSourceLang.GO, ActorSourceLang.PY)
+        assert source in (consts.ActorSourceLang.GO, consts.ActorSourceLang.PY)
     except Exception:
         return (
             utils.error_msg(
                 f"Invalid actor {actor_full_name!r}, this actor is not created by goray."
             ),
-            ErrCode.Failed,
+            consts.ErrCode.Failed,
         )
 
     res = json.dumps(
         {
             "py_local_id": actor_local_id,
             "actor_type_name": name,
-            "is_golang_actor": source == ActorSourceLang.GO,
+            "is_golang_actor": source == consts.ActorSourceLang.GO,
         }
     )
     return res.encode(), 0

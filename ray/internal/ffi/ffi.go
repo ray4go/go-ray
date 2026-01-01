@@ -60,7 +60,9 @@ func RegisterHandler(handler_ func(command int64, data []byte) (res []byte, code
 
 //export RegisterCallback
 func RegisterCallback(callback C.ComplexCallbackFunc) {
-	log.Debug("[Go:ffi] Get callback\n")
+	if serverCallback != nil {
+		panic("[go:ffi] ServerCallback function already registered")
+	}
 	serverCallback = callback
 }
 

@@ -52,6 +52,9 @@ var py2GoCmdHandlers = map[int64]func(int64, []byte) ([]byte, int64){
 //
 // [ray.init()]: https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html#ray.init
 func Init(taskRegister any, actorRegister any, driverFunc func() int, options ...*RayOption) {
+	if driverFunction != nil {
+		panic("Error: ray.Init() must be called only once")
+	}
 	driverFunction = driverFunc
 
 	if taskRegister != nil {

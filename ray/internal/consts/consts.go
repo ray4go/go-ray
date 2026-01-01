@@ -12,7 +12,14 @@ const (
 )
 
 const (
-	Go2PyCmd_ExeRemoteTask = iota
+	Go2PyCmd_ExePythonLocalTask = iota
+	Go2PyCmd_ExePyCode
+
+	Go2PyCmd_NewClassInstance
+	Go2PyCmd_LocalMethodCall
+	Go2PyCmd_CloseClassInstance
+
+	Go2PyCmd_ExeRemoteTask
 	Go2PyCmd_GetObject
 	Go2PyCmd_PutObject
 	Go2PyCmd_WaitObject
@@ -26,9 +33,6 @@ const (
 	Go2PyCmd_GetActor
 
 	Go2PyCmd_ExePythonRemoteTask
-	Go2PyCmd_ExePythonLocalTask
-
-	Go2PyCmd_ExePyCode
 )
 
 const (

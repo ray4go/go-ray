@@ -2,9 +2,9 @@ import logging
 
 import ray
 
+from gorayffi import consts
 from . import common
-from .. import funccall, state
-from ..consts import *
+from . import state
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +22,10 @@ def run_task(
 
 
 def handle_run_remote_task(data: bytes) -> tuple[bytes, int]:
-    args_data, options, object_positions, object_refs = funccall.decode_funccall_args(
-        data
+    args_data, options, object_positions, object_refs = (
+        common.decode_remote_func_call_args(data)
     )
-    task_name = options.pop(TASK_NAME_OPTION_KEY)
+    task_name = options.pop(consts.TASK_NAME_OPTION_KEY)
 
     logger.debug(f"[py] run remote task {task_name}, {options=}, {object_positions=}")
     common.inject_runtime_env(options)

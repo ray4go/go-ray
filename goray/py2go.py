@@ -4,9 +4,9 @@ import logging
 
 import ray
 
+from gorayffi import actor
+from gorayffi import utils, consts
 from . import common, actor_wrappers
-from .. import utils, consts
-from ..x import actor
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
@@ -19,9 +19,7 @@ def _run_golang_remote_task(func_name: str, *args):
 def get_golang_remote_task(name: str, options: dict) -> GolangRemoteFunc:
     common.inject_runtime_env(options)
     remote_task = ray.remote(
-        common.copy_function(
-            _run_golang_remote_task, name, "GolangTask"
-        )
+        common.copy_function(_run_golang_remote_task, name, "GolangTask")
     )
     return GolangRemoteFunc(remote_task, name, **options)
 

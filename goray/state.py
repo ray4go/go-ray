@@ -2,7 +2,8 @@
 
 import os
 
-from . import consts, utils
+from gorayffi import utils
+from . import consts
 
 # values are raycore.go2py.PyActorWrapper / x.actor.GoActorWrapper
 actors = utils.ThreadSafeLocalStore()
