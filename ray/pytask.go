@@ -2,7 +2,6 @@ package ray
 
 import (
 	"encoding/binary"
-	"fmt"
 	"reflect"
 
 	"github.com/ray4go/go-ray/ray/internal/consts"
@@ -24,7 +23,7 @@ func RemoteCallPyTask(name string, argsAndOpts ...any) *ObjectRef {
 	argsData := remote_call.EncodeRemoteCallArgs(nil, remoteCallArgs(argsAndOpts))
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_ExePythonRemoteTask, argsData) // todo: pass error to ObjectRef
 	if retCode != 0 {
-		panic(fmt.Sprintf("Error: RemoteCallPyTask failed: retCode=%v, message=%s", retCode, res))
+		panic(newError(retCode, res))
 	}
 	return &ObjectRef{
 		id:          int64(binary.LittleEndian.Uint64(res)),
@@ -45,7 +44,7 @@ func NewPyActor(className string, argsAndOpts ...any) *ActorHandle {
 
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_NewPythonActor, argsData)
 	if retCode != 0 {
-		panic(fmt.Sprintf("Error: NewActor failed: retCode=%v, message=%s", retCode, res))
+		panic(newError(retCode, res))
 	}
 	return &ActorHandle{
 		pyLocalId: int64(binary.LittleEndian.Uint64(res)),

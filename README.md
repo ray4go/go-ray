@@ -331,14 +331,19 @@ See: [goraygen Documentation](https://github.com/ray4go/goraygen)
 
 ## Best Practices
 
-Parameter and return types:
+**Parameter and return types**
 
 - Prefer concrete types (primitive types, composites, structs, and their pointers) over interface types for parameters 
 - Do not use interface types as return values except for `any` type.
 
-Error handling:
+**Error handling**
 
-- Do not return `error` (as it is an interface). Prefer numeric or string error codes/messages.
+Do not return `error` (as it is an interface) directly from Ray Task functon / Actor methods. Instead, return concrete
+types to indicate errors (e.g., return int for error code), or just `panic` in your code.
+
+When `ObjectRef.GetAll()` / `ObjectRef.Getinto()` / `ray.GetN(obj)` is called on a panic-ed task/actor, it will return an error.
+You can use `fmt.Printf("%+v", err)` to print the error stack trace.
+
 
 ## How It Works
 

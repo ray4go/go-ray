@@ -373,6 +373,13 @@ def test_actor_no_return_method():
     # Should return None
     assert ray.get(result) is None
 
+def test_panic_task():
+    task = goray.golang_task("Panic")
+    result = task.remote("test")
+
+    with pytest.raises(RuntimeError) as excinfo:
+        ray.get(result)
+    assert "golang panic" in str(excinfo.value)
 
 @goray.remote
 def start_python_tests():

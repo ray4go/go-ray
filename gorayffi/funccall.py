@@ -1,5 +1,7 @@
 import json
 
+from . import consts
+
 
 def encode_golang_funccall_arguments(
     name: str,
@@ -49,11 +51,19 @@ def unpack_bytes_units(data: bytes) -> list[bytes]:
     offset = 0
     units = []
     while offset < len(data):
-        length = int.from_bytes(data[offset:offset + 8], byteorder="little")
+        length = int.from_bytes(data[offset: offset + 8], byteorder="little")
         offset += 8
-        units.append(data[offset:offset + length])
+        units.append(data[offset: offset + length])
         offset += length
     assert offset == len(
         data
     ), f"unpack_bytes_units failed, read finish with {offset=} while {len(data)=}"
     return units
+
+
+def make_exception_from_error_response(code: int, data: bytes):
+    assert code != consts.ErrCode.Success
+    if code == consts.ErrCode.GolangPanic:
+        info = json.loads(data.decode("utf-8"))
+        raise RuntimeError(f"golang panic: {info['Message']}\n\n{info['Traceback']}")
+    raise Exception(data.decode("utf-8"))

@@ -20,7 +20,10 @@ def handle_run_py_local_task(
 
     func = python_func_getter(func_name)
     if func is None:
-        return utils.error_msg(f"python task {func_name} not found"), consts.ErrCode.Failed
+        return (
+            utils.error_msg(f"python task {func_name} not found"),
+            consts.ErrCode.Failed,
+        )
 
     args = list(msgpack.Unpacker(io.BytesIO(raw_args), strict_map_key=False))
 
@@ -41,7 +44,10 @@ def handle_run_python_func_code(data: bytes) -> tuple[bytes, int]:
     func_code = options.pop("func_code")
     func_names = utils.parse_function_name(func_code)
     if len(func_names) == 0:
-        return b"Invalid python function code: can't get function name", consts.ErrCode.Failed
+        return (
+            b"Invalid python function code: can't get function name",
+            consts.ErrCode.Failed,
+        )
     if len(func_names) > 1:
         return (
             b"Invalid python function code: multiple function definitions found",
@@ -82,7 +88,10 @@ def handle_new_python_class_instance(
 
     cls = python_class_getter(class_name)
     if cls is None:
-        return utils.error_msg(f"python class {class_name} not found"), consts.ErrCode.Failed
+        return (
+            utils.error_msg(f"python class {class_name} not found"),
+            consts.ErrCode.Failed,
+        )
 
     args = list(msgpack.Unpacker(io.BytesIO(args_data), strict_map_key=False))
     try:
@@ -105,7 +114,10 @@ def handle_class_instance_method_call(
     method_name = options.pop(consts.TASK_NAME_OPTION_KEY)
     instance_id = options.pop(consts.PY_LOCAL_ACTOR_ID_KEY)
     if instance_id not in class_instances_store:
-        return utils.error_msg("python class instance not found!"), consts.ErrCode.Failed
+        return (
+            utils.error_msg("python class instance not found!"),
+            consts.ErrCode.Failed,
+        )
     obj_handle = class_instances_store[instance_id]
     args = list(msgpack.Unpacker(io.BytesIO(args_data), strict_map_key=False))
     try:
@@ -127,7 +139,10 @@ def handle_close_python_class_instance(
     instance_id = options.pop(consts.PY_LOCAL_ACTOR_ID_KEY)
 
     if instance_id not in class_instances_store:
-        return utils.error_msg("python class instance not found!"), consts.ErrCode.Failed
+        return (
+            utils.error_msg("python class instance not found!"),
+            consts.ErrCode.Failed,
+        )
 
     class_instances_store.release(instance_id)
     return b"", 0

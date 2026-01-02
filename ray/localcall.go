@@ -21,7 +21,7 @@ type LocalPyCallResult struct {
 // Get returns the result of the local Python call.
 func (r LocalPyCallResult) Get() (any, error) {
 	if r.code != consts.ErrorCode_Success {
-		return nil, fmt.Errorf("local call Python failed: retCode=%v, message=%s", r.code, r.data)
+		return nil, newError(r.code, r.data)
 	}
 	res := remote_call.DecodeWithType(r.data, nil, utils.SliceIndexGetter([]reflect.Type{anyType}))
 	if len(res) == 0 {
@@ -41,7 +41,7 @@ func (r LocalPyCallResult) Get() (any, error) {
 // [GoRay Cross-Language Call Type Conversion Guide]: https://github.com/ray4go/go-ray/blob/master/docs/crosslang_types.md
 func (r LocalPyCallResult) GetInto(ptrs ...any) error {
 	if r.code != consts.ErrorCode_Success {
-		return fmt.Errorf("local call Python failed: retCode=%v, message=%s", r.code, r.data)
+		return newError(r.code, r.data)
 	}
 	if len(ptrs) == 0 {
 		return nil
@@ -107,7 +107,7 @@ func NewLocalPyClassInstance(className string, args ...any) *PythonObjectHandle 
 
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_NewClassInstance, argsData)
 	if retCode != 0 {
-		panic(fmt.Sprintf("Error: NewActor failed: retCode=%v, message=%s", retCode, res))
+		panic(newError(retCode, res))
 	}
 	return &PythonObjectHandle{
 		pyLocalId: int64(binary.LittleEndian.Uint64(res)),
@@ -142,7 +142,7 @@ func (h *PythonObjectHandle) Close() error {
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_CloseClassInstance, data)
 
 	if retCode != consts.ErrorCode_Success {
-		return fmt.Errorf("close python local class instance failed, reason: %w, detail: %s", newError(retCode), res)
+		return newError(retCode, res)
 	}
 	return nil
 }

@@ -2,7 +2,7 @@
 # Run goray application, and collect coverage data.> 
 # Usage: bash run.sh pkg_path remote|local|build
 
-set -e
+set -e  # Exit on error
 
 if [ -z "$1" ] || [ -z "$2" ]; then
   echo "Usage: $0 pkg_path remote|local|build"

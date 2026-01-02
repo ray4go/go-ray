@@ -11,6 +11,7 @@ class ErrCode(enum.IntEnum):
     Timeout = enum.auto()
     Cancelled = enum.auto()
     ObjectRefNotFound = enum.auto()
+    GolangPanic = enum.auto()
 
 
 class Go2PyCmd(enum.IntEnum):

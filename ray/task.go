@@ -47,8 +47,8 @@ func RemoteCall(name string, argsAndOpts ...any) *ObjectRef {
 	argsData := remote_call.EncodeRemoteCallArgs(callable, remoteCallArgs(argsAndOpts))
 
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_ExeRemoteTask, argsData) // todo: pass error to ObjectRef
-	if retCode != 0 {
-		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
+	if retCode != consts.ErrorCode_Success {
+		panic(newError(retCode, res))
 	}
 	returnTypes := make([]reflect.Type, 0, taskFunc.Type.NumOut())
 	for i := 0; i < taskFunc.Type.NumOut(); i++ {

@@ -9,6 +9,7 @@ const (
 	ErrorCode_Timeout
 	ErrorCode_Cancelled
 	ErrorCode_ObjectRefNotFound
+	ErrorCode_Panic
 )
 
 const (

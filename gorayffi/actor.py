@@ -9,6 +9,8 @@ import msgpack
 
 from . import cmds
 from . import consts
+from . import funccall
+
 
 logger = logging.getLogger(__name__)
 
@@ -86,9 +88,7 @@ class GoActor:
         encoded_args = _encode_native_args(*args)
         res, code = self.call_method_with_encoded_args(method_name, encoded_args, [])
         if code != consts.ErrCode.Success:
-            raise Exception(
-                f"Run golang actor method {method_name} error: {res.decode('utf-8')}"
-            )
+            raise funccall.make_exception_from_error_response(code, res)
         returns = list(msgpack.Unpacker(io.BytesIO(res), strict_map_key=False))
         if len(returns) == 1:
             return returns[0]

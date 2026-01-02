@@ -40,10 +40,8 @@ class GoCommander:
     def call_golang_func(self, func_name: str, args: tuple):
         raw_args = b"".join(msgpack.packb(arg, use_bin_type=True) for arg in args)
         res, code = self.raw_call_golang_func(func_name, raw_args, [])
-        if code != 0:
-            raise Exception(
-                f"execute golang task {func_name} error: {res.decode('utf-8')}"
-            )
+        if code != consts.ErrCode.Success:
+            raise funccall.make_exception_from_error_response(code, res)
         returns = list(msgpack.Unpacker(io.BytesIO(res), strict_map_key=False))
         if len(returns) == 1:
             return returns[0]
@@ -67,7 +65,7 @@ class GoCommander:
         data, err = funccall.encode_golang_funccall_arguments(
             func_name, raw_args, object_positions, *resolved_object_refs
         )
-        if err != 0:
+        if err != consts.ErrCode.Success:
             return data, err
 
         logger.debug(f"[py] local_run_task {func_name=}, {object_positions=}")
@@ -99,13 +97,13 @@ class GoCommander:
             object_positions,
             *object_refs,
         )
-        if err != 0:
-            raise Exception(data.decode("utf-8"))
+        if err != consts.ErrCode.Success:
+            raise funccall.make_exception_from_error_response(err, data)
         logger.debug(f"[py] new golang actor {actor_class_name}")
 
         res, code = self.execute(consts.Py2GoCmd.CMD_NEW_ACTOR, 0, data)
         if code != consts.ErrCode.Success:
-            raise Exception("create golang actor error: " + res.decode("utf-8"))
+            raise funccall.make_exception_from_error_response(code, res)
 
         return int(res.decode("utf-8"))
 
@@ -123,12 +121,14 @@ class GoCommander:
         data, err = funccall.encode_golang_funccall_arguments(
             method_name, encoded_args, object_positions, *object_refs
         )
-        if err != 0:
+        if err != consts.ErrCode.Success:
             return data, err
 
         logger.debug(f"[py] run actor method {method_name=}, {go_obj_id=}")
         try:
-            res, code = self.execute(consts.Py2GoCmd.CMD_ACTOR_METHOD_CALL, go_obj_id, data)
+            res, code = self.execute(
+                consts.Py2GoCmd.CMD_ACTOR_METHOD_CALL, go_obj_id, data
+            )
         except Exception as e:
             logging.exception(
                 f"[py] python ffi.execute(CMD_ACTOR_METHOD_CALL) error {e}"

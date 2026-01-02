@@ -37,6 +37,12 @@ func (TestTask) ProcessLargeData(size int) []int {
 	return data
 }
 
+func (TestTask) Panic(panicMessage string) {
+	if panicMessage != "" {
+		panic(panicMessage)
+	}
+}
+
 func (TestTask) EmptyReturns() {
 	// Task with no return values
 }
@@ -193,5 +199,14 @@ func init() {
 		assert.ErrorIs(getErr1, ray.ErrCancelled)
 		assert.ErrorIs(getErr2, ray.ErrCancelled)
 		assert.ErrorIs(getErr3, ray.ErrCancelled)
+	})
+
+	AddTestCase("TestTaskPanic", func(assert *require.Assertions) {
+		panicMsg := "this is a test panic"
+		obj := ray.RemoteCall("Panic", panicMsg)
+		_, err := obj.GetAll()
+		assert.NotNil(err)
+		assert.Equal(fmt.Sprint(err), panicMsg)
+		fmt.Printf("%+v", err)
 	})
 }

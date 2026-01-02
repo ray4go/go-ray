@@ -59,7 +59,7 @@ func (obj *ObjectRef) getRaw(option *getObjectOption) ([]byte, error) {
 	resultData, retCode := ffi.CallServer(consts.Go2PyCmd_GetObject, data)
 
 	if retCode != consts.ErrorCode_Success {
-		return nil, fmt.Errorf("ObjectRef.Get failed, reason: %w, detail: %s", newError(retCode), resultData)
+		return nil, newError(retCode, resultData)
 	}
 	return resultData, nil
 }
@@ -87,7 +87,7 @@ func (obj *ObjectRef) Release() {
 	binary.LittleEndian.PutUint64(objIdData, uint64(obj.id))
 	resultData, retCode := ffi.CallServer(consts.Go2PyCmd_ReleaseObject, objIdData)
 	if retCode != consts.ErrorCode_Success && retCode != consts.ErrorCode_ObjectRefNotFound {
-		panic(fmt.Sprintf("ray.Release() failed, reason: %v, detail: %s", newError(retCode), resultData))
+		panic(newError(retCode, resultData))
 	}
 }
 
@@ -105,7 +105,7 @@ func (obj *ObjectRef) Cancel(opts ...*RayOption) error {
 	}
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_CancelObject, data)
 	if retCode != consts.ErrorCode_Success {
-		return fmt.Errorf("ray.Cancel() failed, reason: %w, detail: %s", newError(retCode), res)
+		return newError(retCode, res)
 	}
 	return nil
 }

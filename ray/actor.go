@@ -92,7 +92,7 @@ func NewActor(typeName string, argsAndOpts ...any) *ActorHandle {
 
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_NewActor, argsData)
 	if retCode != 0 {
-		panic(fmt.Sprintf("Error: NewActor failed: retCode=%v, message=%s", retCode, res))
+		panic(fmt.Sprintf("Error: NewActor failed: retCode=%v, Message=%s", retCode, res))
 	}
 	return &ActorHandle{
 		pyLocalId: int64(binary.LittleEndian.Uint64(res)),
@@ -163,7 +163,7 @@ func (actor *ActorHandle) RemoteCall(methodName string, argsAndOpts ...any) *Obj
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_ActorMethodCall, argsData)
 	if retCode != 0 {
 		// todo: pass error to ObjectRef
-		panic(fmt.Sprintf("Error: RemoteCall failed: retCode=%v, message=%s", retCode, res))
+		panic(newError(retCode, res))
 	}
 	return &ObjectRef{
 		id:          int64(binary.LittleEndian.Uint64(res)),
@@ -227,7 +227,7 @@ func (actor *ActorHandle) Kill(opts ...*RayOption) error {
 	res, retCode := ffi.CallServer(consts.Go2PyCmd_KillActor, data)
 
 	if retCode != consts.ErrorCode_Success {
-		return fmt.Errorf("actor.Kill failed, reason: %w, detail: %s", newError(retCode), res)
+		return newError(retCode, res)
 	}
 	return nil
 }
@@ -240,7 +240,7 @@ func getActor(name string, opts ...*RayOption) (*ActorHandle, string, error) {
 	resData, retCode := ffi.CallServer(consts.Go2PyCmd_GetActor, data)
 
 	if retCode != consts.ErrorCode_Success {
-		return nil, "", fmt.Errorf("GetActor failed, reason: %w, detail: %s", newError(retCode), resData)
+		return nil, "", newError(retCode, resData)
 	}
 
 	var res struct {

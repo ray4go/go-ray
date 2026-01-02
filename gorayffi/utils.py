@@ -96,7 +96,7 @@ class ThreadSafeLocalStore:
     The released key will not be reused in right away, just like the process id generation strategy.
     """
 
-    MAX_SIZE = 2 ** 63 - 1
+    MAX_SIZE = 2**63 - 1
 
     _no_set = object()
 

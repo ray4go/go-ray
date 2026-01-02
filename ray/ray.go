@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/bytedance/gg/gson"
 	"reflect"
 
 	"runtime/debug"
@@ -70,9 +71,10 @@ func Init(taskRegister any, actorRegister any, driverFunc func() int, options ..
 
 func handlePythonCmd(request int64, data []byte) (resData []byte, retCode int64) {
 	defer func() {
-		if err := recover(); err != nil {
-			retCode = consts.ErrorCode_Failed
-			resData = []byte(fmt.Sprintf("handlePythonCmd panic: %v\n%s\n", err, debug.Stack()))
+		if panicInfo := recover(); panicInfo != nil {
+			retCode = consts.ErrorCode_Panic
+			// todo: skip top levels frame from stack trace
+			resData, _ = gson.Marshal(panicError{Message: fmt.Sprint(panicInfo), Traceback: string(debug.Stack())})
 		}
 		testing.WriteCoverageWhenTesting()
 	}()
@@ -140,7 +142,7 @@ func Put[T any](value T) (SharedObject[T], error) {
 	}
 	objIdBytes, retCode := ffi.CallServer(consts.Go2PyCmd_PutObject, data) // todo: pass error to ObjectRef
 	if retCode != consts.ErrorCode_Success {
-		return SharedObject[T]{}, fmt.Errorf("error: ray.Put() failed: retCode=%v, message=%s", retCode, objIdBytes)
+		return SharedObject[T]{}, newError(retCode, objIdBytes)
 	}
 
 	var zero T
@@ -171,7 +173,7 @@ func Wait(objRefs []*ObjectRef, requestNum int, opts ...*RayOption) ([]*ObjectRe
 	}
 	retData, retCode := ffi.CallServer(consts.Go2PyCmd_WaitObject, data)
 	if retCode != consts.ErrorCode_Success {
-		return nil, nil, fmt.Errorf("ray.Wait() failed, reason: %w, detail: %s", newError(retCode), retData)
+		return nil, nil, newError(retCode, retData)
 	}
 	var res [][]int
 	err = json.Unmarshal(retData, &res)
