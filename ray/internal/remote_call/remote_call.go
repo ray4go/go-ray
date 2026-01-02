@@ -94,17 +94,27 @@ func UnpackRemoteCallArgs(data []byte) (string, []byte, map[int][]byte) {
 // when receiverVal is not nil, it's a method call; otherwise it's a function call.
 func FuncCall(funcVal reflect.Value, receiverVal *reflect.Value, args []any) []any {
 	log.Debug("[Go] FuncCall: %v", funcVal)
+	funcType := funcVal.Type()
+
 	argVals := make([]reflect.Value, 0, len(args)+1)
+	argOffset := 0
 	if receiverVal != nil {
 		argVals = append(argVals, *receiverVal)
+		argOffset = 1 // method receiver 占了第一个位置
 	}
-	for _, arg := range args {
+
+	for i, arg := range args {
 		if arg == nil {
-			// funcVal.Call requires the argument type to be non-nil,
-			// noted (*T)(nil) is not nil.
-			panic("passing nil to interface{} type parameter is not allowed")
+			paramType := funcType.In(i + argOffset)
+			switch paramType.Kind() {
+			case reflect.Ptr, reflect.Interface, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func:
+				argVals = append(argVals, reflect.Zero(paramType))
+			default:
+				panic(fmt.Sprintf("cannot pass nil to non-nillable parameter type %v at position %d", paramType, i))
+			}
+		} else {
+			argVals = append(argVals, reflect.ValueOf(arg))
 		}
-		argVals = append(argVals, reflect.ValueOf(arg))
 	}
 	returnValues := funcVal.Call(argVals)
 
@@ -237,7 +247,11 @@ func DecodeInto(data []byte, ptrs []any) error {
 		return reflect.TypeOf(ptrs[i]).Elem()
 	})
 	for i, val := range vals {
-		val.Elem().Set(reflect.ValueOf(res[i]))
+		if res[i] == nil {
+			val.Elem().Set(reflect.Zero(val.Elem().Type()))
+		} else {
+			val.Elem().Set(reflect.ValueOf(res[i]))
+		}
 	}
 	return nil
 }

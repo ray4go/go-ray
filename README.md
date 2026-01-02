@@ -332,9 +332,8 @@ See: [goraygen Documentation](https://github.com/ray4go/goraygen)
 
 Parameter and return types:
 
-- Can be primitive types, composites, structs, and their pointers
-- Avoid `interface{}` (including members within composite types)
-- Do not use interface types as parameters or return values
+- Parameter and return types can be primitive types, composites, structs, and their pointers.
+- You should not use interface types as return values except for `any` type.
 
 Error handling:
 
