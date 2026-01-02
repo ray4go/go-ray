@@ -333,12 +333,12 @@ See: [goraygen Documentation](https://github.com/ray4go/goraygen)
 
 Parameter and return types:
 
-- Parameter and return types can be primitive types, composites, structs, and their pointers.
-- You should not use interface types as return values except for `any` type.
+- Prefer concrete types (primitive types, composites, structs, and their pointers) over interface types for parameters 
+- Do not use interface types as return values except for `any` type.
 
 Error handling:
 
-- Do not return `error` (it is an interface). Prefer numeric or string error codes/messages.
+- Do not return `error` (as it is an interface). Prefer numeric or string error codes/messages.
 
 ## How It Works
 

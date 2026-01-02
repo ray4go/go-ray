@@ -38,7 +38,7 @@ jobs:
         mkdir -p output
 
     - name: Run examples
-      run: bash -e examples/basic/run.sh && bash -e examples/crosslang/run.sh
+      run: ls examples/*/run.sh | xargs -n 1 bash -e
       env:
         RAY_RUNTIME_ENV_IGNORE_GITIGNORE: 1
 
