@@ -57,7 +57,7 @@ Build and run the application:
 go mod tidy
 go build -buildmode=c-shared -o rayapp .
 
-pip install "ray[default]" goray
+pip install "goray[ray]"
 goray rayapp
 ```
 
@@ -67,9 +67,10 @@ goray rayapp
 
 ```bash
 go get github.com/ray4go/go-ray/ray
+pip install "goray[ray]"
 ```
 
-Requires Go 1.21+.
+Requires Go 1.21+ and Python 3.10+;
 
 ### Example GoRay Application
 
