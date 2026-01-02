@@ -113,7 +113,7 @@ class GolangLocalActor:
     ):
         self._cmder = cmder
         self._actor_class_name = actor_class_name
-
+        self._method_names = []  # avoid unlimited recursion on __getattr__
         self._method_names = self._cmder.get_golang_actor_methods(actor_class_name)
         self._actor = GoActor(
             self._cmder,
