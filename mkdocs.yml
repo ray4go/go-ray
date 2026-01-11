@@ -1,5 +1,5 @@
-site_name: GoRay API Reference
-site_description: Python API documentation for GoRay
+site_name: GoRay Python API Reference
+site_description: Python API Reference for GoRay project
 site_url: https://github.com/ray4go/go-ray
 repo_url: https://github.com/ray4go/go-ray
 repo_name: ray4go/go-ray

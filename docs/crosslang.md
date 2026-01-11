@@ -30,7 +30,7 @@ In Go:
 - `ray.RemoteCallPyTask(name, args...) -> ObjectRef` — Submit a Python Ray task.
 - `ray.NewPyActor(name, args...) -> ActorHandle` — Create a Python Ray actor.
 - `ray.LocalCallPyTask(name, args...) -> LocalPyCallResult` — Call a Python function in-process.
-- `ray.NewLocalPyClassInstance(name, args...) -> LocalPyCallResult` — Create a Python class instance in-process.
+- `ray.NewPyLocalInstance(name, args...) -> PyLocalInstance` — Create a Python class instance in-process.
 
 ## User Guide
 

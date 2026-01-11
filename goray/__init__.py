@@ -55,16 +55,17 @@ def start(
 
 def remote(*args, **kwargs):
     """
-    Same as @ray.remote, plus registering the task or actor in goray, which can be called from Go side:
+    Same as `@ray.remote`, plus registering the task or actor in goray, which can be called from Go side:
 
     For Ray task, you can call it from Go using:
 
     - `ray.RemoteCallPyTask(name, args...)`: calls the python Ray task remotely.
-    - `ray.LocalCallPyTask(name, args...)`: calls the python Ray task locally (in-process).
+    - `ray.LocalCallPyTask(name, args...)`: calls the python task locally (in-process).
 
     For Ray actor, you can create it from Go using:
 
     - `ray.NewPyActor(name, args...)`: creates the python Ray actor remotely.
+    - `ray.NewPyLocalInstance(name, args...)`: creates the python actor locally (in-process).
     """
     if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
         # This is the case where the decorator is just @remote.
@@ -77,9 +78,10 @@ def remote(*args, **kwargs):
 def local(func):
     """
     Decorator to register a python function/class to be called from go.
+    Unlike `@remote()`, the registered function/class with `@local` can only be called locally (in-process) from Go side.
 
     - Python function can be called from Go using `ray.LocalCallPyTask(name, args...)`.
-    - Python class can be called from Go using `ray.NewLocalPyClassInstance(name, args...)`.
+    - Python class can be called from Go using `ray.NewPyLocalInstance(name, args...)`.
     """
     registry.make_local(func)
     return func

@@ -91,17 +91,17 @@ func CallPythonCode(funcCode string, args ...any) LocalPyCallResult {
 	}
 }
 
-// PythonObjectHandle represents a handle to a Python object in the local process.
-type PythonObjectHandle struct {
+// PyLocalInstance represents a handle to a Python class instance in the local process.
+type PyLocalInstance struct {
 	pyLocalId int64 // python instance id
 }
 
-// NewLocalPyClassInstance initializes a new Python class instance locally (in current process).
+// NewPyLocalInstance initializes a new Python class instance locally (in current process).
 //
 // See [GoRay Cross-Language Programming] for more details.
 //
 // [GoRay Cross-Language Programming]: https://github.com/ray4go/go-ray/blob/master/docs/crosslang.md
-func NewLocalPyClassInstance(className string, args ...any) *PythonObjectHandle {
+func NewPyLocalInstance(className string, args ...any) *PyLocalInstance {
 	argsAndOpts := append(args, Option(consts.GorayOptionKey_ActorName, className))
 	argsData := remote_call.EncodeRemoteCallArgs(nil, remoteCallArgs(argsAndOpts))
 
@@ -109,13 +109,16 @@ func NewLocalPyClassInstance(className string, args ...any) *PythonObjectHandle 
 	if retCode != 0 {
 		panic(newError(retCode, res))
 	}
-	return &PythonObjectHandle{
+	return &PyLocalInstance{
 		pyLocalId: int64(binary.LittleEndian.Uint64(res)),
 	}
 }
 
+// NewLocalPyClassInstance is the deprecated alias of [NewPyLocalInstance].
+var NewLocalPyClassInstance = NewPyLocalInstance
+
 // MethodCall calls a method on the local Python class instance.
-func (h *PythonObjectHandle) MethodCall(methodName string, args ...any) LocalPyCallResult {
+func (h *PyLocalInstance) MethodCall(methodName string, args ...any) LocalPyCallResult {
 	argsAndOpts := append(args,
 		Option(consts.GorayOptionKey_PyLocalActorId, h.pyLocalId),
 		Option(consts.GorayOptionKey_TaskName, methodName),
@@ -130,7 +133,7 @@ func (h *PythonObjectHandle) MethodCall(methodName string, args ...any) LocalPyC
 }
 
 // Close closes the local Python class instance. So it can be garbage collected in Python side.
-func (h *PythonObjectHandle) Close() error {
+func (h *PyLocalInstance) Close() error {
 	opts := []*RayOption{
 		Option(consts.GorayOptionKey_PyLocalActorId, h.pyLocalId),
 	}

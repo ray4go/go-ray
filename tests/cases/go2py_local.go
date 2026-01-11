@@ -74,7 +74,7 @@ func init() {
 
 	AddTestCase("TestGoCallPy-local-actor", func(assert *require.Assertions) {
 		args := []any{1, "str", true, 3.0, []int{1, 2, 3}, map[string]int{"a": 1}}
-		actor := ray.NewLocalPyClassInstance("PyActor", args...)
+		actor := ray.NewPyLocalInstance("PyActor", args...)
 		res, err := actor.MethodCall("get_args").Get()
 		assert.NoError(err)
 		assert.True(tools.DeepEqualValues(args, res))
@@ -91,7 +91,7 @@ func init() {
 		assert.NoError(err)
 		assert.Equal("hello world", res1)
 
-		actor = ray.NewLocalPyClassInstance("PyActor")
+		actor = ray.NewPyLocalInstance("PyActor")
 		actor.MethodCall("no_return", "world")
 		obj2 := actor.MethodCall("no_return", "world")
 		res, err = obj2.Get()
@@ -575,7 +575,7 @@ def runtime_error():
 
 	// Test local actor advanced features
 	AddTestCase("TestGoCallPy-local-ActorAdvanced", func(assert *require.Assertions) {
-		actor := ray.NewLocalPyClassInstance("PyActor", "initial_state")
+		actor := ray.NewPyLocalInstance("PyActor", "initial_state")
 
 		// Test stateful operations
 		result1, err := ray.Get1[string](actor.MethodCall("set_state", "counter", 10))
@@ -610,7 +610,7 @@ def runtime_error():
 
 	// Test local actor stateful operations
 	AddTestCase("TestGoCallPy-local-ActorStateful", func(assert *require.Assertions) {
-		actor := ray.NewLocalPyClassInstance("PyActor", "stateful_test")
+		actor := ray.NewPyLocalInstance("PyActor", "stateful_test")
 
 		// Test counter functionality
 		count1, err := ray.Get1[int](actor.MethodCall("increment_counter", 5))

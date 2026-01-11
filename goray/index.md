@@ -1,6 +1,6 @@
 # GoRay Python API Reference
 
-`goray` is a Python package for the GoRay project, providing APIs to expose Python Ray tasks & actors to Go and call Go
+`goray` is a Python package for the [GoRay](https://github.com/ray4go/go-ray) project, providing APIs to expose Python Ray tasks & actors to Go and call Go
 Ray tasks & actors from Python.
 
 It also provides a CLI to launch GoRay applications in Ray environments.
@@ -11,7 +11,7 @@ It also provides a CLI to launch GoRay applications in Ray environments.
 pip install goray
 ```
 
-## API Documentation
+## API Reference
 
 ::: goray
 options:
