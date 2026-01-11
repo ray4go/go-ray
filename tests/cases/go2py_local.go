@@ -181,7 +181,7 @@ def bad_function(
 		result := ray.CallPythonCode(badCode, 1)
 		_, err := result.Get()
 		assert.Error(err)
-		assert.Contains(err.Error(), "failed")
+		assert.Contains(err.Error(), "Invalid python function code")
 
 		// Test runtime error in Python code
 		errorCode := `

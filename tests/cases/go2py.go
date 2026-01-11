@@ -580,7 +580,7 @@ def process_list(items):
 		// Test calling non-existent Python function
 		defer func() {
 			if r := recover(); r != nil {
-				assert.Contains(fmt.Sprintf("%v", r), "failed")
+				assert.Contains(fmt.Sprintf("%v", r), "not found")
 			}
 		}()
 		ray.RemoteCallPyTask("non_existent_function")
@@ -639,28 +639,6 @@ def process_list(items):
 		finalResult, err := ray.Get1[int](pyObj2)
 		assert.NoError(err)
 		assert.Equal(42, finalResult)
-	})
-
-	// Test CallPythonCode error cases
-	AddTestCase("TestGoCallPy-CallPythonCodeErrors", func(assert *require.Assertions) {
-		// Test syntax error in Python code
-		badCode := `
-def bad_function(
-    return "missing colon and closing paren"
-`
-		result := ray.CallPythonCode(badCode, 1)
-		_, err := result.Get()
-		assert.Error(err)
-		assert.Contains(err.Error(), "failed")
-
-		// Test runtime error in Python code
-		errorCode := `
-def runtime_error():
-    raise ValueError("Runtime error for testing")
-`
-		result2 := ray.CallPythonCode(errorCode)
-		_, err2 := result2.Get()
-		assert.Error(err2)
 	})
 
 	// Test actor with stateful operations and batch processing

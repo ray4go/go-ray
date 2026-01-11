@@ -41,10 +41,12 @@ func getTestCases(filter func(string) bool) []testing.InternalTest {
 		res = append(res, testing.InternalTest{
 			Name: test_.Name,
 			F: func(t *testing.T) {
+				defer func() {
+					if t.Failed() {
+						addFailedTest(test_.Name)
+					}
+				}()
 				test_.F(t)
-				if t.Failed() {
-					addFailedTest(test_.Name)
-				}
 			},
 		})
 	}

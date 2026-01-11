@@ -30,11 +30,11 @@ def get_py_actor(name: str):
 
 
 def all_py_tasks():
-    return [i for i, _ in _remote_tasks]
+    return list(_remote_tasks)
 
 
 def all_py_actors():
-    return [i for i, _ in _remote_actors]
+    return list(_remote_actors)
 
 
 local_funcs = {}
