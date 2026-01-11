@@ -56,6 +56,6 @@ jobs:
           echo "Publishing Go module version: $TAG"
           
           # Trigger Go proxy to update module version
-          GOPROXY=proxy.golang.org go list -m github.com/ray4go/go-ray/ray@$TAG
+          GOPROXY=https://proxy.golang.org GO111MODULE=on go get github.com/ray4go/go-ray/ray@$TAG
           
           echo "Go module version update triggered successfully"
