@@ -17,7 +17,7 @@ def start(
     libpath: str,
     py_defs_path: str = "",
     **ray_init_args: dict,
-):
+) -> int:
     """
     Initialize GoRay and Ray environment. Start the Go driver function.
 
@@ -25,7 +25,8 @@ def start(
     :param py_defs_path: path to a python file to import python ray tasks and actors.
     :param ray_init_args: arguments to pass to [`ray.init()`](https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html#ray.init).
        The arguments here will overwrite the ones provided in golang side (via [`ray.Init()`](https://pkg.go.dev/github.com/ray4go/go-ray/ray#Init)) per key.
-    :return: int, the return code of the driver function.
+    :return: the return code of the golang driver function.
+    :rtype: int
     """
     state.golibpath = libpath
     state.pymodulepath = py_defs_path
@@ -75,7 +76,7 @@ def remote(*args, **kwargs):
     return functools.partial(registry.make_remote, options=kwargs)
 
 
-def local(func):
+def local(func_or_class):
     """
     Decorator to register a python function/class to be called from go.
     Unlike `@remote()`, the registered function/class with `@local` can only be called locally (in-process) from Go side.
@@ -83,8 +84,8 @@ def local(func):
     - Python function can be called from Go using `ray.LocalCallPyTask(name, args...)`.
     - Python class can be called from Go using `ray.NewPyLocalInstance(name, args...)`.
     """
-    registry.make_local(func)
-    return func
+    registry.make_local(func_or_class)
+    return func_or_class
 
 
 def golang_actor_class(name: str, **options):

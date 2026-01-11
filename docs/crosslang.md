@@ -25,12 +25,16 @@ In Python:
 - Use `goray.golang_local_run_task(name: str, *args)` to call a Go function in-process.
 - Use `goray.golang_local_new_actor(name: str, *args)` to instantiate a Go class in-process.
 
+See [GoRay Python API Reference](https://ray4go.github.io/go-ray/) for more details.
+
 In Go:
 
 - `ray.RemoteCallPyTask(name, args...) -> ObjectRef` — Submit a Python Ray task.
 - `ray.NewPyActor(name, args...) -> ActorHandle` — Create a Python Ray actor.
 - `ray.LocalCallPyTask(name, args...) -> LocalPyCallResult` — Call a Python function in-process.
 - `ray.NewPyLocalInstance(name, args...) -> PyLocalInstance` — Create a Python class instance in-process.
+
+See [GoRay Go API Reference](https://pkg.go.dev/github.com/ray4go/go-ray/ray) for more details.
 
 ## User Guide
 
@@ -215,3 +219,4 @@ pointers. See the [Cross-Language Type Conversion Guide](crosslang_types.md).
 
 - When Python calls Go, if the Go task/method has a single return value, Python receives a single value. For multiple return values, Python receives a list.
 - Go calls Python: Return values are always delivered to Go as a single value (if any). Use `ray.Get1[T](objectRef)` or `objectRef.GetInto(&val)` to read it.
+  For example, if the Python function returns a tuple of two integers, you can use `ray.Get1[[]int](objectRef)` to get it.

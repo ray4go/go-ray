@@ -2,7 +2,7 @@
 
 Go bindings for Ray Core.
 
-[API Documentation](https://pkg.go.dev/github.com/ray4go/go-ray/ray)
+[API Reference](https://pkg.go.dev/github.com/ray4go/go-ray/ray)
 
 ## Features
 
@@ -61,7 +61,7 @@ pip install "goray[ray]"
 goray rayapp
 ```
 
-## Usage
+## User Guide
 
 ### Install
 
@@ -329,7 +329,18 @@ actors.
 
 See: [goraygen Documentation](https://github.com/ray4go/goraygen)
 
-## Best Practices
+### Difference with Ray Core Python SDK
+
+The Ray Core uses distributed reference counting to manage object lifetimes; once an object has no remaining
+references, it is garbage collected from the Ray object store.
+
+However, in golang, we can't track the lifetime of objects. So we use a simple and different approach to manage object references.
+In GoRay, by default, an object reference will be automatically released once it has been retrieved or passed to another task.
+Subsequent access to a released ObjectRef will cause `ErrObjectRefNotFound`. 
+You can use `ObjectRef.DisableAutoRelease()` to turn off this behavior, the object reference will persist until task ends,
+or you can call `ObjectRef.Release()` manually when you no longer need the reference in the current task.
+
+### Best Practices
 
 **Parameter and return types**
 

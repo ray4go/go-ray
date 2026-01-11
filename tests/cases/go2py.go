@@ -39,6 +39,16 @@ func init() {
 		args, err := ray.Get1[any](obj)
 		assert.NoError(err)
 		assert.True(tools.DeepEqualValues([]any{1, "str", true, 3.14, []int{1, 2, 3}, map[string]int{"a": 1}}, args))
+
+		obj2 := ray.RemoteCallPyTask("echo", 1, 2, 3)
+		obj2.DisableAutoRelease()
+		args2, err := ray.Get1[[]any](obj2)
+		assert.NoError(err)
+		assert.True(tools.DeepEqualValues([]int{1, 2, 3}, args2))
+
+		args3, err := ray.Get1[[]int64](obj2)
+		assert.NoError(err)
+		assert.True(tools.DeepEqualValues([]int{1, 2, 3}, args3))
 	})
 
 	AddTestCase("TestGoCallPy-args-obj", func(assert *require.Assertions) {

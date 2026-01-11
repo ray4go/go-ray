@@ -35,6 +35,7 @@ func (r LocalPyCallResult) Get() (any, error) {
 //
 // If the Python function has no return values, no arguments should be provided.
 // If the Python function has return value, only one pointer should be provided.
+// For example, if the Python function returns a tuple of two integers, you should provide a pointer to `[]any` or `[]int`.
 //
 // For type conversion between Python and Go, see [GoRay Cross-Language Call Type Conversion Guide].
 //

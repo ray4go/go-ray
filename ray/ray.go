@@ -122,7 +122,8 @@ func handleGetTaskAndActorList(_ int64, _ []byte) ([]byte, int64) {
 	return data, 0
 }
 
-// SharedObject represents a shared object put to ray object store by [Put]
+// SharedObject represents a shared object put to ray object store by [Put].
+// It can be passed to remote functions (Tasks) or remote actor methods (Actor Tasks).
 type SharedObject[T0 any] struct {
 	obj *ObjectRef // todo: embed *ObjectRef
 }
